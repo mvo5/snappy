@@ -72,6 +72,9 @@ func (s *updateSuite) TestUpdateToSameReleaseAndChannel(c *check.C) {
 		Reboot(c)
 	} else if AfterReboot(c) {
 		RemoveRebootMark(c)
+		mode, err := partition.Mode()
+		c.Assert(err, check.IsNil, check.Commentf("Error getting bootloader mode: %s", err))
+		c.Assert(mode, check.Equals, "regular", check.Commentf("Wrong bootloader mode."))
 		c.Assert(GetCurrentUbuntuCoreVersion(c) > GetSavedVersion(c),
 			check.Equals, true)
 	}
