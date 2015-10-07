@@ -63,9 +63,6 @@ func (s *SnappySuite) SetUpSuite(c *check.C) {
 		"_integration-tests/data/output/testconfig.json")
 	c.Assert(err, check.IsNil, check.Commentf("Error reading config: %v", err))
 
-	err = tlog.SetTextLevel(Cfg.LogLevel)
-	c.Assert(err, check.IsNil)
-
 	if !isInRebootProcess() {
 		if Cfg.Update || Cfg.Rollback {
 			switchSystemImageConf(c, Cfg.TargetRelease, Cfg.TargetChannel, "0")

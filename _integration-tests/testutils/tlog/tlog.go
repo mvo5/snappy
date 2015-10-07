@@ -51,11 +51,8 @@ type Logger struct {
 	level  Level     // log level, functions with a level below this won't write to output
 }
 
-var l *Logger
-
-func init() {
-	l = &Logger{output: os.Stdout, level: DebugLevel}
-}
+// this variable carries the underlaying state of the logger
+var l = &Logger{output: os.Stdout, level: DebugLevel}
 
 // GetOutput is the getter for the output writter
 func GetOutput() io.Writer {

@@ -21,12 +21,28 @@ package tests
 
 import (
 	"io"
+	"log"
 	"os"
 	"testing"
 
+	"launchpad.net/snappy/_integration-tests/testutils/config"
 	"launchpad.net/snappy/_integration-tests/testutils/report"
 	"launchpad.net/snappy/_integration-tests/testutils/runner"
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
+
+func init() {
+	cfg, err := config.ReadConfig(
+		"_integration-tests/data/output/testconfig.json")
+
+	if err != nil {
+		log.Panic(err.Error())
+	}
+
+	if err = tlog.SetTextLevel(cfg.LogLevel); err != nil {
+		log.Panic(err.Error())
+	}
+}
 
 // Hook up gocheck into the "go test" runner.
 func Test(t *testing.T) {
