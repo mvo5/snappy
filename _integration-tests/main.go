@@ -31,6 +31,7 @@ import (
 	"launchpad.net/snappy/_integration-tests/testutils/build"
 	"launchpad.net/snappy/_integration-tests/testutils/config"
 	"launchpad.net/snappy/_integration-tests/testutils/image"
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 const (
@@ -39,6 +40,7 @@ const (
 	defaultChannel   = "edge"
 	defaultSSHPort   = 22
 	dataOutputDir    = "_integration-tests/data/output/"
+	defaultLogLevel  = "debug"
 )
 
 var configFileName = filepath.Join(dataOutputDir, "testconfig.json")
@@ -70,9 +72,14 @@ func main() {
 		rollback = flag.Bool("rollback", false,
 			"If this flag is used, the image will be updated and then rolled back before running the tests.")
 		outputDir = flag.String("output-dir", defaultOutputDir, "Directory where test artifacts will be stored.")
+		logLevel  = flag.String("loglevel", defaultLogLevel, "Log verbosity level, info or debug.")
 	)
 
 	flag.Parse()
+
+	if err := tlog.SetTextLevel(*logLevel); err != nil {
+		log.Panic(err.Error())
+	}
 
 	build.Assets(*useSnappyFromBranch, *arch)
 
@@ -85,7 +92,7 @@ func main() {
 	// TODO: pass the config as arguments to the test binaries.
 	// --elopio - 2015-07-15
 	cfg := config.NewConfig(
-		configFileName, *imgRelease, *imgChannel, *targetRelease, *targetChannel,
+		configFileName, *imgRelease, *imgChannel, *targetRelease, *targetChannel, *logLevel,
 		remoteTestbed, *update, *rollback)
 	cfg.Write()
 

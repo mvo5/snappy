@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	check "gopkg.in/check.v1"
+	"gopkg.in/check.v1"
 )
 
 // Hook up check.v1 into the "go test" runner
@@ -46,7 +46,7 @@ func testConfigFileName(c *check.C) string {
 func testConfigStruct(fileName string) *Config {
 	return NewConfig(
 		fileName,
-		"testrelease", "testchannel", "testtargetrelease", "testtargetchannel",
+		"testrelease", "testchannel", "testtargetrelease", "testtargetchannel", "info",
 		true, true, true)
 }
 func testConfigContents(fileName string) string {
@@ -56,6 +56,7 @@ func testConfigContents(fileName string) string {
 		`"Channel":"testchannel",` +
 		`"TargetRelease":"testtargetrelease",` +
 		`"TargetChannel":"testtargetchannel",` +
+		`"LogLevel":"info",` +
 		`"RemoteTestbed":true,` +
 		`"Update":true,` +
 		`"Rollback":true` +
@@ -102,6 +103,7 @@ func (s *ConfigSuite) TestReadConfigLocalTestBed(c *check.C) {
 		`"Channel":"testchannel",` +
 		`"TargetRelease":"testtargetrelease",` +
 		`"TargetChannel":"testtargetchannel",` +
+		`"LogLevel":"info",` +
 		`"RemoteTestbed":false,` +
 		`"Update":true,` +
 		`"Rollback":true` +
@@ -113,7 +115,7 @@ func (s *ConfigSuite) TestReadConfigLocalTestBed(c *check.C) {
 
 	testConfigStruct := NewConfig(
 		configFileName,
-		"testrelease", "testchannel", "testtargetrelease", "testtargetchannel",
+		"testrelease", "testchannel", "testtargetrelease", "testtargetchannel", "info",
 		false, true, true)
 
 	c.Assert(err, check.IsNil, check.Commentf("Error reading config: %v", err))

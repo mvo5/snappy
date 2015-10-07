@@ -34,16 +34,17 @@ type Config struct {
 	Channel       string
 	TargetRelease string
 	TargetChannel string
+	LogLevel      string
 	RemoteTestbed bool
 	Update        bool
 	Rollback      bool
 }
 
 // NewConfig is the Config constructor
-func NewConfig(fileName, release, channel, targetRelease, targetChannel string, remoteTestbed, update, rollback bool) *Config {
+func NewConfig(fileName, release, channel, targetRelease, targetChannel, logLevel string, remoteTestbed, update, rollback bool) *Config {
 	return &Config{
 		FileName: fileName, Release: release, Channel: channel,
-		TargetRelease: targetRelease, TargetChannel: targetChannel,
+		TargetRelease: targetRelease, TargetChannel: targetChannel, LogLevel: logLevel,
 		RemoteTestbed: remoteTestbed, Update: update, Rollback: rollback,
 	}
 }

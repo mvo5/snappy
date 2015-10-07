@@ -33,6 +33,7 @@ import (
 	"launchpad.net/snappy/_integration-tests/testutils/cli"
 	"launchpad.net/snappy/_integration-tests/testutils/config"
 	"launchpad.net/snappy/_integration-tests/testutils/partition"
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 const (
@@ -61,6 +62,9 @@ func (s *SnappySuite) SetUpSuite(c *check.C) {
 	Cfg, err = config.ReadConfig(
 		"_integration-tests/data/output/testconfig.json")
 	c.Assert(err, check.IsNil, check.Commentf("Error reading config: %v", err))
+
+	err = tlog.SetTextLevel(Cfg.LogLevel)
+	c.Assert(err, check.IsNil)
 
 	if !isInRebootProcess() {
 		if Cfg.Update || Cfg.Rollback {
@@ -102,11 +106,11 @@ func (s *SnappySuite) SetUpTest(c *check.C) {
 			c.TestName(), contents))
 	} else {
 		if CheckRebootMark("") {
-			c.Logf("****** Running %s", c.TestName())
+			tlog.Debugf("****** Running %s", c.TestName())
 			SetSavedVersion(c, GetCurrentUbuntuCoreVersion(c))
 		} else {
 			if AfterReboot(c) {
-				c.Logf("****** Resuming %s after reboot", c.TestName())
+				tlog.Debugf("****** Resuming %s after reboot", c.TestName())
 			} else {
 				c.Skip(fmt.Sprintf("****** Skipped %s after reboot caused by %s",
 					c.TestName(), os.Getenv("ADT_REBOOT_MARK")))
@@ -131,7 +135,7 @@ func (s *SnappySuite) TearDownTest(c *check.C) {
 				partition.MakeWritable(c, target)
 				defer partition.MakeReadonly(c, target)
 				original := filepath.Join(target, channelCfgFile)
-				c.Logf("Restoring %s...", original)
+				tlog.Debugf("Restoring %s...", original)
 				cli.ExecCommand(c, "sudo", "mv", backup, original)
 			}
 		}
@@ -162,7 +166,7 @@ func switchSystemImageConf(c *check.C, release, channel, version string) {
 }
 
 func replaceSystemImageValues(c *check.C, file, release, channel, version string) {
-	c.Log("Switching the system image conf...")
+	tlog.Debugf("Switching the system image conf...")
 	replaceRegex := map[string]string{
 		release: `s#channel: ubuntu-core/.*/\(.*\)#channel: ubuntu-core/%s/\1#`,
 		channel: `s#channel: ubuntu-core/\(.*\)/.*#channel: ubuntu-core/\1/%s#`,
@@ -210,13 +214,13 @@ func GetCurrentUbuntuCoreVersion(c *check.C) int {
 
 // CallFakeUpdate calls snappy update after faking the current version
 func CallFakeUpdate(c *check.C) string {
-	c.Log("Preparing fake and calling update.")
+	tlog.Debugf("Preparing fake and calling update.")
 	fakeAvailableUpdate(c)
 	return cli.ExecCommand(c, "sudo", "snappy", "update")
 }
 
 func fakeAvailableUpdate(c *check.C) {
-	c.Log("Faking an available update...")
+	tlog.Debugf("Faking an available update...")
 	currentVersion := GetCurrentUbuntuCoreVersion(c)
 	switchChannelVersionWithBackup(c, currentVersion-1)
 	SetSavedVersion(c, currentVersion-1)
@@ -245,7 +249,7 @@ func Reboot(c *check.C) {
 
 // RebootWithMark requests a reboot using a specified mark.
 func RebootWithMark(c *check.C, mark string) {
-	c.Log("Preparing reboot with mark " + mark)
+	tlog.Debugf("Preparing reboot with mark " + mark)
 	err := ioutil.WriteFile(needsRebootFile, []byte(mark), 0777)
 	c.Assert(err, check.IsNil, check.Commentf("Error writing needs-reboot file: %v", err))
 }
