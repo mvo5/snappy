@@ -29,6 +29,8 @@ import (
 	"testing"
 
 	"gopkg.in/check.v1"
+
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 // Hook up check.v1 into the "go test" runner
@@ -183,6 +185,22 @@ func (s *AutopkgtestSuite) TestAdtRunRemoteReturnsTplError(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf("Expected error from tpl not received!"))
 }
 
+func (s *AutopkgtestSuite) TestAdtRunLocalHonoursLogLevel(c *check.C) {
+	backTlogGetLevel := tlogGetLevel
+	defer func() { tlogGetLevel = backTlogGetLevel }()
+	tlogGetLevel = func() tlog.Level {
+		return tlog.InfoLevel
+	}
+	s.subject.AdtRunLocal(imgPath)
+
+	outputDir := outputDir(testArtifactsPath)
+	expectedExecCommadCall := adtrunLocalCmd(controlFile, sourceCodePath, outputDir, imgPath)
+
+	c.Assert(s.execCalls[expectedExecCommadCall],
+		check.Equals, 1,
+		check.Commentf("Expected call %s not executed 1 time", expectedExecCommadCall))
+}
+
 func tplExecuteCmd(tplFile, outputFile string, data interface{}) string {
 	return fmt.Sprint(tplFile, outputFile, data)
 }
@@ -192,7 +210,14 @@ func outputDir(basePath string) string {
 }
 
 func adtrunLocalCmd(controlFile, sourceCodePath, outputDir, imgPath string) string {
-	options := fmt.Sprintf("--- ssh -s /usr/share/autopkgtest/ssh-setup/snappy -- -b -i %s", imgPath)
+	var showBoot string
+
+	if tlogGetLevel() == tlog.DebugLevel {
+		showBoot = " -b"
+	}
+
+	options := fmt.Sprintf("--- ssh -s /usr/share/autopkgtest/ssh-setup/snappy --%s -i %s",
+		showBoot, imgPath)
 	return adtrunCommonCmd(controlFile, sourceCodePath, outputDir, options)
 }
 

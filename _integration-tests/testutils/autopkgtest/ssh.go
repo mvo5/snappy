@@ -24,6 +24,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 const (
@@ -31,9 +33,19 @@ const (
 	sshTimeout       = 600
 )
 
+var (
+	// dependency aliasing
+	tlogGetLevel = tlog.GetLevel
+)
+
 func kvmSSHOptions(imagePath string) string {
-	return fmt.Sprint(commonSSHOptions,
-		"-s /usr/share/autopkgtest/ssh-setup/snappy -- -b -i ", imagePath)
+	var showBoot string
+
+	if tlogGetLevel() == tlog.DebugLevel {
+		showBoot = " -b"
+	}
+	return fmt.Sprintf(commonSSHOptions+
+		"-s /usr/share/autopkgtest/ssh-setup/snappy --%s -i "+imagePath, showBoot)
 }
 
 func remoteTestbedSSHOptions(testbedIP string, testbedPort int) string {
