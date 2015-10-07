@@ -20,11 +20,11 @@
 package image
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
 	"launchpad.net/snappy/_integration-tests/testutils"
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 // Image type encapsulates image actions
@@ -42,7 +42,7 @@ func NewImage(release, channel, revision, baseDir string) *Image {
 
 // UdfCreate forms and executes the UDF command for creating the image
 func (img Image) UdfCreate() (string, error) {
-	fmt.Println("Creating image...")
+	tlog.Debugf("Creating image...")
 
 	imageDir := filepath.Join(img.baseDir, "image")
 

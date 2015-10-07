@@ -20,12 +20,13 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
 	"gopkg.in/check.v1"
+
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 var execCommand = exec.Command
@@ -55,10 +56,10 @@ func ExecCommandToFile(c *check.C, filename string, cmds ...string) {
 // ExecCommandErr executes a shell command and returns a string with the output
 // of the command and eventually the obtained error
 func ExecCommandErr(cmds ...string) (output string, err error) {
-	fmt.Println(strings.Join(cmds, " "))
+	tlog.Debugf(strings.Join(cmds, " "))
 	cmd := execCommand(cmds[0], cmds[1:]...)
 	outputByte, err := cmd.CombinedOutput()
 	output = string(outputByte)
-	fmt.Print(output)
+	tlog.Debugf(output)
 	return
 }

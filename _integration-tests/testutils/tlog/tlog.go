@@ -94,11 +94,11 @@ func SetTextLevel(s string) (err error) {
 // Debugf outputs debug messages
 func Debugf(format string, args ...interface{}) {
 	if l.level >= DebugLevel {
-		fmt.Fprintf(l.output, format, args...)
+		fmt.Fprintf(l.output, format+"\n", args...)
 	}
 }
 
 // Infof outputs info messages
 func Infof(format string, args ...interface{}) {
-	fmt.Fprintf(l.output, format, args...)
+	fmt.Fprintf(l.output, format+"\n", args...)
 }

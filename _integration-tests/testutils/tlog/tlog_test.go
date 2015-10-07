@@ -70,7 +70,7 @@ func (s *logTestSuite) TestLogWritesDebugOutput(c *check.C) {
 	msg := "this is a debug message"
 	Debugf(msg)
 
-	c.Assert(s.output.String(), check.Equals, msg)
+	c.Assert(s.output.String(), check.Equals, msg+"\n")
 }
 
 func (s *logTestSuite) TestLogDoesNotWritesDebugOutputWhenLevelIsInfo(c *check.C) {
@@ -86,7 +86,7 @@ func (s *logTestSuite) TestLogWritesDebugOutputWithFormat(c *check.C) {
 	msg := "this is a debug message with %d %s"
 	par1 := 2
 	par2 := "parameters"
-	expected := "this is a debug message with 2 parameters"
+	expected := "this is a debug message with 2 parameters\n"
 
 	Debugf(msg, par1, par2)
 
@@ -97,14 +97,14 @@ func (s *logTestSuite) TestLogWritesInfoOutput(c *check.C) {
 	msg := "this is a info message"
 	Infof(msg)
 
-	c.Assert(s.output.String(), check.Equals, msg)
+	c.Assert(s.output.String(), check.Equals, msg+"\n")
 }
 
 func (s *logTestSuite) TestLogWritesInfoOutputWithFormat(c *check.C) {
 	msg := "this is a info message with %d %s"
 	par1 := 2
 	par2 := "parameters"
-	expected := "this is a info message with 2 parameters"
+	expected := "this is a info message with 2 parameters\n"
 
 	Infof(msg, par1, par2)
 
@@ -138,8 +138,8 @@ func (s *logTestSuite) TestSetWrongTextLevel(c *check.C) {
 	err := SetTextLevel(wrongLvl)
 	lvl := GetLevel()
 
-	c.Check(err.Error(), check.Equals,
+	c.Assert(err.Error(), check.Equals,
 		fmt.Sprintf("The level %s is not supported", wrongLvl))
 
-	c.Check(lvl, check.Equals, currentLvl)
+	c.Assert(lvl, check.Equals, currentLvl)
 }

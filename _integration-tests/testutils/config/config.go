@@ -21,9 +21,10 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
+
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 // Config contains the values to pass to the test bed from the host.
@@ -49,8 +50,8 @@ func NewConfig(fileName, release, channel, targetRelease, targetChannel string, 
 
 // Write writes the config to a file that will be copied to the test bed.
 func (cfg Config) Write() {
-	fmt.Println("Writing test config...")
-	fmt.Println(cfg)
+	tlog.Debugf("Writing test config...")
+	tlog.Debugf("Config: %v", cfg)
 	encoded, err := json.Marshal(cfg)
 	if err != nil {
 		log.Panicf("Error encoding the test config: %v", err)

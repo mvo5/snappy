@@ -21,7 +21,6 @@ package partition
 
 import (
 	"bufio"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -80,7 +79,6 @@ func checkPathBusyFunc(path string) func() (string, error) {
 		for scanner.Scan() {
 			fields := strings.Fields(scanner.Text())
 			if match, _ := regexp.MatchString("^[0-9]+w$", fields[3]); match {
-				fmt.Printf("match! %s", fields[3])
 				return fields[3], nil
 			}
 		}

@@ -20,12 +20,12 @@
 package build
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"launchpad.net/snappy/_integration-tests/testutils"
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 )
 
 const (
@@ -71,17 +71,17 @@ func Assets(useSnappyFromBranch bool, arch string) {
 }
 
 func buildSnappyCLI(arch string) {
-	fmt.Println("Building snappy CLI...")
+	tlog.Debugf("Building snappy CLI...")
 	goCall(arch, buildSnappyCliCmd)
 }
 
 func buildSnapd(arch string) {
-	fmt.Println("Building snapd...")
+	tlog.Debugf("Building snapd...")
 	goCall(arch, buildSnapdCmd)
 }
 
 func buildTests(arch string) {
-	fmt.Println("Building tests...")
+	tlog.Debugf("Building tests...")
 
 	goCall(arch, buildTestCmd)
 	// XXX Go test 1.3 does not have the output flag, so we move the

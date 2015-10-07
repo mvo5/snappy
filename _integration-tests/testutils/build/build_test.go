@@ -127,7 +127,6 @@ func (s *BuildSuite) TestAssetsBuildsTests(c *check.C) {
 
 	buildCall := s.execCalls[buildTestCmd]
 
-	fmt.Println(s.execCalls)
 	c.Assert(buildCall, check.Equals, 1,
 		check.Commentf("Expected 1 call to execCommand with %s, got %d",
 			buildTestCmd, buildCall))

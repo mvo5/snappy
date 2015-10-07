@@ -20,11 +20,11 @@
 package autopkgtest
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
 	"launchpad.net/snappy/_integration-tests/testutils"
+	"launchpad.net/snappy/_integration-tests/testutils/tlog"
 	"launchpad.net/snappy/_integration-tests/testutils/tpl"
 )
 
@@ -75,7 +75,7 @@ func (a *Autopkgtest) adtRun(testbedOptions string) (err error) {
 		return
 	}
 
-	fmt.Println("Calling adt-run...")
+	tlog.Debugf("Calling adt-run...")
 	outputDir := filepath.Join(a.testArtifactsPath, "output")
 	prepareTargetDir(outputDir)
 
