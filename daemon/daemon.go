@@ -31,6 +31,7 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/tomb.v2"
 
+	"launchpad.net/snappy/daemon/mutex"
 	"launchpad.net/snappy/logger"
 )
 
@@ -41,6 +42,7 @@ type Daemon struct {
 	listener     net.Listener
 	tomb         tomb.Tomb
 	router       *mux.Router
+	lockmap      *mutex.Map
 }
 
 // A ResponseFunc handles one of the individual verbs for a method
@@ -123,6 +125,8 @@ func (d *Daemon) Init() error {
 	d.listener = listeners[0]
 
 	d.addRoutes()
+
+	d.lockmap = mutex.New()
 
 	logger.Debugf("init done in %s", time.Now().Sub(t0))
 

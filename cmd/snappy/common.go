@@ -20,17 +20,16 @@
 package main
 
 import (
+	"github.com/jessevdk/go-flags"
+
+	"launchpad.net/snappy/dirs"
 	"launchpad.net/snappy/logger"
 	"launchpad.net/snappy/priv"
-
-	"github.com/jessevdk/go-flags"
 )
-
-const snappyLockFile = "/run/snappy.lock"
 
 // withMutex runs the given function with a filelock mutex
 func withMutex(f func() error) error {
-	return priv.WithMutex(snappyLockFile, f)
+	return priv.WithMutex(dirs.SnapLockFile, f)
 }
 
 // addOptionDescription will try to find the given longName in the
