@@ -17,7 +17,7 @@
  *
  */
 
-package mutex
+package mmutex
 
 import (
 	"strings"
@@ -52,27 +52,52 @@ import (
 
 */
 
+// privLocker is the interface of priv.Mutex that we use
+type privLocker interface {
+	Lock() error
+	Unlock() error
+}
+
+// newGlock calls priv.New; override it in tests to not panic when not
+// root.
+var newGlock = func() privLocker {
+	return priv.New(dirs.SnapLockFile)
+}
+
 type node struct {
 	sync.RWMutex
 	count uint
 }
 
-type Map struct {
+// A MMutex is a map of mutexes, with a special "root" mutex that lets you
+// Lock or RLock any of the non-root mutexes, but if the root mutex is
+// Locked you'll have to wait for it.
+type MMutex interface {
+	Lock(...string)
+	RLock(...string)
+	Unlock(...string)
+	RUnlock(...string)
+}
+
+type mmutex struct {
 	mutex   sync.Mutex // who locks the locker? This guy.
 	nodemap map[string]*node
-	glock   *priv.Mutex
+	glock   privLocker
 	gcount  uint
 }
 
-func New() *Map {
-	return &Map{
+// New is the mmutex constructor.
+func New() MMutex {
+	return &mmutex{
 		nodemap: make(map[string]*node),
-		glock:   priv.New(dirs.SnapLockFile),
 	}
 }
 
-func (lt *Map) lockGlobal() {
+// acquires/increases count of the global lock
+// global lock only needed to interop with non-rest-api snappy
+func (lt *mmutex) lockGlobal() {
 	if lt.gcount == 0 {
+		lt.glock = newGlock()
 		if err := lt.glock.Lock(); err != nil {
 			panic(err)
 		}
@@ -80,18 +105,23 @@ func (lt *Map) lockGlobal() {
 	lt.gcount++
 }
 
-func (lt *Map) unlockGlobal() {
+// decreases count and releases the global lock
+// global lock only needed to interop with non-rest-api snappy
+func (lt *mmutex) unlockGlobal() {
 	lt.gcount--
 	if lt.gcount == 0 {
 		if err := lt.glock.Unlock(); err != nil {
 			panic(err)
 		}
-		// priv has an “interesting” api.
-		lt.glock = priv.New(dirs.SnapLockFile)
+		// priv's Unlock sets the internal, private lock to nil;
+		// might as well get rid of the lock ourselves as it's
+		// useless at this point.
+		lt.glock = nil
 	}
 }
 
-func (lt *Map) get(key string) *node {
+// convenience autovivifying getter
+func (lt *mmutex) get(key string) *node {
 	if _, ok := lt.nodemap[key]; !ok {
 		lt.nodemap[key] = &node{}
 	}
@@ -99,7 +129,8 @@ func (lt *Map) get(key string) *node {
 	return lt.nodemap[key]
 }
 
-func (lt *Map) rootNNode(key string) (root *node, node *node) {
+// get the "root" lock (lock for "") and the lock for key
+func (lt *mmutex) rootNNode(key string) (root *node, node *node) {
 	lt.mutex.Lock()
 	defer lt.mutex.Unlock()
 
@@ -115,11 +146,9 @@ func (lt *Map) rootNNode(key string) (root *node, node *node) {
 	return root, node
 }
 
-func (lt *Map) Lock(args ...string) {
-	if lt == nil {
-		return
-	}
-
+// Lock the mutex for the given key. If the optional args are given, the
+// root mutex is RLocked; otherwise, the root mutex itself is Locked.
+func (lt *mmutex) Lock(args ...string) {
 	key := strings.Join(args, ".")
 	root, node := lt.rootNNode(key)
 
@@ -130,11 +159,9 @@ func (lt *Map) Lock(args ...string) {
 	node.Lock()
 }
 
-func (lt *Map) Unlock(args ...string) {
-	if lt == nil {
-		return
-	}
-
+// Unlock the mutex for the given key, and RUnlock the root mutex if args
+// are given.
+func (lt *mmutex) Unlock(args ...string) {
 	key := strings.Join(args, ".")
 	lt.mutex.Lock()
 	defer lt.mutex.Unlock()
@@ -152,11 +179,9 @@ func (lt *Map) Unlock(args ...string) {
 	lt.unlockGlobal()
 }
 
-func (lt *Map) RLock(args ...string) {
-	if lt == nil {
-		return
-	}
-
+// RLock the mutex for the given key; also RLock the root mutex if args are
+// given.
+func (lt *mmutex) RLock(args ...string) {
 	key := strings.Join(args, ".")
 	root, node := lt.rootNNode(key)
 
@@ -167,11 +192,9 @@ func (lt *Map) RLock(args ...string) {
 	node.RLock()
 }
 
-func (lt *Map) RUnlock(args ...string) {
-	if lt == nil {
-		return
-	}
-
+// RUnlock the mutex for the given key; also RUnlock the root mutex if args
+// are given.
+func (lt *mmutex) RUnlock(args ...string) {
 	key := strings.Join(args, ".")
 	lt.mutex.Lock()
 	defer lt.mutex.Unlock()

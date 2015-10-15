@@ -120,8 +120,8 @@ var (
 )
 
 func v1Get(c *Command, r *http.Request) Response {
-	c.d.lockmap.RLock()
-	defer c.d.lockmap.RUnlock()
+	c.d.mmutex.RLock()
+	defer c.d.mmutex.RUnlock()
 
 	rel := release.Get()
 	m := map[string]string{
@@ -159,8 +159,8 @@ func getPackageInfo(c *Command, r *http.Request) Response {
 	name := vars["name"]
 	origin := vars["origin"]
 
-	c.d.lockmap.RLock(name, origin)
-	defer c.d.lockmap.RUnlock(name, origin)
+	c.d.mmutex.RLock(name, origin)
+	defer c.d.mmutex.RUnlock(name, origin)
 
 	repo := newRemoteRepo()
 	var part snappy.Part
@@ -234,8 +234,8 @@ func getPackagesInfo(c *Command, r *http.Request) Response {
 		return InternalError(nil, "router can't find route for packages")
 	}
 
-	c.d.lockmap.RLock()
-	defer c.d.lockmap.RUnlock()
+	c.d.mmutex.RLock()
+	defer c.d.mmutex.RUnlock()
 
 	sources := make([]string, 1, 3)
 	sources[0] = "local"
@@ -335,13 +335,13 @@ func packageService(c *Command, r *http.Request) Response {
 	reachedAsync := false
 	switch action {
 	case "status":
-		c.d.lockmap.RLock(name, origin)
-		defer c.d.lockmap.RUnlock(name, origin)
+		c.d.mmutex.RLock(name, origin)
+		defer c.d.mmutex.RUnlock(name, origin)
 	case "start", "stop", "restart", "enable", "disable":
-		c.d.lockmap.Lock(name, origin)
+		c.d.mmutex.Lock(name, origin)
 		defer func() {
 			if !reachedAsync {
-				c.d.lockmap.Unlock(name, origin)
+				c.d.mmutex.Unlock(name, origin)
 			}
 		}()
 	default:
@@ -414,7 +414,7 @@ func packageService(c *Command, r *http.Request) Response {
 	reachedAsync = true
 
 	return AsyncResponse(c.d.AddTask(func() interface{} {
-		defer c.d.lockmap.Unlock(name, origin)
+		defer c.d.mmutex.Unlock(name, origin)
 
 		switch action {
 		case "start":
@@ -448,11 +448,11 @@ func packageConfig(c *Command, r *http.Request) Response {
 	pkgName := name + "." + origin
 
 	if r.Method == "GET" {
-		c.d.lockmap.RLock(name, origin)
-		defer c.d.lockmap.RUnlock(name, origin)
+		c.d.mmutex.RLock(name, origin)
+		defer c.d.mmutex.RUnlock(name, origin)
 	} else {
-		c.d.lockmap.Lock(name, origin)
-		defer c.d.lockmap.Unlock(name, origin)
+		c.d.mmutex.Lock(name, origin)
+		defer c.d.mmutex.Unlock(name, origin)
 	}
 
 	bag := lightweight.PartBagByName(name, origin)
@@ -501,8 +501,8 @@ func configMulti(c *Command, r *http.Request) Response {
 	}
 
 	return AsyncResponse(c.d.AddTask(func() interface{} {
-		c.d.lockmap.Lock()
-		defer c.d.lockmap.Unlock()
+		c.d.mmutex.Lock()
+		defer c.d.mmutex.Unlock()
 
 		rspmap := make(map[string]*configSubtask, len(pkgmap))
 		bags := lightweight.AllPartBags()
@@ -697,8 +697,8 @@ func postPackage(c *Command, r *http.Request) Response {
 	}
 
 	return AsyncResponse(c.d.AddTask(func() interface{} {
-		c.d.lockmap.Lock(name, origin)
-		defer c.d.lockmap.Unlock(name, origin)
+		c.d.mmutex.Lock(name, origin)
+		defer c.d.mmutex.Unlock(name, origin)
 		return f()
 	}).Map(route))
 }
@@ -779,8 +779,8 @@ func sideloadPackage(c *Command, r *http.Request) Response {
 			return err
 		}
 
-		c.d.lockmap.Lock()
-		defer c.d.lockmap.Unlock()
+		c.d.mmutex.Lock()
+		defer c.d.mmutex.Unlock()
 
 		name, err := part.Install(&progress.NullProgress{}, 0)
 		if err != nil {
@@ -797,8 +797,8 @@ func getLogs(c *Command, r *http.Request) Response {
 	origin := vars["origin"]
 	svcName := vars["service"]
 
-	c.d.lockmap.RLock(name, origin)
-	defer c.d.lockmap.RUnlock(name, origin)
+	c.d.mmutex.RLock(name, origin)
+	defer c.d.mmutex.RUnlock(name, origin)
 
 	actor, err := findServices(name, svcName, &progress.NullProgress{})
 	if err != nil {
@@ -837,8 +837,8 @@ func appIconGet(c *Command, r *http.Request) Response {
 	name := vars["name"]
 	origin := vars["origin"]
 
-	c.d.lockmap.RLock(name, origin)
-	defer c.d.lockmap.RUnlock(name, origin)
+	c.d.mmutex.RLock(name, origin)
+	defer c.d.mmutex.RUnlock(name, origin)
 
 	bag := lightweight.PartBagByName(name, origin)
 	if bag == nil || len(bag.Versions) == 0 {
