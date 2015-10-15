@@ -21,8 +21,6 @@ package partition
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"gopkg.in/check.v1"
@@ -36,25 +34,21 @@ type bootloaderTestSuite struct {
 	backFilepathGlob         func(string) ([]string, error)
 	filepathGlobFail         bool
 	filepathGlobReturnValues []string
+	fakeConf map[string]string
 }
 
 var _ = check.Suite(&bootloaderTestSuite{})
 
-func createConfigFile(c *check.C, contents string) (name string) {
-	file, _ := ioutil.TempFile("", "snappy-bootloader-test")
-	err := ioutil.WriteFile(file.Name(), []byte(contents), 0644)
-	c.Assert(err, check.IsNil, check.Commentf("Error writing test bootloader file"))
-
-	return file.Name()
-}
-
 func (s *bootloaderTestSuite) SetUpSuite(c *check.C) {
 	s.backFilepathGlob = filepathGlob
 	filepathGlob = s.fakeFilepathGlob
+	confValue = s.fakeConfValue
+	s.fakeConf = map[string]string{}
 }
 
 func (s *bootloaderTestSuite) TearDownSuite(c *check.C) {
 	filepathGlob = s.backFilepathGlob
+	confValue = confValueReal
 }
 
 func (s *bootloaderTestSuite) SetUpTest(c *check.C) {
@@ -71,6 +65,10 @@ func (s *bootloaderTestSuite) fakeFilepathGlob(path string) (matches []string, e
 	s.filepathGlobCalls[path]++
 
 	return s.filepathGlobReturnValues, nil
+}
+
+func (s *bootloaderTestSuite) fakeConfValue(key string) (value string, err error) {
+	return s.fakeConf[key], nil
 }
 
 func (s *bootloaderTestSuite) TestOtherPartition(c *check.C) {
@@ -126,6 +124,11 @@ func (s *bootloaderTestSuite) TestBootSystemForUBoot(c *check.C) {
 }
 
 func (s *bootloaderTestSuite) TestNextBootPartitionReturnsBootSystemError(c *check.C) {
+	s.fakeConf = map[string]string{
+		"snappy_mode": "try",
+		"snappy_ab": "dummy",
+	}
+	
 	backBootSystem := BootSystem
 	defer func() { BootSystem = backBootSystem }()
 	expectedErr := fmt.Errorf("Error from BootSystem!")
@@ -139,30 +142,8 @@ func (s *bootloaderTestSuite) TestNextBootPartitionReturnsBootSystemError(c *che
 		check.Commentf("Expected error %v not found, %v", expectedErr, err))
 }
 
-func (s *bootloaderTestSuite) TestNextBootPartitionReturnsOsOpenError(c *check.C) {
-	backBootSystem := BootSystem
-	defer func() { BootSystem = backBootSystem }()
-	BootSystem = func() (system string, err error) {
-		return "not-expected-system", nil
-	}
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"not-expected-system": "not-a-file"}
-
-	_, err := NextBootPartition()
-
-	c.Assert(err, check.FitsTypeOf, &os.PathError{},
-		check.Commentf("Expected error type *os.PathError not found, %T", err))
-}
-
 func (s *bootloaderTestSuite) TestNextBootPartitionReturnsEmptyIfPatternsNotFound(c *check.C) {
-	cfgFile := createConfigFile(c, "snappy_mode=try")
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"test-system": cfgFile}
+	s.fakeConf = map[string]string{"snappy_mode": "try"}
 
 	backBootSystem := BootSystem
 	defer func() { BootSystem = backBootSystem }()
@@ -178,16 +159,10 @@ func (s *bootloaderTestSuite) TestNextBootPartitionReturnsEmptyIfPatternsNotFoun
 }
 
 func (s *bootloaderTestSuite) TestNextBootPartitionReturnsSamePartitionForGrub(c *check.C) {
-	cfgFileContents := `blabla
-snappy_mode=try
-snappy_ab=a
-blabla`
-	cfgFile := createConfigFile(c, cfgFileContents)
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"grub": cfgFile}
+	s.fakeConf = map[string]string{
+		"snappy_mode": "try",
+		"snappy_ab": "a",
+	}
 
 	backBootSystem := BootSystem
 	defer func() { BootSystem = backBootSystem }()
@@ -203,16 +178,10 @@ blabla`
 }
 
 func (s *bootloaderTestSuite) TestNextBootPartitionReturnsOtherPartitionForUBoot(c *check.C) {
-	cfgFileContents := `blabla
-snappy_mode=try
-snappy_ab=a
-blabla`
-	cfgFile := createConfigFile(c, cfgFileContents)
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"uboot": cfgFile}
+	s.fakeConf = map[string]string{
+		"snappy_mode": "try",
+		"snappy_ab": "a",
+	}
 
 	backBootSystem := BootSystem
 	defer func() { BootSystem = backBootSystem }()
@@ -228,20 +197,8 @@ blabla`
 }
 
 func (s *bootloaderTestSuite) TestModeReturnsSnappyModeFromConf(c *check.C) {
-	cfgFileContents := `blabla
-snappy_mode=test_mode
-blabla`
-	cfgFile := createConfigFile(c, cfgFileContents)
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"test-system": cfgFile}
-
-	backBootSystem := BootSystem
-	defer func() { BootSystem = backBootSystem }()
-	BootSystem = func() (system string, err error) {
-		return "test-system", nil
+	s.fakeConf = map[string]string{
+		"snappy_mode": "test_mode",
 	}
 
 	mode, err := Mode()
@@ -251,40 +208,22 @@ blabla`
 }
 
 func (s *bootloaderTestSuite) TestCurrentPartitionNotOnTryMode(c *check.C) {
-	cfgFileContents := `blabla
-snappy_mode=nottry
-snappy_ab=test_partition
-blabla`
-	cfgFile := createConfigFile(c, cfgFileContents)
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"test-system": cfgFile}
-
-	backBootSystem := BootSystem
-	defer func() { BootSystem = backBootSystem }()
-	BootSystem = func() (system string, err error) {
-		return "test-system", nil
+	s.fakeConf = map[string]string{
+		"snappy_mode": "nottry",
+		"snappy_ab": "test_partition",
 	}
-
-	mode, err := CurrentPartition()
+	
+	part, err := CurrentPartition()
 
 	c.Assert(err, check.IsNil, check.Commentf("Unexpected error %v", err))
-	c.Assert(mode, check.Equals, "test_partition", check.Commentf("Wrong partition"))
+	c.Assert(part, check.Equals, "test_partition", check.Commentf("Wrong partition"))
 }
 
 func (s *bootloaderTestSuite) TestCurrentPartitionOnTryModeReturnsSamePartitionForUboot(c *check.C) {
-	cfgFileContents := `blabla
-snappy_mode=try
-snappy_ab=a
-blabla`
-	cfgFile := createConfigFile(c, cfgFileContents)
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"uboot": cfgFile}
+	s.fakeConf = map[string]string{
+		"snappy_mode": "try",
+		"snappy_ab": "a",
+	}
 
 	backBootSystem := BootSystem
 	defer func() { BootSystem = backBootSystem }()
@@ -298,17 +237,11 @@ blabla`
 	c.Assert(mode, check.Equals, "a", check.Commentf("Wrong partition"))
 }
 
-func (s *bootloaderTestSuite) TestCurrentPartitionOnTryModeReturnsOtherPartitionForUboot(c *check.C) {
-	cfgFileContents := `blabla
-snappy_mode=try
-snappy_ab=a
-blabla`
-	cfgFile := createConfigFile(c, cfgFileContents)
-	defer os.Remove(cfgFile)
-
-	backConfigFiles := configFiles
-	defer func() { configFiles = backConfigFiles }()
-	configFiles = map[string]string{"grub": cfgFile}
+func (s *bootloaderTestSuite) TestCurrentPartitionOnTryModeReturnsOtherPartitionForGrub(c *check.C) {
+	s.fakeConf = map[string]string{
+		"snappy_mode": "try",
+		"snappy_ab": "a",
+	}
 
 	backBootSystem := BootSystem
 	defer func() { BootSystem = backBootSystem }()

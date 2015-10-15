@@ -40,6 +40,8 @@ var (
 	filepathGlob = filepath.Glob
 	// BootSystem proxies bootSystem
 	BootSystem = bootSystem
+	confValueReal = getConfValue	
+	confValue = confValueReal	
 
 	configFiles = map[string]string{"uboot": ubootConfigFile, "grub": grubConfigFile}
 )
@@ -101,7 +103,7 @@ func Mode() (mode string, err error) {
 	return confValue("snappy_mode")
 }
 
-func confValue(key string) (partition string, err error) {
+func getConfValue(key string) (value string, err error) {
 	system, err := BootSystem()
 	if err != nil {
 		return
@@ -123,7 +125,7 @@ func confValue(key string) (partition string, err error) {
 		if strings.HasPrefix(scanner.Text(), key) {
 			fields := strings.Split(scanner.Text(), "=")
 			if len(fields) > 1 {
-				partition = fields[1]
+				value = fields[1]
 			}
 			return
 		}
