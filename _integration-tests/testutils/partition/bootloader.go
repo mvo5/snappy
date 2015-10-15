@@ -40,8 +40,8 @@ var (
 	filepathGlob = filepath.Glob
 	// BootSystem proxies bootSystem
 	BootSystem = bootSystem
-	confValueReal = getConfValue	
-	confValue = confValueReal	
+
+	confValue = getConfValue
 
 	configFiles = map[string]string{"uboot": ubootConfigFile, "grub": grubConfigFile}
 )
