@@ -25,13 +25,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mvo5/uboot-go/uenv"
 )
 
 const (
 	bootBase        = "/boot"
 	ubootDir        = bootBase + "/uboot"
 	grubDir         = bootBase + "/grub"
-	ubootConfigFile = ubootDir + "/snappy-system.txt"
+	ubootConfigFile = ubootDir + "/uboot.env"
 	grubConfigFile  = grubDir + "/grubenv"
 )
 
@@ -109,8 +111,16 @@ func getConfValue(key string) (value string, err error) {
 		return
 	}
 
-	bootConfigFile := configFiles[system]
+	if system == "grub" {
+		value, err = getGrubConfValue(key)
+	} else if system == "uboot" {
+		value, err = getUbootConfValue(key)
+	}
+	return
+}
 
+func getGrubConfValue(key string) (value string, err error) {
+	bootConfigFile := configFiles["grub"]
 	file, err := os.Open(bootConfigFile)
 	if err != nil {
 		return
@@ -131,6 +141,16 @@ func getConfValue(key string) (value string, err error) {
 		}
 	}
 	return
+}
+
+func getUbootConfValue(key string) (value string, err error) {
+	bootConfigFile := configFiles["uboot"]
+	env, err := uenv.Open(bootConfigFile)
+	if err != nil {
+		return "", err
+	}
+
+	return env.Get(key), nil
 }
 
 // OtherPartition returns the backup partition, a or b.
