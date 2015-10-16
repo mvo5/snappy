@@ -47,14 +47,16 @@ func (s *rollbackSuite) TestRollbackMustRebootToOtherVersion(c *check.C) {
 		err := wait.ForFunction(c, "regular", partition.Mode)
 		c.Assert(err, check.IsNil, check.Commentf("Failed to switch to regular mode: %s", err))
 		currentVersion := common.GetCurrentUbuntuCoreVersion(c)
-		c.Assert(currentVersion > common.GetSavedVersion(c), check.Equals, true)
+		c.Assert(currentVersion > common.GetSavedVersion(c), check.Equals, true,
+			check.Commentf("Rebooted to the wrong version: %d", currentVersion))
 		cli.ExecCommand(c, "sudo", "snappy", "rollback", "ubuntu-core",
 			strconv.Itoa(common.GetSavedVersion(c)))
 		common.SetSavedVersion(c, currentVersion)
 		common.RebootWithMark(c, c.TestName()+"-rollback")
 	} else if common.CheckRebootMark(c.TestName() + "-rollback") {
 		common.RemoveRebootMark(c)
-		c.Assert(
-			common.GetCurrentUbuntuCoreVersion(c) < common.GetSavedVersion(c), check.Equals, true)
+		currentVersion := common.GetCurrentUbuntuCoreVersion(c)
+		c.Assert(currentVersion < common.GetSavedVersion(c), check.Equals, true,
+			check.Commentf("Rebooted to the wrong version: %d", currentVersion))
 	}
 }
