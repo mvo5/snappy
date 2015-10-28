@@ -20,9 +20,9 @@
 package daemon
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/check.v1"
@@ -91,5 +91,7 @@ func (s *daemonSuite) TestAddRoutes(c *check.C) {
 
 	c.Check(got, check.DeepEquals, expected) // this'll stop being true if routes are added that aren't commands (e.g. for the favicon)
 
-	c.Check(fmt.Sprintf("%p", d.router.NotFoundHandler), check.Equals, fmt.Sprintf("%p", NotFound))
+	f1 := reflect.ValueOf(d.router.NotFoundHandler).Pointer()
+	f2 := reflect.ValueOf(NotFound).Pointer()
+	c.Check(f1 == f2, check.Equals, true)
 }
