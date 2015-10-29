@@ -89,7 +89,7 @@ func (s *removedSuite) TestNoStore(c *check.C) {
 
 	prog := &progress.NullProgress{}
 	c.Check(part.Uninstall(prog), check.Equals, ErrRemoved)
-	c.Check(part.SetActive(true, prog), check.Equals, ErrRemoved)
+	c.Check(part.Activate(false, prog), check.Equals, ErrRemoved)
 	_, err := part.Install(prog, 0)
 	c.Check(err, check.Equals, ErrRemoved)
 	_, err = part.Config(nil)
@@ -127,7 +127,7 @@ func (s *removedSuite) TestWithStore(c *check.C) {
 
 	prog := &progress.NullProgress{}
 	c.Check(part.Uninstall(prog), check.Equals, ErrRemoved)
-	c.Check(part.SetActive(true, prog), check.Equals, ErrRemoved)
+	c.Check(part.Activate(false, prog), check.Equals, ErrRemoved)
 	_, err := part.Install(prog, 0)
 	c.Check(err, check.Equals, ErrRemoved)
 	_, err = part.Config(nil)

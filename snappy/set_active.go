@@ -49,5 +49,5 @@ func SetActive(fullName string, active bool, meter progress.Meter) error {
 		}
 	}
 
-	return part.SetActive(active, meter)
+	return part.Activate(active, meter)
 }

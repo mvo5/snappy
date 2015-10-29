@@ -157,7 +157,7 @@ func (s *SystemImagePart) Date() time.Time {
 }
 
 // SetActive sets the snap active
-func (s *SystemImagePart) SetActive(active bool, pb progress.Meter) error {
+func (s *SystemImagePart) setActive(active bool) error {
 	isNextBootOther := s.partition.IsNextBootOther()
 	isActive := s.IsActive()
 
@@ -181,6 +181,14 @@ func (s *SystemImagePart) SetActive(active bool, pb progress.Meter) error {
 	}
 
 	return nil
+}
+
+func (s *SystemImagePart) Activate(active bool, pb progress.Meter) error {
+	return s.setActive(true)
+}
+
+func (s *SystemImagePart) Deactivate(active bool, pb progress.Meter) error {
+	return s.setActive(false)
 }
 
 // override in tests

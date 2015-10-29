@@ -95,7 +95,7 @@ func (s *purgeSuite) mkpkg(c *C, args ...string) (dataDir string, part SnapIF) {
 func (s *purgeSuite) TestPurgeActiveRaisesError(c *C) {
 	inter := &MockProgressMeter{}
 	_, part := s.mkpkg(c)
-	c.Assert(part.activate(true, inter), IsNil)
+	c.Assert(part.Activate(true, inter), IsNil)
 
 	err := Purge("hello-app", 0, inter)
 	c.Check(err, Equals, ErrStillActive)
@@ -115,7 +115,7 @@ func (s *purgeSuite) TestPurgeInactiveOK(c *C) {
 func (s *purgeSuite) TestPurgeActiveExplicitOK(c *C) {
 	inter := &MockProgressMeter{}
 	ddir, part := s.mkpkg(c)
-	c.Assert(part.activate(true, inter), IsNil)
+	c.Assert(part.Activate(true, inter), IsNil)
 	canary := filepath.Join(ddir, "canary")
 	c.Assert(os.Mkdir(canary, 0755), IsNil)
 
@@ -128,7 +128,7 @@ func (s *purgeSuite) TestPurgeActiveExplicitOK(c *C) {
 func (s *purgeSuite) TestPurgeActiveRestartServices(c *C) {
 	inter := &MockProgressMeter{}
 	ddir, part := s.mkpkg(c, "v1", "services:\n - name: svc")
-	c.Assert(part.activate(true, inter), IsNil)
+	c.Assert(part.Activate(true, inter), IsNil)
 	canary := filepath.Join(ddir, "canary")
 	c.Assert(os.Mkdir(canary, 0755), IsNil)
 

@@ -326,7 +326,7 @@ vendor: foo
 	c.Assert(ioutil.WriteFile(filepath.Join(pkgdir, ".click", "info", "foox."+testOrigin+".manifest"), []byte(`{"name": "foox"}`), 0644), IsNil)
 	part, err := NewInstalledSnapPart(yamlFile, testOrigin)
 	c.Assert(err, IsNil)
-	c.Assert(part.activate(true, ag), IsNil)
+	c.Assert(part.Activate(true, ag), IsNil)
 
 	pkg := makeTestSnapPackage(c, yaml+"version: 2")
 	_, err = installClick(pkg, 0, ag, testOrigin)
@@ -350,7 +350,7 @@ vendor: foo
 	c.Assert(ioutil.WriteFile(filepath.Join(pkgdir, ".click", "info", "foox."+testOrigin+".manifest"), []byte(`{"name": "foox"}`), 0644), IsNil)
 	part, err := NewInstalledSnapPart(yamlFile, testOrigin)
 	c.Assert(err, IsNil)
-	c.Assert(part.activate(true, ag), IsNil)
+	c.Assert(part.Activate(true, ag), IsNil)
 
 	pkg := makeTestSnapPackage(c, yaml+"version: 2\nexplicit-license-agreement: Y\nvendor: foo")
 	_, err = installClick(pkg, 0, ag, testOrigin)
@@ -372,7 +372,7 @@ explicit-license-agreement: Y
 	c.Assert(ioutil.WriteFile(filepath.Join(pkgdir, ".click", "info", "foox."+testOrigin+".manifest"), []byte(`{"name": "foox"}`), 0644), IsNil)
 	part, err := NewInstalledSnapPart(yamlFile, testOrigin)
 	c.Assert(err, IsNil)
-	c.Assert(part.activate(true, ag), IsNil)
+	c.Assert(part.Activate(true, ag), IsNil)
 
 	pkg := makeTestSnapPackage(c, yaml+"license-version: 3\nversion: 2")
 	_, err = installClick(pkg, 0, ag, testOrigin)
@@ -588,7 +588,7 @@ vendor: Foo Bar <foo@example.com>
 	c.Assert(parts[1].IsActive(), Equals, true)
 
 	// set v1 active
-	err = parts[0].(*SnapPart).activate(false, nil)
+	err = parts[0].(*SnapPart).Activate(false, nil)
 	parts, err = repo.Installed()
 	c.Assert(err, IsNil)
 	c.Assert(parts[0].Version(), Equals, "1.0")
@@ -696,7 +696,7 @@ integration:
 	c.Assert(err, IsNil)
 
 	// read the hook trace file, this shows that 1.0 was active, then
-	// it go de-activated and finally 2.0 got activated
+	// it go de-Activated and finally 2.0 got Activated
 	content, err := ioutil.ReadFile(filepath.Join(s.tempdir, "hook.trace"))
 	c.Assert(err, IsNil)
 	// Forcefully in one line to avoid issues with hidden spaces,

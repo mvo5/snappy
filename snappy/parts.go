@@ -114,8 +114,10 @@ type Part interface {
 	// Config takes a yaml configuration and returns the full snap
 	// config with the changes. Note that "configuration" may be empty.
 	Config(configuration []byte) (newConfig string, err error)
-	// make an inactive part active, or viceversa
-	SetActive(bool, progress.Meter) error
+	// make an inactive part active
+	Activate(inhibitHooks bool, pb progress.Meter) error
+	// make an active part inactive
+	Deactivate(inhibitHooks bool, pb progress.Meter) error
 
 	// get the list of frameworks needed by the part
 	Frameworks() ([]string, error)
@@ -358,7 +360,7 @@ func makeSnapActiveByNameAndVersion(pkg, ver string, inter progress.Meter) error
 	case 0:
 		return fmt.Errorf("Can not find %s with version %s", pkg, ver)
 	case 1:
-		return parts[0].SetActive(true, inter)
+		return parts[0].Activate(false, inter)
 	default:
 		return fmt.Errorf("More than one %s with version %s", pkg, ver)
 	}

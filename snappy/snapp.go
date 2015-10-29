@@ -212,8 +212,6 @@ func (v *deprecarch) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // FIXME: name suckso
 type SnapIF interface {
 	Part
-	activate(inhibitHooks bool, inter interacter) error
-	deactivate(inhibitHooks bool, inter interacter) error
 	Dir() string
 	ServiceYamls() []ServiceYaml
 }
@@ -890,10 +888,10 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 	// otherwise just create a empty data dir
 	if oldPart != nil {
 		// we need to stop making it active
-		err = oldPart.deactivate(inhibitHooks, inter)
+		err = oldPart.Deactivate(inhibitHooks, inter)
 		defer func() {
 			if err != nil {
-				if cerr := oldPart.activate(inhibitHooks, inter); cerr != nil {
+				if cerr := oldPart.Activate(inhibitHooks, inter); cerr != nil {
 					logger.Noticef("Setting old version back to active failed: %v", cerr)
 				}
 			}
@@ -920,10 +918,10 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 	}
 
 	// and finally make active
-	err = s.activate(inhibitHooks, inter)
+	err = s.Activate(inhibitHooks, inter)
 	defer func() {
 		if err != nil && oldPart != nil {
-			if cerr := oldPart.activate(inhibitHooks, inter); cerr != nil {
+			if cerr := oldPart.Activate(inhibitHooks, inter); cerr != nil {
 				logger.Noticef("When setting old %s version back to active: %v", s.Name(), cerr)
 			}
 		}
@@ -992,16 +990,7 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 	return s.Name(), nil
 }
 
-// SetActive sets the snap active
-func (s *SnapPart) SetActive(active bool, pb progress.Meter) (err error) {
-	if active {
-		return s.activate(false, pb)
-	}
-
-	return s.deactivate(false, pb)
-}
-
-func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
+func (s *SnapPart) Activate(inhibitHooks bool, inter progress.Meter) error {
 	currentActiveSymlink := filepath.Join(s.basedir, "..", "current")
 	currentActiveDir, _ := filepath.EvalSymlinks(currentActiveSymlink)
 
@@ -1018,7 +1007,7 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		if err != nil {
 			return err
 		}
-		if err := oldPart.deactivate(inhibitHooks, inter); err != nil {
+		if err := oldPart.Deactivate(inhibitHooks, inter); err != nil {
 			return err
 		}
 	}
@@ -1091,7 +1080,7 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 	return os.Symlink(filepath.Base(s.basedir), currentDataSymlink)
 }
 
-func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
+func (s *SnapPart) Deactivate(inhibitHooks bool, inter progress.Meter) error {
 	currentSymlink := filepath.Join(s.basedir, "..", "current")
 
 	// sanity check
@@ -1166,7 +1155,7 @@ func (s *SnapPart) Uninstall(pb progress.Meter) (err error) {
 	return RemoveAllHWAccess(QualifiedName(s))
 }
 
-func (s *SnapPart) remove(inter interacter) (err error) {
+func (s *SnapPart) remove(inter progress.Meter) (err error) {
 	// TODO[JRL]: check the logic here. I'm not sure “remove
 	// everything if active, and the click hooks if not” makes
 	// sense. E.g. are we removing fmk bins on fmk upgrade? Etc.
@@ -1174,7 +1163,7 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 		return err
 	}
 
-	if err := s.deactivate(false, inter); err != nil && err != ErrSnapNotActive {
+	if err := s.Deactivate(false, inter); err != nil && err != ErrSnapNotActive {
 		return err
 	}
 
@@ -1714,8 +1703,13 @@ func (s *RemoteSnapPart) Install(pbar progress.Meter, flags InstallFlags) (strin
 	return installClick(downloadedSnap, flags, pbar, s.Origin())
 }
 
-// SetActive sets the snap active
-func (s *RemoteSnapPart) SetActive(bool, progress.Meter) error {
+// Activate sets the snap active
+func (s *RemoteSnapPart) Activate(bool, progress.Meter) error {
+	return ErrNotInstalled
+}
+
+// Deactivate sets the snap inactive
+func (s *RemoteSnapPart) Deactivate(bool, progress.Meter) error {
 	return ErrNotInstalled
 }
 

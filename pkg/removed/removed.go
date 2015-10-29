@@ -151,8 +151,11 @@ func (r *Removed) Uninstall(pb progress.Meter) error { return ErrRemoved }
 // Config from the snappy.Part interface
 func (r *Removed) Config(configuration []byte) (newConfig string, err error) { return "", ErrRemoved }
 
-// SetActive from the snappy.Part interface
-func (r *Removed) SetActive(bool, progress.Meter) error { return ErrRemoved }
+// Activate from the snappy.Part interface
+func (r *Removed) Activate(bool, progress.Meter) error { return ErrRemoved }
+
+// Deactivate from the snappy.Part interface
+func (r *Removed) Deactivate(bool, progress.Meter) error { return ErrRemoved }
 
 // Frameworks from the snappy.Part interface
 func (r *Removed) Frameworks() ([]string, error) { return nil, ErrRemoved }

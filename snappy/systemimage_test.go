@@ -269,7 +269,7 @@ func (s *SITestSuite) TestSystemImagePartInstall(c *C) {
 	c.Assert(mockPartition.toggleNextBoot, Equals, true)
 }
 
-func (s *SITestSuite) TestSystemImagePartSetActiveAlreadyActive(c *C) {
+func (s *SITestSuite) TestSystemImagePartsetActiveAlreadyActive(c *C) {
 	parts, err := s.systemImage.Installed()
 
 	sp := parts[0].(*SystemImagePart)
@@ -277,12 +277,12 @@ func (s *SITestSuite) TestSystemImagePartSetActiveAlreadyActive(c *C) {
 	mockPartition := MockPartition{}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(true, nil)
+	err = sp.setActive(true)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, false)
 }
 
-func (s *SITestSuite) TestSystemImagePartSetActiveMakeActive(c *C) {
+func (s *SITestSuite) TestSystemImagePartsetActiveMakeActive(c *C) {
 	parts, err := s.systemImage.Installed()
 
 	sp := parts[1].(*SystemImagePart)
@@ -290,13 +290,13 @@ func (s *SITestSuite) TestSystemImagePartSetActiveMakeActive(c *C) {
 	mockPartition := MockPartition{}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(true, nil)
+	err = sp.setActive(true)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, true)
 }
 
-func (s *SITestSuite) TestSystemImagePartSetActiveAlreadyToggled(c *C) {
-	// in other words, check that calling SetActive twice does not
+func (s *SITestSuite) TestSystemImagePartsetActiveAlreadyToggled(c *C) {
+	// in other words, check that calling setActive twice does not
 	// untoggle
 	parts, err := s.systemImage.Installed()
 
@@ -305,13 +305,13 @@ func (s *SITestSuite) TestSystemImagePartSetActiveAlreadyToggled(c *C) {
 	mockPartition := MockPartition{toggleNextBoot: true}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(true, nil)
+	err = sp.setActive(true)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, true)
 }
 
-func (s *SITestSuite) TestSystemImagePartSetActiveAlreadyActiveAlreadyToggled(c *C) {
-	// in other words, check that calling SetActive on one
+func (s *SITestSuite) TestSystemImagePartsetActiveAlreadyActiveAlreadyToggled(c *C) {
+	// in other words, check that calling setActive on one
 	// partition when it's been called on the other one undoes the
 	// toggle
 	parts, err := s.systemImage.Installed()
@@ -321,7 +321,7 @@ func (s *SITestSuite) TestSystemImagePartSetActiveAlreadyActiveAlreadyToggled(c 
 	mockPartition := MockPartition{toggleNextBoot: true}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(true, nil)
+	err = sp.setActive(true)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, false)
 }
@@ -334,7 +334,7 @@ func (s *SITestSuite) TestSystemImagePartUnsetActiveOnActive(c *C) {
 	mockPartition := MockPartition{}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(false, nil)
+	err = sp.setActive(false)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, true)
 }
@@ -347,7 +347,7 @@ func (s *SITestSuite) TestSystemImagePartUnsetActiveOnUnactiveNOP(c *C) {
 	mockPartition := MockPartition{}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(false, nil)
+	err = sp.setActive(false)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, false)
 }
@@ -360,7 +360,7 @@ func (s *SITestSuite) TestSystemImagePartUnsetActiveAlreadyToggled(c *C) {
 	mockPartition := MockPartition{toggleNextBoot: true}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(false, nil)
+	err = sp.setActive(false)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, false)
 }
@@ -373,7 +373,7 @@ func (s *SITestSuite) TestSystemImagePartUnsetActiveAlreadyActiveAlreadyToggled(
 	mockPartition := MockPartition{toggleNextBoot: true}
 	sp.partition = &mockPartition
 
-	err = sp.SetActive(false, nil)
+	err = sp.setActive(false)
 	c.Assert(err, IsNil)
 	c.Assert(mockPartition.toggleNextBoot, Equals, true)
 }

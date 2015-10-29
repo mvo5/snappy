@@ -83,8 +83,9 @@ func (p *tP) Config(cfg []byte) (string, error) {
 	}
 	return p.config, p.configErr
 }
-func (p *tP) SetActive(bool, progress.Meter) error { return p.setActiveErr }
-func (p *tP) Frameworks() ([]string, error)        { return p.frameworks, p.frameworksErr }
+func (p *tP) Activate(bool, progress.Meter) error   { return p.setActiveErr }
+func (p *tP) Deactivate(bool, progress.Meter) error { return p.setActiveErr }
+func (p *tP) Frameworks() ([]string, error)         { return p.frameworks, p.frameworksErr }
 
 // for ServiceYamler interface:
 func (p *tP) ServiceYamls() []snappy.ServiceYaml { return p.svcYamls }
