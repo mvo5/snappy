@@ -115,6 +115,14 @@ func (s *KernelSnap) Install(inter progress.Meter, flags InstallFlags) (name str
 	return name, dir.Sync()
 }
 
+func (s *KernelSnap) Activate(inhibitHooks bool, inter progress.Meter) error {
+	if err := s.SnapPart.Activate(inhibitHooks, inter); err != nil {
+		return err
+	}
+
+	return setNextBoot(&s.SnapPart)
+}
+
 func setNextBoot(s *SnapPart) error {
 	if s.m.Type != pkg.TypeOS && s.m.Type != pkg.TypeKernel {
 		return nil

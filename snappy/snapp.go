@@ -1071,12 +1071,6 @@ func (s *SnapPart) Activate(inhibitHooks bool, inter progress.Meter) error {
 		return err
 	}
 
-	// FIXME: create {Os,Kernel}Snap type instead of adding special
-	//        cases here
-	if err := setNextBoot(s); err != nil {
-		return err
-	}
-
 	return os.Symlink(filepath.Base(s.basedir), currentDataSymlink)
 }
 

@@ -34,3 +34,11 @@ func (s *OsSnap) Uninstall(pb progress.Meter) (err error) {
 
 	return s.SnapPart.Uninstall(pb)
 }
+
+func (s *OsSnap) Activate(inhibitHooks bool, inter progress.Meter) error {
+	if err := s.SnapPart.Activate(inhibitHooks, inter); err != nil {
+		return err
+	}
+
+	return setNextBoot(&s.SnapPart)
+}
