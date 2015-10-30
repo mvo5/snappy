@@ -34,6 +34,7 @@ type File interface {
 	// Verify verfies the integrity of the file.
 	// FIXME: use flags here instead of a boolean
 	Verify(allowUnauthenticated bool) error
+
 	// UnpackWithDropPrivs unpacks the given the snap to the given
 	// targetdir relative to the given rootDir.
 	// FIXME: name leaks implementation details, should be Unpack()
@@ -42,9 +43,6 @@ type File interface {
 
 	// ReadAll returns the content of snap files.
 	ReadAll(name string) ([]byte, error)
-	// ExtractHashes extracs the hashes from the snap and puts
-	// them into the filesystem for verification.
-	ExtractHashes(targetDir string) error
 
 	// NeedsAutoMountUnit determines if it's required to setup
 	// an automount unit for the snap when the snap is activated

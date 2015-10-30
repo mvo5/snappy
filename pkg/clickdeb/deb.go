@@ -217,10 +217,10 @@ func (d *ClickDeb) member(arMember, tarMember string) (content []byte, err error
 	return content, nil
 }
 
-// ExtractHashes reads "hashes.yaml" from the clickdeb and writes it to
+// extractHashes reads "hashes.yaml" from the clickdeb and writes it to
 // the given directory.
-func (d *ClickDeb) ExtractHashes(dir string) error {
-	hashesFile := filepath.Join(dir, "hashes.yaml")
+func (d *ClickDeb) extractHashes(dir string) error {
+	hashesFile := filepath.Join(dir, "meta", "hashes.yaml")
 	hashesData, err := d.member("control.tar", "hashes.yaml")
 	if err != nil {
 		return err
@@ -518,18 +518,25 @@ func skipToArMember(arReader *ar.Reader, memberPrefix string) (io.Reader, error)
 func (d *ClickDeb) UnpackWithDropPrivs(instDir, rootdir string) error {
 	// no need to drop privs, we are not root
 	if !helpers.ShouldDropPrivs() {
-		return d.UnpackAll(instDir)
+		if err := d.UnpackAll(instDir); err != nil {
+			return err
+		}
+	} else {
+		cmd := exec.Command("snappy", "internal-unpack", d.Name(), instDir, rootdir)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return &ErrUnpackFailed{
+				snapFile: d.Name(),
+				instDir:  instDir,
+				origErr:  err,
+			}
+		}
 	}
 
-	cmd := exec.Command("snappy", "internal-unpack", d.Name(), instDir, rootdir)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return &ErrUnpackFailed{
-			snapFile: d.Name(),
-			instDir:  instDir,
-			origErr:  err,
-		}
+	// hashes are special
+	if err := d.extractHashes(instDir); err != nil {
+		return err
 	}
 
 	return nil

@@ -63,11 +63,6 @@ func New(path string) *Snap {
 	return &Snap{path: path}
 }
 
-// ExtractHashes does notthing for squashfs snaps. - COMAPT
-func (s *Snap) ExtractHashes(dir string) error {
-	return nil
-}
-
 // UnpackWithDropPrivs just copies the blob into place. - COMPAT
 func (s *Snap) UnpackWithDropPrivs(instDir, rootdir string) error {
 	// FIXME: we need to unpack "meta/*" here because otherwise there

@@ -824,6 +824,7 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		return "", err
 	}
 
+	// FIXME: kill this check once we have only "squashfs" snaps
 	manifestData, err := s.deb.ReadAll("DEBIAN/manifest")
 	if err != nil {
 		logger.Noticef("Snap inspect failed for %q: %v", s.Name(), err)
@@ -875,11 +876,6 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		return "", err
 	}
 	if err := writeCompatManifestJSON(clickMetaDir, manifestData, s.origin); err != nil {
-		return "", err
-	}
-
-	// write the hashes now
-	if err := s.deb.ExtractHashes(filepath.Join(s.basedir, "meta")); err != nil {
 		return "", err
 	}
 
