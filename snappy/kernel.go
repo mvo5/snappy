@@ -26,7 +26,7 @@ import (
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/pkg"
-	"github.com/ubuntu-core/snappy/pkg/snapfs"
+	"github.com/ubuntu-core/snappy/pkg/squashfs"
 	"github.com/ubuntu-core/snappy/progress"
 )
 
@@ -48,7 +48,7 @@ func (s *KernelSnap) Uninstall(pb progress.Meter) (err error) {
 	}
 
 	// remove the kernel blob
-	blobName := filepath.Base(snapfs.BlobPath(s.basedir))
+	blobName := filepath.Base(squashfs.BlobPath(s.basedir))
 	dstDir := filepath.Join(partition.BootloaderDir(), blobName)
 	if err := os.RemoveAll(dstDir); err != nil {
 		logger.Noticef("Failed to remove kernel assets %s", err)
@@ -66,7 +66,7 @@ func (s *KernelSnap) Install(inter progress.Meter, flags InstallFlags) (name str
 	}
 
 	// now do the kernel specific bits
-	blobName := filepath.Base(snapfs.BlobPath(s.basedir))
+	blobName := filepath.Base(squashfs.BlobPath(s.basedir))
 	dstDir := filepath.Join(partition.BootloaderDir(), blobName)
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return "", err
@@ -131,7 +131,7 @@ func setNextBoot(s *SnapPart) error {
 	if err != nil {
 		return err
 	}
-	blobName := filepath.Base(snapfs.BlobPath(s.basedir))
+	blobName := filepath.Base(squashfs.BlobPath(s.basedir))
 	if err := b.SetBootVar(bootvar, blobName); err != nil {
 		return err
 	}

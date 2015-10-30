@@ -150,7 +150,7 @@ func (d *ClickDeb) Name() string {
 	return d.path
 }
 
-// NeedsAutoMountUnit returns false.
+// NeedsAutoMountUnit returns false
 func (d *ClickDeb) NeedsAutoMountUnit() bool {
 	return false
 }

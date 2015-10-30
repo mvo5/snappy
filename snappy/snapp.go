@@ -45,7 +45,7 @@ import (
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
-	"github.com/ubuntu-core/snappy/pkg/snapfs"
+	"github.com/ubuntu-core/snappy/pkg/squashfs"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/release"
@@ -861,10 +861,10 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		return "", err
 	}
 
-	// FIXME: kill this check once we have only "snapfs" snaps
+	// FIXME: kill this check once we have only "squashfs" snaps
 	if s.m.Type == pkg.TypeKernel || s.m.Type == pkg.TypeOS {
-		if _, ok := s.deb.(*snapfs.Snap); !ok {
-			return "", fmt.Errorf("kernel/os snap must be of type snapfs")
+		if _, ok := s.deb.(*squashfs.Snap); !ok {
+			return "", fmt.Errorf("kernel/os snap must be of type squashfs")
 		}
 	}
 
@@ -1046,7 +1046,7 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 	// generate the automount unit for the squashfs
 	// FIXME: this is ugly
 	if s.deb != nil && s.deb.NeedsAutoMountUnit() {
-		if err := s.m.addSnapfsAutomount(s.basedir, inhibitHooks, inter); err != nil {
+		if err := s.m.addSquashfsAutomount(s.basedir, inhibitHooks, inter); err != nil {
 			return err
 		}
 	}
@@ -1120,7 +1120,7 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 	if err := s.m.removeSecurityPolicy(s.basedir); err != nil {
 		return err
 	}
-	if err := s.m.removeSnapfsAutomount(s.basedir, inter); err != nil {
+	if err := s.m.removeSquashfsAutomount(s.basedir, inter); err != nil {
 		return err
 	}
 
@@ -1188,7 +1188,7 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 		return err
 	}
 
-	err = os.RemoveAll(snapfs.BlobPath(s.basedir))
+	err = os.RemoveAll(squashfs.BlobPath(s.basedir))
 	if err != nil {
 		return err
 	}
@@ -1230,7 +1230,7 @@ func (s *SnapPart) NeedsReboot() bool {
 		}
 		nextBootVer, _ := b.GetBootVar(nextBoot)
 		goodBootVer, _ := b.GetBootVar(goodBoot)
-		squashfsName := filepath.Base(stripGlobalRootDir(snapfs.BlobPath(s.basedir)))
+		squashfsName := filepath.Base(stripGlobalRootDir(squashfs.BlobPath(s.basedir)))
 		if nextBootVer == squashfsName && goodBootVer != nextBootVer {
 			return true
 		}
@@ -2073,8 +2073,8 @@ func makeSnapHookEnv(part SnapIF) (env []string) {
 	return env
 }
 
-func (m *packageYaml) addSnapfsAutomount(baseDir string, inhibitHooks bool, inter interacter) error {
-	squashfsPath := stripGlobalRootDir(snapfs.BlobPath(baseDir))
+func (m *packageYaml) addSquashfsAutomount(baseDir string, inhibitHooks bool, inter interacter) error {
+	squashfsPath := stripGlobalRootDir(squashfs.BlobPath(baseDir))
 	whereDir := stripGlobalRootDir(baseDir)
 
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
@@ -2099,7 +2099,7 @@ func (m *packageYaml) addSnapfsAutomount(baseDir string, inhibitHooks bool, inte
 	return nil
 }
 
-func (m *packageYaml) removeSnapfsAutomount(baseDir string, inter interacter) error {
+func (m *packageYaml) removeSquashfsAutomount(baseDir string, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
 	for _, s := range []string{"mount", "automount"} {
 		unit := systemd.MountUnitPath(stripGlobalRootDir(baseDir), s)

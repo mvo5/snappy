@@ -17,7 +17,7 @@
  *
  */
 
-package snapfs
+package squashfs
 
 import (
 	"fmt"
@@ -52,12 +52,12 @@ func (s *Snap) Name() string {
 	return filepath.Base(s.path)
 }
 
-// NeedsAutoMountUnit returns true.
+// NeedsAutoMountUnit returns true
 func (s *Snap) NeedsAutoMountUnit() bool {
 	return true
 }
 
-// New returns a new Snapfs snap.
+// New returns a new Squashfs snap.
 func New(path string) *Snap {
 	return &Snap{path: path}
 }
@@ -72,7 +72,7 @@ func (s *Snap) MetaMember(metaMember string) ([]byte, error) {
 	return s.ReadFile(filepath.Join("meta", metaMember))
 }
 
-// ExtractHashes does notthing for snapfs snaps. - COMAPT
+// ExtractHashes does notthing for squashfs snaps. - COMAPT
 func (s *Snap) ExtractHashes(dir string) error {
 	return nil
 }
@@ -120,7 +120,7 @@ func (s *Snap) Unpack(src, dstDir string) error {
 	return runCommand("unsquashfs", "-f", "-i", "-d", dstDir, s.path, src)
 }
 
-// ReadFile returns the content of a single file inside a snapfs snap.
+// ReadFile returns the content of a single file inside a squashfs snap.
 func (s *Snap) ReadFile(path string) (content []byte, err error) {
 	tmpdir, err := ioutil.TempDir("", "read-file")
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *Snap) ReadFile(path string) (content []byte, err error) {
 
 // Verify verifies the snap.
 func (s *Snap) Verify(unauthOk bool) error {
-	// FIXME: there is no verification yet for snapfs packages, this
+	// FIXME: there is no verification yet for squashfs packages, this
 	//        will be done via assertions later for now we rely on
 	//        the https security.
 	return nil

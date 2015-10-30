@@ -150,11 +150,11 @@ func newBootLoader(partition *Partition, bootloaderDir string) *bootloaderType {
 	// full label of the system {system-a,system-b}
 	// FIXME: investigate if we can remove this, on an all-snap
 	//        system the root partition has no label anymore
-	currentLabel := "snapfs"
+	currentLabel := "squashfs"
 	if partition.rootPartition() != nil {
 		currentLabel = partition.rootPartition().name
 	}
-	otherLabel := "snapfs"
+	otherLabel := "squashfs"
 	if partition.otherRootPartition() != nil {
 		otherLabel = partition.otherRootPartition().name
 	}

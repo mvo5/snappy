@@ -28,7 +28,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
-	"github.com/ubuntu-core/snappy/pkg/snapfs"
+	"github.com/ubuntu-core/snappy/pkg/squashfs"
 	"github.com/ubuntu-core/snappy/systemd"
 
 	. "gopkg.in/check.v1"
@@ -94,11 +94,11 @@ kernel: vmlinuz-4.2
 initrd: initrd.img-4.2
 `
 
-type SnapfsTestSuite struct {
+type SquashfsTestSuite struct {
 	mockBootloaderDir string
 }
 
-func (s *SnapfsTestSuite) SetUpTest(c *C) {
+func (s *SquashfsTestSuite) SetUpTest(c *C) {
 	// mocks
 	aaClickHookCmd = "/bin/true"
 	dirs.SetRootDir(c.MkDir())
@@ -121,28 +121,28 @@ func (s *SnapfsTestSuite) SetUpTest(c *C) {
 		return s.mockBootloaderDir
 	}
 
-	// ensure we use the right builder func (snapfs)
-	snapBuilderFunc = BuildSnapfsSnap
+	// ensure we use the right builder func (squashfs)
+	snapBuilderFunc = BuildSquashfsSnap
 }
 
-func (s *SnapfsTestSuite) TearDownTest(c *C) {
+func (s *SquashfsTestSuite) TearDownTest(c *C) {
 	snapBuilderFunc = BuildLegacySnap
 	partition.Bootloader = partition.BootloaderImpl
 	partition.BootloaderDir = partition.BootloaderDirImpl
 }
 
-var _ = Suite(&SnapfsTestSuite{})
+var _ = Suite(&SquashfsTestSuite{})
 
-func (s *SnapfsTestSuite) TestMakeSnapMakesSnapfs(c *C) {
+func (s *SquashfsTestSuite) TestMakeSnapMakesSquashfs(c *C) {
 	snapPkg := makeTestSnapPackage(c, packageHello)
 	part, err := NewSnapPartFromSnapFile(snapPkg, "origin", true)
 	c.Assert(err, IsNil)
 
 	// ensure the right backend got picked up
-	c.Assert(part.(*SnapPart).deb, FitsTypeOf, &snapfs.Snap{})
+	c.Assert(part.(*SnapPart).deb, FitsTypeOf, &squashfs.Snap{})
 }
 
-func (s *SnapfsTestSuite) TestInstallViaSnapfsWorks(c *C) {
+func (s *SquashfsTestSuite) TestInstallViaSquashfsWorks(c *C) {
 	snapPkg := makeTestSnapPackage(c, packageHello)
 	part, err := NewSnapPartFromSnapFile(snapPkg, "origin", true)
 	c.Assert(err, IsNil)
@@ -161,21 +161,21 @@ func (s *SnapfsTestSuite) TestInstallViaSnapfsWorks(c *C) {
 	c.Assert(string(content), Matches, "(?ms).*^What=/var/lib/snappy/snaps/hello-app.origin_1.10.snap")
 }
 
-func (s *SnapfsTestSuite) TestAddSnapfsAutomount(c *C) {
+func (s *SquashfsTestSuite) TestAddSquashfsAutomount(c *C) {
 	m := packageYaml{
 		Name:          "foo.origin",
 		Version:       "1.0",
 		Architectures: []string{"all"},
 	}
 	inter := &MockProgressMeter{}
-	err := m.addSnapfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
+	err := m.addSquashfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
 	c.Assert(err, IsNil)
 
 	// ensure correct mount unit
 	mount, err := ioutil.ReadFile(filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.mount"))
 	c.Assert(err, IsNil)
 	c.Assert(string(mount), Equals, `[Unit]
-Description=Snapfs mount unit for foo.origin
+Description=Squashfs mount unit for foo.origin
 
 [Mount]
 What=/var/lib/snappy/snaps/foo.origin_1.0.snap
@@ -186,7 +186,7 @@ Where=/apps/foo.origin/1.0
 	automount, err := ioutil.ReadFile(filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.automount"))
 	c.Assert(err, IsNil)
 	c.Assert(string(automount), Equals, `[Unit]
-Description=Snapfs automount unit for foo.origin
+Description=Squashfs automount unit for foo.origin
 
 [Automount]
 Where=/apps/foo.origin/1.0
@@ -197,10 +197,10 @@ WantedBy=multi-user.target
 `)
 }
 
-func (s *SnapfsTestSuite) TestRemoveSnapfsAutomount(c *C) {
+func (s *SquashfsTestSuite) TestRemoveSquashfsAutomount(c *C) {
 	m := packageYaml{}
 	inter := &MockProgressMeter{}
-	err := m.addSnapfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
+	err := m.addSquashfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
 	c.Assert(err, IsNil)
 
 	// ensure we have the files
@@ -210,7 +210,7 @@ func (s *SnapfsTestSuite) TestRemoveSnapfsAutomount(c *C) {
 	}
 
 	// now call remove and ensure they are gone
-	err = m.removeSnapfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), inter)
+	err = m.removeSquashfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), inter)
 	c.Assert(err, IsNil)
 	for _, ext := range []string{"mount", "automount"} {
 		p := filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.") + ext
@@ -218,7 +218,7 @@ func (s *SnapfsTestSuite) TestRemoveSnapfsAutomount(c *C) {
 	}
 }
 
-func (s *SnapfsTestSuite) TestRemoveViaSnapfsWorks(c *C) {
+func (s *SquashfsTestSuite) TestRemoveViaSquashfsWorks(c *C) {
 	snapPkg := makeTestSnapPackage(c, packageHello)
 	part, err := NewSnapPartFromSnapFile(snapPkg, "origin", true)
 	c.Assert(err, IsNil)
@@ -236,7 +236,7 @@ func (s *SnapfsTestSuite) TestRemoveViaSnapfsWorks(c *C) {
 
 }
 
-func (s *SnapfsTestSuite) TestInstallOsSnapWithDebFails(c *C) {
+func (s *SquashfsTestSuite) TestInstallOsSnapWithDebFails(c *C) {
 	// ensure we get a error when trying to install old style snap for OS
 	snapBuilderFunc = BuildLegacySnap
 
@@ -251,10 +251,10 @@ func (s *SnapfsTestSuite) TestInstallOsSnapWithDebFails(c *C) {
 	c.Assert(err, IsNil)
 
 	_, err = part.Install(&MockProgressMeter{}, 0)
-	c.Assert(err, ErrorMatches, "kernel/os snap must be of type snapfs")
+	c.Assert(err, ErrorMatches, "kernel/os snap must be of type squashfs")
 }
 
-func (s *SnapfsTestSuite) TestInstallOsSnapUpdatesBootloader(c *C) {
+func (s *SquashfsTestSuite) TestInstallOsSnapUpdatesBootloader(c *C) {
 	snapPkg := makeTestSnapPackage(c, packageOS)
 	part, err := NewSnapPartFromSnapFile(snapPkg, "origin", true)
 	c.Assert(err, IsNil)
@@ -268,7 +268,7 @@ func (s *SnapfsTestSuite) TestInstallOsSnapUpdatesBootloader(c *C) {
 	})
 }
 
-func (s *SnapfsTestSuite) TestInstallKernelSnapUpdatesBootloader(c *C) {
+func (s *SquashfsTestSuite) TestInstallKernelSnapUpdatesBootloader(c *C) {
 	files := [][]string{
 		{"vmlinuz-4.2", "I'm a kernel"},
 		{"initrd.img-4.2", "...and I'm an initrd"},
@@ -286,7 +286,7 @@ func (s *SnapfsTestSuite) TestInstallKernelSnapUpdatesBootloader(c *C) {
 	})
 }
 
-func (s *SnapfsTestSuite) TestInstallKernelSnapUnpacksKernel(c *C) {
+func (s *SquashfsTestSuite) TestInstallKernelSnapUnpacksKernel(c *C) {
 	files := [][]string{
 		{"vmlinuz-4.2", "I'm a kernel"},
 		{"initrd.img-4.2", "...and I'm an initrd"},
@@ -311,7 +311,7 @@ func (s *SnapfsTestSuite) TestInstallKernelSnapUnpacksKernel(c *C) {
 	c.Assert(string(content), Equals, files[1][1])
 }
 
-func (s *SnapfsTestSuite) TestInstallOsRebootRequired(c *C) {
+func (s *SquashfsTestSuite) TestInstallOsRebootRequired(c *C) {
 	snapYaml, err := makeInstalledMockSnap(dirs.GlobalRootDir, packageOS)
 	c.Assert(err, IsNil)
 
@@ -324,7 +324,7 @@ func (s *SnapfsTestSuite) TestInstallOsRebootRequired(c *C) {
 	c.Assert(snap.NeedsReboot(), Equals, true)
 }
 
-func (s *SnapfsTestSuite) TestInstallKernelRebootRequired(c *C) {
+func (s *SquashfsTestSuite) TestInstallKernelRebootRequired(c *C) {
 	snapYaml, err := makeInstalledMockSnap(dirs.GlobalRootDir, packageKernel)
 	c.Assert(err, IsNil)
 
@@ -341,7 +341,7 @@ func (s *SnapfsTestSuite) TestInstallKernelRebootRequired(c *C) {
 	c.Assert(snap.NeedsReboot(), Equals, false)
 }
 
-func (s *SnapfsTestSuite) TestInstallKernelSnapRemovesKernelAssets(c *C) {
+func (s *SquashfsTestSuite) TestInstallKernelSnapRemovesKernelAssets(c *C) {
 	files := [][]string{
 		{"vmlinuz-4.2", "I'm a kernel"},
 		{"initrd.img-4.2", "...and I'm an initrd"},
@@ -361,7 +361,7 @@ func (s *SnapfsTestSuite) TestInstallKernelSnapRemovesKernelAssets(c *C) {
 	c.Assert(helpers.FileExists(kernelAssetsDir), Equals, false)
 }
 
-func (s *SnapfsTestSuite) TestActiveKernelNotRemovable(c *C) {
+func (s *SquashfsTestSuite) TestActiveKernelNotRemovable(c *C) {
 	snapYaml, err := makeInstalledMockSnap(dirs.GlobalRootDir, packageKernel)
 	c.Assert(err, IsNil)
 
@@ -372,7 +372,7 @@ func (s *SnapfsTestSuite) TestActiveKernelNotRemovable(c *C) {
 	c.Assert(snap.Uninstall(&MockProgressMeter{}), Equals, ErrPackageNotRemovable)
 }
 
-func (s *SnapfsTestSuite) TestActiveOSNotRemovable(c *C) {
+func (s *SquashfsTestSuite) TestActiveOSNotRemovable(c *C) {
 	snapYaml, err := makeInstalledMockSnap(dirs.GlobalRootDir, packageOS)
 	c.Assert(err, IsNil)
 
