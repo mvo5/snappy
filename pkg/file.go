@@ -35,11 +35,9 @@ type File interface {
 	// FIXME: use flags here instead of a boolean
 	Verify(allowUnauthenticated bool) error
 
-	// UnpackWithDropPrivs unpacks the given the snap to the given
+	// UnpackAll unpacks the given the snap to the given
 	// targetdir relative to the given rootDir.
-	// FIXME: name leaks implementation details, should be Unpack()
-	UnpackWithDropPrivs(targetDir, rootDir string) error
-	Unpack(src, dstDir string) error
+	UnpackAll(targetDir string) error
 
 	// ReadAll returns the content of snap files.
 	ReadAll(name string) ([]byte, error)

@@ -79,7 +79,7 @@ func (s *KernelSnap) Install(inter progress.Meter, flags InstallFlags) (name str
 
 	if s.m.Kernel != "" {
 		src := s.m.Kernel
-		if err := s.deb.Unpack(src, dstDir); err != nil {
+		if err := s.deb.(*squashfs.Snap).UnpackGlob(src, dstDir); err != nil {
 			return name, err
 		}
 		src = filepath.Join(dstDir, s.m.Kernel)
@@ -93,7 +93,7 @@ func (s *KernelSnap) Install(inter progress.Meter, flags InstallFlags) (name str
 	}
 	if s.m.Initrd != "" {
 		src := s.m.Initrd
-		if err := s.deb.Unpack(src, dstDir); err != nil {
+		if err := s.deb.(*squashfs.Snap).UnpackGlob(src, dstDir); err != nil {
 			return name, err
 		}
 		src = filepath.Join(dstDir, s.m.Initrd)
@@ -108,7 +108,7 @@ func (s *KernelSnap) Install(inter progress.Meter, flags InstallFlags) (name str
 	if s.m.Dtbs != "" {
 		src := s.m.Dtbs
 		dst := filepath.Join(dstDir, s.m.Dtbs)
-		if err := s.deb.Unpack(src, dst); err != nil {
+		if err := s.deb.(*squashfs.Snap).UnpackGlob(src, dst); err != nil {
 			return name, err
 		}
 	}

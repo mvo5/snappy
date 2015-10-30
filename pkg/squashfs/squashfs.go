@@ -63,12 +63,12 @@ func New(path string) *Snap {
 	return &Snap{path: path}
 }
 
-// UnpackWithDropPrivs just copies the blob into place. - COMPAT
-func (s *Snap) UnpackWithDropPrivs(instDir, rootdir string) error {
+// UnpackAll copies the blob in place and unpacks the meta-data
+func (s *Snap) UnpackAll(instDir string) error {
 	// FIXME: we need to unpack "meta/*" here because otherwise there
 	//        is no meta/package.yaml for "snappy list -v" for
 	//        inactive versions.
-	if err := s.UnpackMeta(instDir); err != nil {
+	if err := s.unpackMeta(instDir); err != nil {
 		return err
 	}
 
@@ -83,13 +83,13 @@ func (s *Snap) UnpackWithDropPrivs(instDir, rootdir string) error {
 	return runCommand("cp", "-a", s.path, BlobPath(instDir))
 }
 
-// UnpackMeta unpacks just the meta/* directory of the given snap.
-func (s *Snap) UnpackMeta(dst string) error {
-	if err := s.Unpack("meta/*", dst); err != nil {
+// unpackMeta unpacks just the meta/* directory of the given snap.
+func (s *Snap) unpackMeta(dst string) error {
+	if err := s.UnpackGlob("meta/*", dst); err != nil {
 		return err
 	}
 
-	return s.Unpack(".click/*", dst)
+	return s.UnpackGlob(".click/*", dst)
 }
 
 var runCommand = func(args ...string) error {
@@ -101,8 +101,8 @@ var runCommand = func(args ...string) error {
 	return nil
 }
 
-// Unpack unpacks the src (which may be a glob into the given target dir.
-func (s *Snap) Unpack(src, dstDir string) error {
+// UnpackGlob unpacks the src (which may be a glob) into the given target dir.
+func (s *Snap) UnpackGlob(src, dstDir string) error {
 	return runCommand("unsquashfs", "-f", "-i", "-d", dstDir, s.path, src)
 }
 

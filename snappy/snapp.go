@@ -856,9 +856,8 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		}
 	}()
 
-	// we need to call the external helper so that we can reliable drop
-	// privs
-	if err := s.deb.UnpackWithDropPrivs(s.basedir, dirs.GlobalRootDir); err != nil {
+	// unpack all of it
+	if err := s.deb.UnpackAll(s.basedir); err != nil {
 		return "", err
 	}
 

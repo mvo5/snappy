@@ -98,7 +98,7 @@ func (s *SquashfsTestSuite) TestUnpackGlob(c *C) {
 	snap := makeSnap(c, "", data)
 
 	outputDir := c.MkDir()
-	err := snap.Unpack("data*", outputDir)
+	err := snap.UnpackGlob("data*", outputDir)
 	c.Assert(err, IsNil)
 
 	// this is the file we expect
@@ -114,7 +114,7 @@ func (s *SquashfsTestSuite) TestUnpackMeta(c *C) {
 	snap := makeSnap(c, "", "random-data")
 
 	outputDir := c.MkDir()
-	err := snap.UnpackMeta(outputDir)
+	err := snap.unpackMeta(outputDir)
 	c.Assert(err, IsNil)
 
 	// we got the meta/ stuff

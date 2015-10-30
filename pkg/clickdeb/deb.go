@@ -33,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 
 	"github.com/blakesmith/ar"
@@ -229,15 +230,7 @@ func (d *ClickDeb) extractHashes(dir string) error {
 	return ioutil.WriteFile(hashesFile, hashesData, 0644)
 }
 
-// Unpack unpacks the clickdeb
-func (d *ClickDeb) Unpack(src, dst string) error {
-	return fmt.Errorf("clickdeb does not implement Unpack(src, dst)")
-}
-
-// UnpackAll unpacks the data.tar.{gz,bz2,xz} into the given target directory
-// with click specific verification, i.e. no files will be extracted outside
-// of the targetdir (no ".." inside the data.tar is allowed)
-func (d *ClickDeb) UnpackAll(targetDir string) error {
+func (d *ClickDeb) unpackAllReal(targetDir string) error {
 	f, err := os.Open(d.Name())
 	if err != nil {
 		return err
@@ -510,19 +503,19 @@ func skipToArMember(arReader *ar.Reader, memberPrefix string) (io.Reader, error)
 	return dataReader, nil
 }
 
-// UnpackWithDropPrivs will unapck the ClickDeb content into the
+// UnpackAll will unapck the ClickDeb content into the
 // target dir and drop privs when doing this.
 //
 // To do this reliably in go we need to exec a helper as we can not
 // just fork() and drop privs in the child (no support for stock fork in go).
-func (d *ClickDeb) UnpackWithDropPrivs(instDir, rootdir string) error {
+func (d *ClickDeb) UnpackAll(instDir string) error {
 	// no need to drop privs, we are not root
 	if !helpers.ShouldDropPrivs() {
-		if err := d.UnpackAll(instDir); err != nil {
+		if err := d.unpackAllReal(instDir); err != nil {
 			return err
 		}
 	} else {
-		cmd := exec.Command("snappy", "internal-unpack", d.Name(), instDir, rootdir)
+		cmd := exec.Command("snappy", "internal-unpack", d.Name(), instDir, dirs.GlobalRootDir)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
