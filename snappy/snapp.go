@@ -456,7 +456,7 @@ func (m *packageYaml) checkLicenseAgreement(ag agreer, d pkg.File, currentActive
 		return ErrLicenseNotAccepted
 	}
 
-	license, err := d.MetaMember("license.txt")
+	license, err := d.ReadAll("meta/license.txt")
 	if err != nil || len(license) == 0 {
 		return ErrLicenseNotProvided
 	}
@@ -581,12 +581,12 @@ func NewSnapPartFromSnapFile(snapFile string, origin string, unauthOk bool) (Sna
 		return nil, err
 	}
 
-	yamlData, err := d.MetaMember("package.yaml")
+	yamlData, err := d.ReadAll("meta/package.yaml")
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = d.MetaMember("hooks/config")
+	_, err = d.ReadAll("meta/hooks/config")
 	hasConfig := err == nil
 
 	m, err := parsePackageYamlData(yamlData, hasConfig)
@@ -824,7 +824,7 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		return "", err
 	}
 
-	manifestData, err := s.deb.ControlMember("manifest")
+	manifestData, err := s.deb.ReadAll("DEBIAN/manifest")
 	if err != nil {
 		logger.Noticef("Snap inspect failed for %q: %v", s.Name(), err)
 		return "", err

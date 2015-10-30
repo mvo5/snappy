@@ -111,40 +111,21 @@ func (s *ClickDebTestSuite) TestSnapDebBuild(c *C) {
 	c.Assert(strings.Contains(string(output), "DEBIAN"), Equals, false)
 }
 
-func (s *ClickDebTestSuite) TestSnapDebControlMember(c *C) {
-	debName := makeTestDeb(c, "gzip")
-
-	d, err := Open(debName)
-	c.Assert(err, IsNil)
-	content, err := d.ControlMember("control")
-	c.Assert(err, IsNil)
-	c.Assert(string(content), Equals, string(testDebControl))
-}
-
-func (s *ClickDebTestSuite) TestSnapDebControlMemberMissing(c *C) {
-	debName := makeTestDeb(c, "gzip")
-
-	d, err := Open(debName)
-	c.Assert(err, IsNil)
-	_, err = d.ControlMember("no such file")
-	c.Assert(err, Equals, ErrMemberNotFound)
-}
-
-func (s *ClickDebTestSuite) TestSnapDebMetaMember(c *C) {
+func (s *ClickDebTestSuite) TestSnapDebReadAll(c *C) {
 	debName := makeTestDeb(c, "gzip")
 	d, err := Open(debName)
 	c.Assert(err, IsNil)
-	yaml, err := d.MetaMember("package.yaml")
+	yaml, err := d.ReadAll("meta/package.yaml")
 	c.Assert(err, IsNil)
 	c.Assert(string(yaml), Equals, "name: foo")
 }
 
-func (s *ClickDebTestSuite) TestSnapDebMetaMemberMissing(c *C) {
+func (s *ClickDebTestSuite) TestSnapDebReadAllMissing(c *C) {
 	debName := makeTestDeb(c, "gzip")
 
 	d, err := Open(debName)
 	c.Assert(err, IsNil)
-	_, err = d.MetaMember("no such file")
+	_, err = d.ReadAll("no such file")
 	c.Assert(err, Equals, ErrMemberNotFound)
 }
 

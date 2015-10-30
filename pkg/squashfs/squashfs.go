@@ -63,16 +63,6 @@ func New(path string) *Snap {
 	return &Snap{path: path}
 }
 
-// ControlMember extracts from meta/. - COMPAT
-func (s *Snap) ControlMember(controlMember string) ([]byte, error) {
-	return s.ReadFile(filepath.Join("DEBIAN", controlMember))
-}
-
-// MetaMember extracts from meta/. - COMPAT
-func (s *Snap) MetaMember(metaMember string) ([]byte, error) {
-	return s.ReadFile(filepath.Join("meta", metaMember))
-}
-
 // ExtractHashes does notthing for squashfs snaps. - COMAPT
 func (s *Snap) ExtractHashes(dir string) error {
 	return nil
@@ -121,8 +111,8 @@ func (s *Snap) Unpack(src, dstDir string) error {
 	return runCommand("unsquashfs", "-f", "-i", "-d", dstDir, s.path, src)
 }
 
-// ReadFile returns the content of a single file inside a squashfs snap.
-func (s *Snap) ReadFile(path string) (content []byte, err error) {
+// ReadAll returns the content of a single file inside a squashfs snap.
+func (s *Snap) ReadAll(path string) (content []byte, err error) {
 	tmpdir, err := ioutil.TempDir("", "read-file")
 	if err != nil {
 		return nil, err

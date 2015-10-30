@@ -85,10 +85,10 @@ func (s *SquashfsTestSuite) TestVerify(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *SquashfsTestSuite) TestReadFile(c *C) {
+func (s *SquashfsTestSuite) TestReadAll(c *C) {
 	snap := makeSnap(c, "name: foo", "")
 
-	content, err := snap.ReadFile("meta/package.yaml")
+	content, err := snap.ReadAll("meta/package.yaml")
 	c.Assert(err, IsNil)
 	c.Assert(string(content), Equals, "name: foo")
 }

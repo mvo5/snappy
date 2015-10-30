@@ -161,16 +161,15 @@ func (d *ClickDeb) Verify(allowUnauthenticated bool) error {
 	return Verify(d.Name(), allowUnauthenticated)
 }
 
-// ControlMember returns the content of the given control member file
-// (e.g. the content of the "manifest" file in the control.tar.gz ar member).
-func (d *ClickDeb) ControlMember(controlMember string) (content []byte, err error) {
-	return d.member("control.tar", controlMember)
-}
+// ReadAll returns the content of the given file
+func (d *ClickDeb) ReadAll(metaMember string) (content []byte, err error) {
+	// click compatiblity, the manifest in a clickdeb is stored
+	// in the control.tar file
+	if strings.HasPrefix(metaMember, "DEBIAN/") {
+		return d.member("control.tar", metaMember[len("DEBIAN/"):])
+	}
 
-// MetaMember returns the content of the given meta file (e.g. the content of
-// the "package.yaml" file) from the data.tar.gz ar member's meta/ directory.
-func (d *ClickDeb) MetaMember(metaMember string) (content []byte, err error) {
-	return d.member("data.tar", filepath.Join("meta", metaMember))
+	return d.member("data.tar", metaMember)
 }
 
 // member(arMember, tarMember) returns the content of the given tar member of
@@ -222,7 +221,7 @@ func (d *ClickDeb) member(arMember, tarMember string) (content []byte, err error
 // the given directory.
 func (d *ClickDeb) ExtractHashes(dir string) error {
 	hashesFile := filepath.Join(dir, "hashes.yaml")
-	hashesData, err := d.ControlMember("hashes.yaml")
+	hashesData, err := d.member("control.tar", "hashes.yaml")
 	if err != nil {
 		return err
 	}

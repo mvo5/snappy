@@ -39,11 +39,9 @@ type File interface {
 	// FIXME: name leaks implementation details, should be Unpack()
 	UnpackWithDropPrivs(targetDir, rootDir string) error
 	Unpack(src, dstDir string) error
-	// ControlMember returns the content of snap meta data files.
-	ControlMember(name string) ([]byte, error)
-	// MetaMember returns the content of snap meta data files.
-	// FIXME: redundant
-	MetaMember(name string) ([]byte, error)
+
+	// ReadAll returns the content of snap files.
+	ReadAll(name string) ([]byte, error)
 	// ExtractHashes extracs the hashes from the snap and puts
 	// them into the filesystem for verification.
 	ExtractHashes(targetDir string) error
