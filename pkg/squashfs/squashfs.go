@@ -52,7 +52,8 @@ func (s *Snap) Name() string {
 	return filepath.Base(s.path)
 }
 
-// NeedsAutoMountUnit returns true
+// NeedsAutoMountUnit returns true because a squashfs snap neesd to be
+// monted, it will not be usable otherwise
 func (s *Snap) NeedsAutoMountUnit() bool {
 	return true
 }
