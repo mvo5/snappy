@@ -17,6 +17,28 @@
  *
  */
 
+/* FIXME:
+Feedback
+
+@mvogt This looks more like a Snap than a Path
+@mvogt InstalledSnap, maybe
+@mvogt For a path, I would expect focus on the path itself, but we (rightfuly) see much richer functionality there
+
+John Lenton
+@mvogt @niemeyer if packageYaml were in a package, this would live in that package
+John Lenton
+@mvogt so I propose you make it that package, even if it doesn't have packageYaml yet
+
+Gustavo Niemeyer
+@mvogt Alright, so here is a more complete high-level suggestion
+@mvogt The concept hints at something really interesting, but it feels like it isn't really a Path that you are after. For example, IsActive isn't really a property of a path. This looks to me like a first class abstraction for installed snaps as mentioned above.
+@mvogt The location for this might be something along the lines of snappy.InstalledSnap, because this is really something that is tied in to the snappy runtime behavior, except today snappy is that catch all package that we are trying to get rid of.
+@mvogt I suggest creating a top-level snapsys package whose job is to hold the public snappy-specific functionality that manipulates a local snappy system. In this package we'll hold the sort of higher level abstraction that we were talking about in the context of John's locking work.
+@mvogt Once we clean up the snappy package completely, we can move this there.. or perhaps we just keep snapsys, which is not such a bad name and snappy/snapsys ends up better than snappy/snappy..
+@mvogt Then, I think we can make that API more high-level over time.. it's fine by me if that's not done right now, though
+@mvogt For example, rather than returning the path to the metadata yaml file, why don't we offer a structure out with those details already parsed?
+*/
+
 package installed
 
 import (
