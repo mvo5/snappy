@@ -676,8 +676,10 @@ write
 	err = GeneratePolicyFromFile(mockPackageYamlFn, false)
 	c.Assert(err, IsNil)
 
+	ip := filepath.Dir(filepath.Dir(mockPackageYamlFn))
+
 	// nothing changed, compare is happy
-	err = CompareGeneratePolicyFromFile(mockPackageYamlFn)
+	err = CompareGeneratePolicyFromFile(ip)
 	c.Assert(err, IsNil)
 
 	// now change the templates
@@ -685,7 +687,7 @@ write
 ###POLICYGROUPS###
 `))
 	// ...and ensure that the difference is found
-	err = CompareGeneratePolicyFromFile(mockPackageYamlFn)
+	err = CompareGeneratePolicyFromFile(ip)
 	c.Assert(err, ErrorMatches, "policy differs.*")
 }
 

@@ -21,10 +21,10 @@ package snappy
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
+
+	"github.com/ubuntu-core/snappy/snappy/installed"
 )
 
 // can be overriden by tests
@@ -36,13 +36,13 @@ var aaExec = "aa-exec"
 // This string can be empty.
 //
 // It returns the newConfig or an error
-func snapConfig(snapDir, origin, rawConfig string) (newConfig string, err error) {
-	configScript := filepath.Join(snapDir, "meta", "hooks", "config")
-	if _, err := os.Stat(configScript); err != nil {
+func snapConfig(snapDir installed.Path, origin, rawConfig string) (newConfig string, err error) {
+	if !snapDir.HasConfig() {
 		return "", ErrConfigNotFound
 	}
+	configScript := snapDir.ConfigScript()
 
-	part, err := NewInstalledSnapPart(filepath.Join(snapDir, "meta", "package.yaml"), origin)
+	part, err := NewInstalledSnapPart(snapDir.YamlPath(), origin)
 	if err != nil {
 		return "", ErrPackageNotFound
 	}

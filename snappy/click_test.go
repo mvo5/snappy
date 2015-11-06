@@ -37,6 +37,7 @@ import (
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
+	"github.com/ubuntu-core/snappy/snappy/installed"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -1136,7 +1137,7 @@ func (s *SnapTestSuite) TestAddPackageServicesStripsGlobalRootdir(c *C) {
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := filepath.Dir(filepath.Dir(yamlFile))
+	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1165,7 +1166,7 @@ services:
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := filepath.Dir(filepath.Dir(yamlFile))
+	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1187,7 +1188,7 @@ services:
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := filepath.Dir(filepath.Dir(yamlFile))
+	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1205,7 +1206,7 @@ func (s *SnapTestSuite) TestAddPackageBinariesStripsGlobalRootdir(c *C) {
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := filepath.Dir(filepath.Dir(yamlFile))
+	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageBinaries(baseDir)
 	c.Assert(err, IsNil)
 
@@ -1501,7 +1502,7 @@ services:
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
 	inter := &MockProgressMeter{}
-	c.Check(m.removePackageServices(filepath.Dir(filepath.Dir(yamlFile)), inter), IsNil)
+	c.Check(m.removePackageServices(installed.Path(filepath.Dir(filepath.Dir(yamlFile))), inter), IsNil)
 	c.Assert(len(inter.notified) > 0, Equals, true)
 	c.Check(inter.notified[len(inter.notified)-1], Equals, "wat_wat_42.service refused to stop, killing.")
 	c.Assert(len(sysdLog) >= 3, Equals, true)

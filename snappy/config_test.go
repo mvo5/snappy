@@ -25,6 +25,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ubuntu-core/snappy/snappy/installed"
+
 	. "gopkg.in/check.v1"
 )
 
@@ -60,7 +62,7 @@ config:
     key: value
 `
 
-func (s *SnapTestSuite) makeInstalledMockSnapWithConfig(c *C, configScript string, yamls ...string) (snapDir string, err error) {
+func (s *SnapTestSuite) makeInstalledMockSnapWithConfig(c *C, configScript string, yamls ...string) (snapDir installed.Path, err error) {
 	yamlFile, err := s.makeInstalledMockSnap(yamls...)
 	c.Assert(err, IsNil)
 	metaDir := filepath.Dir(yamlFile)
@@ -69,7 +71,7 @@ func (s *SnapTestSuite) makeInstalledMockSnapWithConfig(c *C, configScript strin
 	err = ioutil.WriteFile(filepath.Join(metaDir, "hooks", "config"), []byte(configScript), 0755)
 	c.Assert(err, IsNil)
 
-	snapDir = filepath.Dir(metaDir)
+	snapDir = installed.Path(filepath.Dir(metaDir))
 	return snapDir, nil
 }
 

@@ -36,6 +36,7 @@ import (
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
+	"github.com/ubuntu-core/snappy/snappy/installed"
 )
 
 type errPolicyNotFound struct {
@@ -190,15 +191,18 @@ func findWhitespacePrefix(t string, s string) string {
 	return p
 }
 
-func getSecurityProfile(m *packageYaml, appName, baseDir string) (string, error) {
+func getSecurityProfile(m *packageYaml, appName string, baseDir installed.Path) (string, error) {
 	cleanedName := strings.Replace(appName, "/", "-", -1)
 	if m.Type == pkg.TypeFramework || m.Type == pkg.TypeOem {
 		return fmt.Sprintf("%s_%s_%s", m.Name, cleanedName, m.Version), nil
 	}
 
-	origin, err := originFromYamlPath(filepath.Join(baseDir, "meta", "package.yaml"))
+	origin := baseDir.Origin()
+	if origin == "" {
+		return "", ErrInvalidPart
+	}
 
-	return fmt.Sprintf("%s.%s_%s_%s", m.Name, origin, cleanedName, m.Version), err
+	return fmt.Sprintf("%s.%s_%s_%s", m.Name, origin, cleanedName, m.Version), nil
 }
 
 func findTemplate(template string, policyType string) (string, error) {
@@ -482,7 +486,7 @@ var loadAppArmorPolicy = func(fn string) ([]byte, error) {
 	return content, err
 }
 
-func (m *packageYaml) removeOneSecurityPolicy(name, baseDir string) error {
+func (m *packageYaml) removeOneSecurityPolicy(name string, baseDir installed.Path) error {
 	profileName, err := getSecurityProfile(m, filepath.Base(name), baseDir)
 	if err != nil {
 		return err
@@ -509,7 +513,7 @@ func (m *packageYaml) removeOneSecurityPolicy(name, baseDir string) error {
 	return nil
 }
 
-func removePolicy(m *packageYaml, baseDir string) error {
+func removePolicy(m *packageYaml, baseDir installed.Path) error {
 	for _, service := range m.ServiceYamls {
 		if err := m.removeOneSecurityPolicy(service.Name, baseDir); err != nil {
 			return err
@@ -550,7 +554,7 @@ type securityPolicyResult struct {
 	scFn     string
 }
 
-func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYaml, name string, baseDir string) (*securityPolicyResult, error) {
+func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYaml, name string, baseDir installed.Path) (*securityPolicyResult, error) {
 	res := &securityPolicyResult{}
 	appID, err := getSecurityProfile(m, name, baseDir)
 	if err != nil {
@@ -565,11 +569,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 	}
 
 	// add the hw-override parts and merge with the other overrides
-	origin, err := originFromYamlPath(filepath.Join(baseDir, "meta", "package.yaml"))
-	if err != nil {
-		return nil, err
-	}
-
+	origin := baseDir.Origin()
 	hwaccessOverrides, err := readHWAccessYamlFile(m.qualifiedName(origin))
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -577,12 +577,12 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 
 	sd.mergeAppArmorSecurityOverrides(&hwaccessOverrides)
 	if sd.SecurityPolicy != nil {
-		res.aaPolicy, err = getAppArmorCustomPolicy(m, res.id, filepath.Join(baseDir, sd.SecurityPolicy.AppArmor))
+		res.aaPolicy, err = getAppArmorCustomPolicy(m, res.id, filepath.Join(string(baseDir), sd.SecurityPolicy.AppArmor))
 		if err != nil {
 			logger.Noticef("Failed to generate custom AppArmor policy for %s: %v", name, err)
 			return nil, err
 		}
-		res.scPolicy, err = getSeccompCustomPolicy(m, res.id, filepath.Join(baseDir, sd.SecurityPolicy.Seccomp))
+		res.scPolicy, err = getSeccompCustomPolicy(m, res.id, filepath.Join(string(baseDir), sd.SecurityPolicy.Seccomp))
 		if err != nil {
 			logger.Noticef("Failed to generate custom seccomp policy for %s: %v", name, err)
 			return nil, err
@@ -614,7 +614,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 	return res, nil
 }
 
-func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, name string, baseDir string) error {
+func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, name string, baseDir installed.Path) error {
 	p, err := sd.generatePolicyForServiceBinaryResult(m, name, baseDir)
 	if err != nil {
 		return err
@@ -642,16 +642,11 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, na
 	return nil
 }
 
-// FIXME: move into something more generic - SnapPart.HasConfig?
-func hasConfig(baseDir string) bool {
-	return helpers.FileExists(filepath.Join(baseDir, "meta", "hooks", "config"))
-}
-
-func generatePolicy(m *packageYaml, baseDir string) error {
+func generatePolicy(m *packageYaml, baseDir installed.Path) error {
 	var foundError error
 
 	// generate default security config for snappy-config
-	if hasConfig(baseDir) {
+	if baseDir.HasConfig() {
 		if err := snappyConfig.generatePolicyForServiceBinary(m, "snappy-config", baseDir); err != nil {
 			foundError = err
 			logger.Noticef("Failed to obtain APP_ID for %s: %v", "snappy-config", err)
@@ -747,12 +742,12 @@ func compareSinglePolicyToCurrent(oldPolicyFn, newPolicy string) error {
 
 // CompareGeneratePolicyFromFile is used to simulate security policy
 // generation and returns if the policy would have changed
-func CompareGeneratePolicyFromFile(fn string) error {
-	m, err := parsePackageYamlFile(fn)
+func CompareGeneratePolicyFromFile(d string) error {
+	baseDir := installed.Path(d)
+	m, err := parsePackageYamlFile(baseDir.YamlPath())
 	if err != nil {
 		return err
 	}
-	baseDir := filepath.Dir(filepath.Dir(fn))
 
 	for _, service := range m.ServiceYamls {
 		p, err := service.generatePolicyForServiceBinaryResult(m, service.Name, baseDir)
@@ -780,7 +775,7 @@ func CompareGeneratePolicyFromFile(fn string) error {
 	}
 
 	// now compare the snappy-config profile
-	if hasConfig(baseDir) {
+	if baseDir.HasConfig() {
 		p, err := snappyConfig.generatePolicyForServiceBinaryResult(m, "snappy-config", baseDir)
 		if err != nil {
 			return nil
@@ -815,7 +810,7 @@ func GeneratePolicyFromFile(fn string, force bool) error {
 
 	// TODO: verify cache files here
 
-	baseDir := filepath.Dir(filepath.Dir(fn))
+	baseDir := installed.Path(filepath.Dir(filepath.Dir(fn)))
 	err = generatePolicy(m, baseDir)
 	if err != nil {
 		return err
@@ -836,17 +831,16 @@ func RegenerateAllPolicy(force bool) error {
 			continue
 		}
 		basedir := p.(*SnapPart).basedir
-		yFn := filepath.Join(basedir, "meta", "package.yaml")
 
 		// FIXME: use ErrPolicyNeedsRegenerating here to check if
 		//        re-generation is needed
-		if err := CompareGeneratePolicyFromFile(yFn); err == nil {
+		if err := CompareGeneratePolicyFromFile(string(basedir)); err == nil {
 			continue
 		}
 
 		// re-generate!
-		logger.Noticef("re-generating security policy for %s", yFn)
-		if err := GeneratePolicyFromFile(yFn, force); err != nil {
+		logger.Noticef("re-generating security policy for %s", basedir)
+		if err := GeneratePolicyFromFile(basedir.YamlPath(), force); err != nil {
 			return err
 		}
 	}
