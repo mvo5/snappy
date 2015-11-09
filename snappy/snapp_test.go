@@ -32,12 +32,13 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/part/abstract"
+	"github.com/ubuntu-core/snappy/part/local"
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
-	"github.com/ubuntu-core/snappy/snappy/installed"
 	"github.com/ubuntu-core/snappy/systemd"
 
 	. "gopkg.in/check.v1"
@@ -509,7 +510,7 @@ func (s *SnapTestSuite) TestUbuntuStoreRepositoryAliasSearch(c *C) {
 	c.Assert(alias, DeepEquals, parts[0])
 }
 func mockActiveSnapIterByType(mockSnaps []string) {
-	ActiveSnapIterByType = func(f func(Part) string, snapTs ...pkg.Type) (res []string, err error) {
+	ActiveSnapIterByType = func(f func(abstract.Part) string, snapTs ...pkg.Type) (res []string, err error) {
 		return mockSnaps, nil
 	}
 }
@@ -1238,8 +1239,8 @@ binaries:
 
 	pb := &MockProgressMeter{}
 	m, err := parsePackageYamlData([]byte(yaml), false)
-	part := &SnapPart{m: m, origin: testOrigin, basedir: installed.Path(d1)}
-	c.Assert(part.RefreshDependentsSecurity(&SnapPart{basedir: installed.Path(d2)}, pb), IsNil)
+	part := &SnapPart{m: m, origin: testOrigin, basedir: local.Part(d1)}
+	c.Assert(part.RefreshDependentsSecurity(&SnapPart{basedir: local.Part(d2)}, pb), IsNil)
 	// TODO: verify it was updated
 }
 
@@ -1303,7 +1304,7 @@ func (s *SnapTestSuite) TestNeedsAppArmorUpdatePolicyAbsent(c *C) {
 func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateService(c *C) {
 	// if one of the services needs updating, it's updated and returned
 	svc := ServiceYaml{Name: "svc", SecurityDefinitions: SecurityDefinitions{SecurityTemplate: "foo"}}
-	part := &SnapPart{m: &packageYaml{Name: "part", ServiceYamls: []ServiceYaml{svc}, Version: "42"}, origin: testOrigin, basedir: installed.Path(filepath.Join(dirs.SnapAppsDir, "part."+testOrigin, "42"))}
+	part := &SnapPart{m: &packageYaml{Name: "part", ServiceYamls: []ServiceYaml{svc}, Version: "42"}, origin: testOrigin, basedir: local.Part(filepath.Join(dirs.SnapAppsDir, "part."+testOrigin, "42"))}
 	err := part.RequestSecurityPolicyUpdate(nil, map[string]bool{"foo": true})
 	c.Assert(err, NotNil)
 }
@@ -1311,7 +1312,7 @@ func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateService(c *C) {
 func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateBinary(c *C) {
 	// if one of the binaries needs updating, the part needs updating
 	bin := Binary{Name: "echo", SecurityDefinitions: SecurityDefinitions{SecurityTemplate: "foo"}}
-	part := &SnapPart{m: &packageYaml{Name: "part", Binaries: []Binary{bin}, Version: "42"}, origin: testOrigin, basedir: installed.Path(filepath.Join(dirs.SnapAppsDir, "part."+testOrigin, "42"))}
+	part := &SnapPart{m: &packageYaml{Name: "part", Binaries: []Binary{bin}, Version: "42"}, origin: testOrigin, basedir: local.Part(filepath.Join(dirs.SnapAppsDir, "part."+testOrigin, "42"))}
 	err := part.RequestSecurityPolicyUpdate(nil, map[string]bool{"foo": true})
 	c.Check(err, NotNil) // XXX: we should do better than this
 }

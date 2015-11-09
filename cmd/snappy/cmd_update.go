@@ -27,6 +27,8 @@ import (
 
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/part/abstract"
+	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snappy"
 )
@@ -66,13 +68,13 @@ func (x *cmdUpdate) Execute(args []string) (err error) {
 
 func (x *cmdUpdate) doUpdate() error {
 	// FIXME: handle (more?) args
-	flags := snappy.DoInstallGC
+	flags := pkg.DoInstallGC
 	if x.DisableGC {
 		flags = 0
 	}
 
 	var err error
-	var updates []snappy.Part
+	var updates []abstract.Part
 	if x.Positional.PackageName != "" {
 		updates, err = snappy.Update(x.Positional.PackageName, flags, progress.MakeProgressBar())
 	} else {

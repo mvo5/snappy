@@ -17,22 +17,25 @@
  *
  */
 
-package snappy
+package local
 
 import (
-	"github.com/ubuntu-core/snappy/part/abstract"
+	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
-// ListInstalled returns all installed snaps
-func ListInstalled() ([]abstract.Part, error) {
-	m := NewMetaRepository()
+// Hook up check.v1 into the "go test" runner
+func Test(t *testing.T) { TestingT(t) }
 
-	return m.Installed()
+type LocalPartTestSuite struct {
 }
 
-// ListUpdates returns all snaps with updates
-func ListUpdates() ([]abstract.Part, error) {
-	m := NewMetaRepository()
+var _ = Suite(&LocalPartTestSuite{})
 
-	return m.Updates()
+
+func (s *LocalPartTestSuite) TestLocalPartReadmePath(c *C) {
+	localSnap := Part(c.MkDir())
+
+	c.Assert(localSnap.YamlPath(), Matches, ".*/meta/package.yaml")
 }

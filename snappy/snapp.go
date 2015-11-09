@@ -41,12 +41,13 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/oauth"
+	"github.com/ubuntu-core/snappy/part/abstract"
+	"github.com/ubuntu-core/snappy/part/local"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/release"
-	"github.com/ubuntu-core/snappy/snappy/installed"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -63,8 +64,8 @@ const (
 // SharedName is a structure that holds an Alias to the preferred package and
 // the list of all the alternatives.
 type SharedName struct {
-	Alias Part
-	Parts []Part
+	Alias abstract.Part
+	Parts []abstract.Part
 }
 
 // SharedNames is a list of all packages and it's SharedName structure.
@@ -161,7 +162,7 @@ type SnapPart struct {
 	isInstalled bool
 	description string
 	deb         PackageFile
-	basedir     installed.Path
+	basedir     local.Part
 }
 
 var commasplitter = regexp.MustCompile(`\s*,\s*`).Split
@@ -532,7 +533,7 @@ func NewSnapPartFromSnapFile(snapFile string, origin string, unauthOk bool) (*Sn
 	instDir := filepath.Join(targetDir, fullName, m.Version)
 
 	return &SnapPart{
-		basedir: installed.Path(instDir),
+		basedir: local.Part(instDir),
 		origin:  origin,
 		m:       m,
 		deb:     d,
@@ -546,7 +547,7 @@ func NewSnapPartFromYaml(yamlPath, origin string, m *packageYaml) (*SnapPart, er
 	}
 
 	part := &SnapPart{
-		basedir: installed.Path(filepath.Dir(filepath.Dir(yamlPath))),
+		basedir: local.Part(filepath.Dir(filepath.Dir(yamlPath))),
 		origin:  origin,
 		m:       m,
 	}
@@ -719,9 +720,9 @@ func (s *SnapPart) OemConfig() SystemConfig {
 }
 
 // Install installs the snap
-func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name string, err error) {
-	allowOEM := (flags & AllowOEM) != 0
-	inhibitHooks := (flags & InhibitHooks) != 0
+func (s *SnapPart) Install(inter progress.Meter, flags pkg.InstallFlags) (name string, err error) {
+	allowOEM := (flags & pkg.AllowOEM) != 0
+	inhibitHooks := (flags & pkg.InhibitHooks) != 0
 
 	if s.IsInstalled() {
 		return "", ErrAlreadyInstalled
@@ -955,7 +956,7 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 
 	// generate the security policy from the package.yaml
 	appsDir := filepath.Join(dirs.SnapAppsDir, QualifiedName(s), s.Version())
-	if err := generatePolicy(s.m, installed.Path(appsDir)); err != nil {
+	if err := generatePolicy(s.m, local.Part(appsDir)); err != nil {
 		return err
 	}
 
@@ -1108,7 +1109,7 @@ func (s *SnapPart) Frameworks() ([]string, error) {
 // DependentNames returns a list of the names of apps installed that
 // depend on this one
 //
-// /!\ not part of the Part interface.
+// /!\ not part of the abstract.Part interface.
 func (s *SnapPart) DependentNames() ([]string, error) {
 	deps, err := s.Dependents()
 	if err != nil {
@@ -1125,7 +1126,7 @@ func (s *SnapPart) DependentNames() ([]string, error) {
 
 // Dependents gives the list of apps installed that depend on this one
 //
-// /!\ not part of the Part interface.
+// /!\ not part of the abstract.Part interface.
 func (s *SnapPart) Dependents() ([]*SnapPart, error) {
 	if s.Type() != pkg.TypeFramework {
 		// only frameworks are depended on
@@ -1276,7 +1277,7 @@ func (s *SnapLocalRepository) Description() string {
 }
 
 // Details returns details for the given snap
-func (s *SnapLocalRepository) Details(name string, origin string) (versions []Part, err error) {
+func (s *SnapLocalRepository) Details(name string, origin string) (versions []abstract.Part, err error) {
 	if origin == "" || origin == SideloadedOrigin {
 		origin = "*"
 	}
@@ -1293,12 +1294,12 @@ func (s *SnapLocalRepository) Details(name string, origin string) (versions []Pa
 }
 
 // Updates returns the available updates
-func (s *SnapLocalRepository) Updates() (parts []Part, err error) {
+func (s *SnapLocalRepository) Updates() (parts []abstract.Part, err error) {
 	return nil, err
 }
 
 // Installed returns the installed snaps from this repository
-func (s *SnapLocalRepository) Installed() (parts []Part, err error) {
+func (s *SnapLocalRepository) Installed() (parts []abstract.Part, err error) {
 	globExpr := filepath.Join(s.path, "*", "*", "meta", "package.yaml")
 	return s.partsForGlobExpr(globExpr)
 }
@@ -1306,10 +1307,10 @@ func (s *SnapLocalRepository) Installed() (parts []Part, err error) {
 // All the parts (ie all installed + removed-but-not-purged)
 //
 // TODO: that thing about removed
-func (s *SnapLocalRepository) All() ([]Part, error) {
+func (s *SnapLocalRepository) All() ([]abstract.Part, error) {
 	return s.Installed()
 }
-func (s *SnapLocalRepository) partsForGlobExpr(globExpr string) (parts []Part, err error) {
+func (s *SnapLocalRepository) partsForGlobExpr(globExpr string) (parts []abstract.Part, err error) {
 	matches, err := filepath.Glob(globExpr)
 	if err != nil {
 		return nil, err
@@ -1340,7 +1341,7 @@ func (s *SnapLocalRepository) partsForGlobExpr(globExpr string) (parts []Part, e
 
 // originFromYamlPath *must* return "" if it's returning error.
 func originFromYamlPath(path string) (string, error) {
-	origin := installed.Path(filepath.Join(path, "..", "..")).Origin()
+	origin := local.Part(filepath.Join(path, "..", "..")).Origin()
 
 	if origin == "" {
 		return "", ErrInvalidPart
@@ -1538,7 +1539,7 @@ func (s *RemoteSnapPart) saveStoreManifest() error {
 }
 
 // Install installs the snap
-func (s *RemoteSnapPart) Install(pbar progress.Meter, flags InstallFlags) (string, error) {
+func (s *RemoteSnapPart) Install(pbar progress.Meter, flags pkg.InstallFlags) (string, error) {
 	downloadedSnap, err := s.Download(pbar)
 	if err != nil {
 		return "", err
@@ -1698,7 +1699,7 @@ func (s *SnapUbuntuStoreRepository) Description() string {
 }
 
 // Details returns details for the given snap in this repository
-func (s *SnapUbuntuStoreRepository) Details(name string, origin string) (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Details(name string, origin string) (parts []abstract.Part, err error) {
 	snapName := name
 	if origin != "" {
 		snapName = name + "." + origin
@@ -1746,7 +1747,7 @@ func (s *SnapUbuntuStoreRepository) Details(name string, origin string) (parts [
 }
 
 // All (installable) parts from the store
-func (s *SnapUbuntuStoreRepository) All() ([]Part, error) {
+func (s *SnapUbuntuStoreRepository) All() ([]abstract.Part, error) {
 	req, err := http.NewRequest("GET", s.searchURI.String(), nil)
 	if err != nil {
 		return nil, err
@@ -1769,7 +1770,7 @@ func (s *SnapUbuntuStoreRepository) All() ([]Part, error) {
 		return nil, err
 	}
 
-	parts := make([]Part, len(searchData.Payload.Packages))
+	parts := make([]abstract.Part, len(searchData.Payload.Packages))
 	for i, pkg := range searchData.Payload.Packages {
 		parts[i] = NewRemoteSnapPart(pkg)
 	}
@@ -1823,7 +1824,7 @@ func (s *SnapUbuntuStoreRepository) Search(searchTerm string) (SharedNames, erro
 }
 
 // Updates returns the available updates
-func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Updates() (parts []abstract.Part, err error) {
 	// the store only supports apps, oem and frameworks currently, so no
 	// sense in sending it our ubuntu-core snap
 	//
@@ -1872,7 +1873,7 @@ func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
 }
 
 // Installed returns the installed snaps from this repository
-func (s *SnapUbuntuStoreRepository) Installed() (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Installed() (parts []abstract.Part, err error) {
 	return nil, err
 }
 

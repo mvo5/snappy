@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/part/abstract"
 )
 
 const (
@@ -198,7 +199,7 @@ func (bv ByVersion) Len() int {
 }
 
 // BySnapVersion provides a sort interface
-type BySnapVersion []Part
+type BySnapVersion []abstract.Part
 
 func (bv BySnapVersion) Less(a, b int) bool {
 	return (VersionCompare(bv[a].Version(), bv[b].Version()) < 0)

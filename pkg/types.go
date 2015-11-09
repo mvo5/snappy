@@ -25,6 +25,21 @@ import (
 	"encoding/json"
 )
 
+// InstallFlags can be used to pass additional flags to the install of a
+// snap
+type InstallFlags uint
+
+const (
+	// AllowUnauthenticated allows to install a snap even if it can not be authenticated
+	AllowUnauthenticated InstallFlags = 1 << iota
+	// InhibitHooks will ensure that the hooks are not run
+	InhibitHooks
+	// DoInstallGC will ensure that garbage collection is done
+	DoInstallGC
+	// AllowOEM allows the installation of OEM packages, this does not affect updates.
+	AllowOEM
+)
+
 // Type represents the kind of snap (app, core, frameworks, oem)
 type Type string
 

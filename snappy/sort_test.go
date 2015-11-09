@@ -25,6 +25,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/part/abstract"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 )
 
@@ -83,7 +84,7 @@ func (s *SortTestSuite) TestSort(c *C) {
 }
 
 func (s *SortTestSuite) TestSortSnaps(c *C) {
-	snaps := []Part{
+	snaps := []abstract.Part{
 		&RemoteSnapPart{pkg: remote.Snap{Version: "2.0"}},
 		&RemoteSnapPart{pkg: remote.Snap{Version: "1.0"}},
 	}

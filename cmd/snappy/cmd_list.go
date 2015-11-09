@@ -28,6 +28,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/part/abstract"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/snappy"
 )
@@ -90,7 +91,7 @@ func formatDate(t time.Time) string {
 	return fmt.Sprintf("%v-%02d-%02d", t.Year(), int(t.Month()), t.Day())
 }
 
-func showInstalledList(installed []snappy.Part, o io.Writer) {
+func showInstalledList(installed []abstract.Part, o io.Writer) {
 	w := tabwriter.NewWriter(o, 5, 3, 1, ' ', 0)
 
 	fmt.Fprintln(w, "Name\tDate\tVersion\tDeveloper\t")
@@ -104,7 +105,7 @@ func showInstalledList(installed []snappy.Part, o io.Writer) {
 	showRebootMessage(installed, o)
 }
 
-func showVerboseList(installed []snappy.Part, o io.Writer) {
+func showVerboseList(installed []abstract.Part, o io.Writer) {
 	w := tabwriter.NewWriter(o, 5, 3, 1, ' ', 0)
 
 	fmt.Fprintln(w, i18n.G("Name\tDate\tVersion\tDeveloper\t"))
@@ -126,7 +127,7 @@ func showVerboseList(installed []snappy.Part, o io.Writer) {
 	showRebootMessage(installed, o)
 }
 
-func showRebootMessage(installed []snappy.Part, o io.Writer) {
+func showRebootMessage(installed []abstract.Part, o io.Writer) {
 	// Initialise to handle systems without a provisioned "other"
 	otherVersion := "0"
 	currentVersion := "0"
@@ -167,7 +168,7 @@ func showRebootMessage(installed []snappy.Part, o io.Writer) {
 	}
 }
 
-func showUpdatesList(installed []snappy.Part, updates []snappy.Part, o io.Writer) {
+func showUpdatesList(installed []abstract.Part, updates []abstract.Part, o io.Writer) {
 	// TODO tabwriter and output in general to adapt to the spec
 	w := tabwriter.NewWriter(o, 5, 3, 1, ' ', 0)
 	defer w.Flush()

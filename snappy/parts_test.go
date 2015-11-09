@@ -27,6 +27,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/part/abstract"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 )
@@ -73,7 +74,7 @@ vendor: example.com`)
 	makeSnapActive(yamlPath)
 
 	type T struct {
-		f func(Part) string
+		f func(abstract.Part) string
 		t pkg.Type
 		n string
 	}

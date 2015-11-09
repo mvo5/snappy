@@ -26,6 +26,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snappy"
 )
@@ -66,12 +67,12 @@ func (x *cmdInstall) doInstall() error {
 		return errors.New(i18n.G("package name is required"))
 	}
 
-	flags := snappy.DoInstallGC
+	flags := pkg.DoInstallGC
 	if x.DisableGC {
 		flags = 0
 	}
 	if x.AllowUnauthenticated {
-		flags |= snappy.AllowUnauthenticated
+		flags |= pkg.AllowUnauthenticated
 	}
 	// TRANSLATORS: the %s is a pkgname
 	fmt.Printf(i18n.G("Installing %s\n"), pkgName)

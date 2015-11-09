@@ -39,7 +39,7 @@ Gustavo Niemeyer
 @mvogt For example, rather than returning the path to the metadata yaml file, why don't we offer a structure out with those details already parsed?
 */
 
-package installed
+package local
 
 import (
 	"os"
@@ -49,18 +49,18 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 )
 
-// InstalledPath represents a installed snap path
-type Path string
+// Part represents a installed snap package
+type Part string
 
-func (i Path) HasConfig() bool {
+func (i Part) HasConfig() bool {
 	return helpers.FileExists(i.ConfigScript())
 }
 
-func (i Path) ConfigScript() string {
+func (i Part) ConfigScript() string {
 	return filepath.Join(string(i), "meta", "hooks", "config")
 }
 
-func (i Path) Origin() string {
+func (i Part) Origin() string {
 	ext := filepath.Ext(filepath.Dir(filepath.Clean(string(i))))
 	if len(ext) < 2 {
 		return ""
@@ -69,23 +69,23 @@ func (i Path) Origin() string {
 	return ext[1:]
 }
 
-func (i Path) YamlPath() string {
+func (i Part) YamlPath() string {
 	return filepath.Join(string(i), "meta", "package.yaml")
 }
 
-func (i Path) ReadmePath() string {
+func (i Part) ReadmePath() string {
 	return filepath.Join(string(i), "meta", "readme.md")
 }
 
-func (i Path) HashesPath() string {
+func (i Part) HashesPath() string {
 	return filepath.Join(string(i), "meta", "hashes.yaml")
 }
 
-func (i Path) Version() string {
+func (i Part) Version() string {
 	return filepath.Base(string(i))
 }
 
-func (i Path) Size() int64 {
+func (i Part) Size() int64 {
 	// FIXME: cache this at install time maybe?
 	totalSize := int64(0)
 	f := func(_ string, info os.FileInfo, err error) error {
@@ -96,7 +96,7 @@ func (i Path) Size() int64 {
 	return totalSize
 }
 
-func (i Path) Date() time.Time {
+func (i Part) Date() time.Time {
 	st, err := os.Stat(string(i))
 	if err != nil {
 		return time.Time{}
@@ -105,11 +105,11 @@ func (i Path) Date() time.Time {
 	return st.ModTime()
 }
 
-func (i Path) RemoveAll() error {
+func (i Part) RemoveAll() error {
 	return os.RemoveAll(string(i))
 }
 
-func (i Path) IsActive() (bool, error) {
+func (i Part) IsActive() (bool, error) {
 	allVersionsDir := filepath.Dir(string(i))
 	p, err := filepath.EvalSymlinks(filepath.Join(allVersionsDir, "current"))
 	if err != nil && !os.IsNotExist(err) {
@@ -118,3 +118,4 @@ func (i Path) IsActive() (bool, error) {
 
 	return p == string(i), nil
 }
+

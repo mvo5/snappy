@@ -24,7 +24,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ubuntu-core/snappy/snappy/installed"
+	"github.com/ubuntu-core/snappy/part/local"
 )
 
 // can be overriden by tests
@@ -36,7 +36,7 @@ var aaExec = "aa-exec"
 // This string can be empty.
 //
 // It returns the newConfig or an error
-func snapConfig(snapDir installed.Path, origin, rawConfig string) (newConfig string, err error) {
+func snapConfig(snapDir local.Part, origin, rawConfig string) (newConfig string, err error) {
 	if !snapDir.HasConfig() {
 		return "", ErrConfigNotFound
 	}

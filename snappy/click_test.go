@@ -33,11 +33,11 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/part/local"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
-	"github.com/ubuntu-core/snappy/snappy/installed"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -232,7 +232,7 @@ func (s *SnapTestSuite) TestLocalSnapInstallDebsigVerifyPassesUnauth(c *C) {
 	defer func() { clickdeb.VerifyCmd = old }()
 
 	snapFile := makeTestSnapPackage(c, "")
-	name, err := installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	name, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 
@@ -499,7 +499,7 @@ version: 1.0
 type: oem
 icon: foo.svg
 vendor: Foo Bar <foo@example.com>`)
-	_, err := installClick(snapFile, AllowOEM, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.AllowOEM, nil, testOrigin)
 	c.Assert(err, IsNil)
 
 	contentFile := filepath.Join(s.tempdir, "oem", "foo", "1.0", "bin", "foo")
@@ -515,7 +515,7 @@ version: 1.0
 type: oem
 icon: foo.svg
 vendor: Foo Bar <foo@example.com>`)
-	_, err := installClick(snapFile, AllowOEM, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.AllowOEM, nil, testOrigin)
 	c.Assert(err, IsNil)
 	c.Assert(storeMinimalRemoteManifest("foo", "foo", testOrigin, "1.0", "", "remote-channel"), IsNil)
 
@@ -555,7 +555,7 @@ vendor: Foo Bar <foo@example.com>`)
 	c.Check(err, Equals, ErrOEMPackageInstall)
 
 	// this will cause chaos, but let's test if it works
-	_, err = installClick(snapFile, AllowOEM, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowOEM, nil, testOrigin)
 	c.Check(err, IsNil)
 }
 
@@ -565,11 +565,11 @@ icon: foo.svg
 vendor: Foo Bar <foo@example.com>
 `
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 
 	// ensure v2 is active
@@ -608,7 +608,7 @@ vendor: Foo Bar <foo@example.com>
 	canaryData := []byte("ni ni ni")
 
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	canaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "1.0", "canary.txt")
 	err = ioutil.WriteFile(canaryDataFile, canaryData, 0644)
@@ -617,7 +617,7 @@ vendor: Foo Bar <foo@example.com>
 	c.Assert(err, IsNil)
 
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	newCanaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "2.0", "canary.txt")
 	content, err := ioutil.ReadFile(newCanaryDataFile)
@@ -642,14 +642,14 @@ vendor: Foo Bar <foo@example.com>
 `
 	appDir := "foo." + testOrigin
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	canaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "1.0", "canary.txt")
 	err = ioutil.WriteFile(canaryDataFile, []byte(""), 0644)
 	c.Assert(err, IsNil)
 
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	_, err = os.Stat(filepath.Join(dirs.SnapDataDir, appDir, "2.0", "canary.txt"))
 	c.Assert(err, IsNil)
@@ -678,14 +678,14 @@ integration:
 	appDir := "bar." + testOrigin
 	// install 1.0 and then upgrade to 2.0
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	canaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "1.0", "canary.txt")
 	err = ioutil.WriteFile(canaryDataFile, []byte(""), 0644)
 	c.Assert(err, IsNil)
 
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	_, err = os.Stat(filepath.Join(dirs.SnapDataDir, appDir, "2.0", "canary.txt"))
 	c.Assert(err, IsNil)
@@ -723,14 +723,14 @@ integration:
 	appDir := "bar." + testOrigin
 	// install 1.0 and then upgrade to 2.0
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, IsNil)
 	canaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "1.0", "canary.txt")
 	err = ioutil.WriteFile(canaryDataFile, []byte(""), 0644)
 	c.Assert(err, IsNil)
 
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, testOrigin)
 	c.Assert(err, NotNil)
 
 	// installing 2.0 will fail in the hooks,
@@ -846,7 +846,7 @@ binaries:
  - name: bin/bar
 `
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, "mvo")
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, "mvo")
 	c.Assert(err, IsNil)
 
 	// ensure that the binary wrapper file go generated with the right
@@ -873,7 +873,7 @@ binaries:
  - name: bin/bar
 `
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, "mvo")
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, "mvo")
 	c.Assert(err, IsNil)
 
 	// ensure that the binary wrapper file go generated with the right
@@ -886,7 +886,7 @@ binaries:
 
 	// and that it gets updated on upgrade
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, nil, "mvo")
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, nil, "mvo")
 	c.Assert(err, IsNil)
 	newSnapBin := filepath.Join(dirs.SnapAppsDir[len(dirs.GlobalRootDir):], "foo.mvo", "2.0", "bin", "bar")
 	content, err = ioutil.ReadFile(binaryWrapper)
@@ -903,7 +903,7 @@ services:
    start: bin/hello
 `
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, AllowUnauthenticated, nil, "mvo")
+	_, err := installClick(snapFile, pkg.AllowUnauthenticated, nil, "mvo")
 	c.Assert(err, IsNil)
 
 	servicesFile := filepath.Join(dirs.SnapServicesDir, "foo_service_1.0.service")
@@ -932,7 +932,7 @@ vendor: foo
 type: framework
 version: `
 	fmkFile := makeTestSnapPackage(c, fmkYaml+"1")
-	_, err := installClick(fmkFile, AllowUnauthenticated, inter, "")
+	_, err := installClick(fmkFile, pkg.AllowUnauthenticated, inter, "")
 	c.Assert(err, IsNil)
 
 	packageYaml := `name: foo
@@ -947,7 +947,7 @@ services:
    start: bin/bye
 version: `
 	snapFile := makeTestSnapPackage(c, packageYaml+"1.0")
-	_, err = installClick(snapFile, AllowUnauthenticated, inter, testOrigin)
+	_, err = installClick(snapFile, pkg.AllowUnauthenticated, inter, testOrigin)
 	c.Assert(err, IsNil)
 
 	c.Assert(helpers.FileExists(filepath.Join(dirs.SnapServicesDir, "foo_svc1_1.0.service")), Equals, true)
@@ -966,7 +966,7 @@ func (s *SnapTestSuite) TestSnappyHandleDependentServicesOnInstall(c *C) {
 	}
 
 	upFile := makeTestSnapPackage(c, fmkYaml+"2")
-	_, err := installClick(upFile, AllowUnauthenticated, inter, "")
+	_, err := installClick(upFile, pkg.AllowUnauthenticated, inter, "")
 	c.Assert(err, IsNil)
 	c.Check(cmdlog, DeepEquals, []string{"stop", "show", "stop", "show", "start", "start"})
 
@@ -995,7 +995,7 @@ func (s *SnapTestSuite) TestSnappyHandleDependentServicesOnInstallFailingToStop(
 	}
 
 	upFile := makeTestSnapPackage(c, fmkYaml+"2")
-	_, err := installClick(upFile, AllowUnauthenticated, inter, "")
+	_, err := installClick(upFile, pkg.AllowUnauthenticated, inter, "")
 	c.Check(err, Equals, anError)
 	c.Check(cmdlog, DeepEquals, []string{"stop", "show", "stop", "start"})
 
@@ -1023,7 +1023,7 @@ func (s *SnapTestSuite) TestSnappyHandleDependentServicesOnInstallFailingToStart
 	}
 
 	upFile := makeTestSnapPackage(c, fmkYaml+"2")
-	_, err := installClick(upFile, AllowUnauthenticated, inter, "")
+	_, err := installClick(upFile, pkg.AllowUnauthenticated, inter, "")
 	c.Assert(err, Equals, anError)
 	c.Check(cmdlog, DeepEquals, []string{
 		"stop", "show", "stop", "show", "start", "start", // <- this one fails
@@ -1056,7 +1056,7 @@ services:
    start: bin/hello
 `
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	_, err := installClick(snapFile, InhibitHooks, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.InhibitHooks, nil, testOrigin)
 	c.Assert(err, IsNil)
 
 	c.Assert(allSystemctl, HasLen, 0)
@@ -1118,7 +1118,7 @@ integration:
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
 
 	// install it
-	_, err := installClick(snapFile, InhibitHooks, nil, testOrigin)
+	_, err := installClick(snapFile, pkg.InhibitHooks, nil, testOrigin)
 	c.Assert(err, IsNil)
 
 	// verify we have the symlink
@@ -1137,7 +1137,7 @@ func (s *SnapTestSuite) TestAddPackageServicesStripsGlobalRootdir(c *C) {
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1166,7 +1166,7 @@ services:
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1188,7 +1188,7 @@ services:
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1206,7 +1206,7 @@ func (s *SnapTestSuite) TestAddPackageBinariesStripsGlobalRootdir(c *C) {
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := installed.Path(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageBinaries(baseDir)
 	c.Assert(err, IsNil)
 
@@ -1502,7 +1502,7 @@ services:
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
 	inter := &MockProgressMeter{}
-	c.Check(m.removePackageServices(installed.Path(filepath.Dir(filepath.Dir(yamlFile))), inter), IsNil)
+	c.Check(m.removePackageServices(local.Part(filepath.Dir(filepath.Dir(yamlFile))), inter), IsNil)
 	c.Assert(len(inter.notified) > 0, Equals, true)
 	c.Check(inter.notified[len(inter.notified)-1], Equals, "wat_wat_42.service refused to stop, killing.")
 	c.Assert(len(sysdLog) >= 3, Equals, true)

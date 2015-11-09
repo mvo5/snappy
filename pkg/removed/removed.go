@@ -29,6 +29,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/ubuntu-core/snappy/part/abstract"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/progress"
@@ -48,7 +49,7 @@ type Removed struct {
 }
 
 // New removed package.
-func New(name, origin, version string, pkgType pkg.Type) snappy.Part {
+func New(name, origin, version string, pkgType pkg.Type) abstract.Part {
 	part := &Removed{
 		name:    name,
 		origin:  origin,
@@ -64,13 +65,13 @@ func New(name, origin, version string, pkgType pkg.Type) snappy.Part {
 	return part
 }
 
-// Name from the snappy.Part interface
+// Name from the abstract.Part interface
 func (r *Removed) Name() string { return r.name }
 
-// Version from the snappy.Part interface
+// Version from the abstract.Part interface
 func (r *Removed) Version() string { return r.version }
 
-// Description from the snappy.Part interface
+// Description from the abstract.Part interface
 func (r *Removed) Description() string {
 	if r.remote != nil {
 		return r.remote.Description
@@ -79,7 +80,7 @@ func (r *Removed) Description() string {
 	return ""
 }
 
-// Origin from the snappy.Part interface
+// Origin from the abstract.Part interface
 func (r *Removed) Origin() string {
 	if r.remote != nil {
 		return r.remote.Origin
@@ -90,7 +91,7 @@ func (r *Removed) Origin() string {
 	return r.origin
 }
 
-// Vendor from the snappy.Part interface
+// Vendor from the abstract.Part interface
 func (r *Removed) Vendor() string {
 	if r.remote != nil {
 		return r.remote.Publisher
@@ -99,24 +100,24 @@ func (r *Removed) Vendor() string {
 	return ""
 }
 
-// Hash from the snappy.Part interface
+// Hash from the abstract.Part interface
 func (r *Removed) Hash() string { return "" }
 
-// IsActive from the snappy.Part interface
+// IsActive from the abstract.Part interface
 func (r *Removed) IsActive() bool { return false }
 
-// IsInstalled from the snappy.Part interface
+// IsInstalled from the abstract.Part interface
 func (r *Removed) IsInstalled() bool { return false }
 
-// NeedsReboot from the snappy.Part interface
+// NeedsReboot from the abstract.Part interface
 func (r *Removed) NeedsReboot() bool { return false }
 
-// Date from the snappy.Part interface
+// Date from the abstract.Part interface
 func (r *Removed) Date() time.Time { return time.Time{} } // XXX: keep track of when the package was removed
-// Channel from the snappy.Part interface
+// Channel from the abstract.Part interface
 func (r *Removed) Channel() string { return "" }
 
-// Icon from the snappy.Part interface
+// Icon from the abstract.Part interface
 func (r *Removed) Icon() string {
 	if r.remote != nil {
 		return r.remote.IconURL
@@ -125,13 +126,13 @@ func (r *Removed) Icon() string {
 	return ""
 }
 
-// Type from the snappy.Part interface
+// Type from the abstract.Part interface
 func (r *Removed) Type() pkg.Type { return r.pkgType }
 
-// InstalledSize from the snappy.Part interface
+// InstalledSize from the abstract.Part interface
 func (r *Removed) InstalledSize() int64 { return -1 }
 
-// DownloadSize from the snappy.Part interface
+// DownloadSize from the abstract.Part interface
 func (r *Removed) DownloadSize() int64 {
 	if r.remote != nil {
 		return r.remote.DownloadSize
@@ -140,19 +141,19 @@ func (r *Removed) DownloadSize() int64 {
 	return -1
 }
 
-// Install from the snappy.Part interface
-func (r *Removed) Install(pb progress.Meter, flags snappy.InstallFlags) (name string, err error) {
+// Install from the abstract.Part interface
+func (r *Removed) Install(pb progress.Meter, flags pkg.InstallFlags) (name string, err error) {
 	return "", ErrRemoved
 }
 
-// Uninstall from the snappy.Part interface
+// Uninstall from the abstract.Part interface
 func (r *Removed) Uninstall(pb progress.Meter) error { return ErrRemoved }
 
-// Config from the snappy.Part interface
+// Config from the abstract.Part interface
 func (r *Removed) Config(configuration []byte) (newConfig string, err error) { return "", ErrRemoved }
 
-// SetActive from the snappy.Part interface
+// SetActive from the abstract.Part interface
 func (r *Removed) SetActive(bool, progress.Meter) error { return ErrRemoved }
 
-// Frameworks from the snappy.Part interface
+// Frameworks from the abstract.Part interface
 func (r *Removed) Frameworks() ([]string, error) { return nil, ErrRemoved }

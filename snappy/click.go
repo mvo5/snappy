@@ -45,10 +45,10 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/part/local"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
 	"github.com/ubuntu-core/snappy/progress"
-	"github.com/ubuntu-core/snappy/snappy/installed"
 	"github.com/ubuntu-core/snappy/systemd"
 
 	"github.com/mvo5/goconfigparser"
@@ -296,7 +296,7 @@ func quoteEnvVar(envVar string) string {
 }
 
 func originFromBasedir(pkgPath string) string {
-	return installed.Path(pkgPath).Origin()
+	return local.Part(pkgPath).Origin()
 }
 
 func generateSnapBinaryWrapper(binary Binary, pkgPath, aaProfile string, m *packageYaml) (string, error) {
@@ -501,7 +501,7 @@ func stripGlobalRootDirImpl(dir string) string {
 	return dir[len(dirs.GlobalRootDir):]
 }
 
-func (m *packageYaml) addPackageServices(baseDir installed.Path, inhibitHooks bool, inter interacter) error {
+func (m *packageYaml) addPackageServices(baseDir local.Part, inhibitHooks bool, inter interacter) error {
 	for _, service := range m.ServiceYamls {
 		aaProfile, err := getSecurityProfile(m, service.Name, baseDir)
 		if err != nil {
@@ -589,7 +589,7 @@ func (m *packageYaml) addPackageServices(baseDir installed.Path, inhibitHooks bo
 	return nil
 }
 
-func (m *packageYaml) removePackageServices(baseDir installed.Path, inter interacter) error {
+func (m *packageYaml) removePackageServices(baseDir local.Part, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
 	for _, service := range m.ServiceYamls {
 		serviceName := filepath.Base(generateServiceFileName(m, service))
@@ -631,7 +631,7 @@ func (m *packageYaml) removePackageServices(baseDir installed.Path, inter intera
 	return nil
 }
 
-func (m *packageYaml) addPackageBinaries(baseDir installed.Path) error {
+func (m *packageYaml) addPackageBinaries(baseDir local.Part) error {
 	if err := os.MkdirAll(dirs.SnapBinariesDir, 0755); err != nil {
 		return err
 	}
@@ -659,7 +659,7 @@ func (m *packageYaml) addPackageBinaries(baseDir installed.Path) error {
 	return nil
 }
 
-func (m *packageYaml) removePackageBinaries(baseDir installed.Path) error {
+func (m *packageYaml) removePackageBinaries(baseDir local.Part) error {
 	for _, binary := range m.Binaries {
 		os.Remove(generateBinaryName(m, binary))
 	}
@@ -704,8 +704,8 @@ func writeCompatManifestJSON(clickMetaDir string, manifestData []byte, origin st
 	return nil
 }
 
-func installClick(snapFile string, flags InstallFlags, inter progress.Meter, origin string) (name string, err error) {
-	allowUnauthenticated := (flags & AllowUnauthenticated) != 0
+func installClick(snapFile string, flags pkg.InstallFlags, inter progress.Meter, origin string) (name string, err error) {
+	allowUnauthenticated := (flags & pkg.AllowUnauthenticated) != 0
 	part, err := NewSnapPartFromSnapFile(snapFile, origin, allowUnauthenticated)
 	if err != nil {
 		return "", err

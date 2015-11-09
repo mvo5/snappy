@@ -33,6 +33,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/partition"
+	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 )
 
@@ -46,12 +47,12 @@ func makeCloudInitMetaData(c *C, content string) string {
 
 func (s *SnapTestSuite) TestInstallInstall(c *C) {
 	snapFile := makeTestSnapPackage(c, "")
-	name, err := Install(snapFile, AllowUnauthenticated|DoInstallGC, &progress.NullProgress{})
+	name, err := Install(snapFile, pkg.AllowUnauthenticated|pkg.DoInstallGC, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 }
 
-func (s *SnapTestSuite) installThree(c *C, flags InstallFlags) {
+func (s *SnapTestSuite) installThree(c *C, flags pkg.InstallFlags) {
 	dirs.SnapDataHomeGlob = filepath.Join(s.tempdir, "home", "*", "apps")
 	homeDir := filepath.Join(s.tempdir, "home", "user1", "apps")
 	homeData := filepath.Join(homeDir, "foo", "1.0")
@@ -77,7 +78,7 @@ vendor: Foo Bar <foo@example.com>
 
 // check that on install we remove all but the two newest package versions
 func (s *SnapTestSuite) TestClickInstallGCSimple(c *C) {
-	s.installThree(c, AllowUnauthenticated|DoInstallGC)
+	s.installThree(c, pkg.AllowUnauthenticated|pkg.DoInstallGC)
 
 	globs, err := filepath.Glob(filepath.Join(dirs.SnapAppsDir, "foo.sideload", "*"))
 	c.Check(err, IsNil)
@@ -89,9 +90,9 @@ func (s *SnapTestSuite) TestClickInstallGCSimple(c *C) {
 	c.Check(globs, HasLen, 3+1) // +1 for "current"
 }
 
-// check that if flags does not include DoInstallGC, no gc is done
+// check that if flags does not include pkg.DoInstallGC, no gc is done
 func (s *SnapTestSuite) TestClickInstallGCSuppressed(c *C) {
-	s.installThree(c, AllowUnauthenticated)
+	s.installThree(c, pkg.AllowUnauthenticated)
 
 	globs, err := filepath.Glob(filepath.Join(dirs.SnapAppsDir, "foo.sideload", "*"))
 	c.Assert(err, IsNil)
@@ -186,7 +187,7 @@ func (s *SnapTestSuite) TestInstallAppPackageNameFails(c *C) {
 
 func (s *SnapTestSuite) TestUpdate(c *C) {
 	snapPackagev1 := makeTestSnapPackage(c, "name: foo\nversion: 1\nvendor: foo")
-	name, err := Install(snapPackagev1, AllowUnauthenticated|DoInstallGC, &progress.NullProgress{})
+	name, err := Install(snapPackagev1, pkg.AllowUnauthenticated|pkg.DoInstallGC, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Assert(name, Equals, "foo")
 
