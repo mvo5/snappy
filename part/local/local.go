@@ -50,18 +50,30 @@ import (
 )
 
 // Part represents a installed snap package
-type Part string
-
-func (i Part) HasConfig() bool {
-	return helpers.FileExists(i.ConfigScript())
+type Part struct {
+	dir  string
 }
 
-func (i Part) ConfigScript() string {
-	return filepath.Join(string(i), "meta", "hooks", "config")
+func New(dir string) *Part {
+	return &Part{
+		dir: dir,
+	}
 }
 
-func (i Part) Origin() string {
-	ext := filepath.Ext(filepath.Dir(filepath.Clean(string(i))))
+func (p *Part) Dir() string {
+	return p.dir
+}
+
+func (p *Part) HasConfig() bool {
+	return helpers.FileExists(p.ConfigScript())
+}
+
+func (p *Part) ConfigScript() string {
+	return filepath.Join(string(p.dir), "meta", "hooks", "config")
+}
+
+func (p *Part) Origin() string {
+	ext := filepath.Ext(filepath.Dir(filepath.Clean(p.dir)))
 	if len(ext) < 2 {
 		return ""
 	}
@@ -69,35 +81,35 @@ func (i Part) Origin() string {
 	return ext[1:]
 }
 
-func (i Part) YamlPath() string {
-	return filepath.Join(string(i), "meta", "package.yaml")
+func (p *Part) YamlPath() string {
+	return filepath.Join(p.dir, "meta", "package.yaml")
 }
 
-func (i Part) ReadmePath() string {
-	return filepath.Join(string(i), "meta", "readme.md")
+func (p *Part) ReadmePath() string {
+	return filepath.Join(p.dir, "meta", "readme.md")
 }
 
-func (i Part) HashesPath() string {
-	return filepath.Join(string(i), "meta", "hashes.yaml")
+func (p *Part) HashesPath() string {
+	return filepath.Join(p.dir, "meta", "hashes.yaml")
 }
 
-func (i Part) Version() string {
-	return filepath.Base(string(i))
+func (p *Part) Version() string {
+	return filepath.Base(p.dir)
 }
 
-func (i Part) Size() int64 {
+func (p *Part) Size() int64 {
 	// FIXME: cache this at install time maybe?
 	totalSize := int64(0)
 	f := func(_ string, info os.FileInfo, err error) error {
 		totalSize += info.Size()
 		return err
 	}
-	filepath.Walk(string(i), f)
+	filepath.Walk(p.dir, f)
 	return totalSize
 }
 
-func (i Part) Date() time.Time {
-	st, err := os.Stat(string(i))
+func (p *Part) Date() time.Time {
+	st, err := os.Stat(p.dir)
 	if err != nil {
 		return time.Time{}
 	}
@@ -105,17 +117,17 @@ func (i Part) Date() time.Time {
 	return st.ModTime()
 }
 
-func (i Part) RemoveAll() error {
-	return os.RemoveAll(string(i))
+func (p *Part) RemoveAll() error {
+	return os.RemoveAll(p.dir)
 }
 
-func (i Part) IsActive() (bool, error) {
-	allVersionsDir := filepath.Dir(string(i))
-	p, err := filepath.EvalSymlinks(filepath.Join(allVersionsDir, "current"))
+func (p *Part) IsActive() (bool, error) {
+	allVersionsDir := filepath.Dir(p.dir)
+	np, err := filepath.EvalSymlinks(filepath.Join(allVersionsDir, "current"))
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
 
-	return p == string(i), nil
+	return np == p.dir, nil
 }
 

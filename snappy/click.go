@@ -296,7 +296,7 @@ func quoteEnvVar(envVar string) string {
 }
 
 func originFromBasedir(pkgPath string) string {
-	return local.Part(pkgPath).Origin()
+	return local.New(pkgPath).Origin()
 }
 
 func generateSnapBinaryWrapper(binary Binary, pkgPath, aaProfile string, m *packageYaml) (string, error) {
@@ -501,7 +501,7 @@ func stripGlobalRootDirImpl(dir string) string {
 	return dir[len(dirs.GlobalRootDir):]
 }
 
-func (m *packageYaml) addPackageServices(baseDir local.Part, inhibitHooks bool, inter interacter) error {
+func (m *packageYaml) addPackageServices(baseDir *local.Part, inhibitHooks bool, inter interacter) error {
 	for _, service := range m.ServiceYamls {
 		aaProfile, err := getSecurityProfile(m, service.Name, baseDir)
 		if err != nil {
@@ -511,7 +511,7 @@ func (m *packageYaml) addPackageServices(baseDir local.Part, inhibitHooks bool, 
 		// service file, this ensures that /apps/foo/1.0/bin/start
 		// is in the service file when the SetRoot() option
 		// is used
-		realBaseDir := stripGlobalRootDir(string(baseDir))
+		realBaseDir := stripGlobalRootDir(baseDir.Dir())
 		// Generate service file
 		content, err := generateSnapServicesFile(service, realBaseDir, aaProfile, m)
 		if err != nil {
@@ -589,7 +589,7 @@ func (m *packageYaml) addPackageServices(baseDir local.Part, inhibitHooks bool, 
 	return nil
 }
 
-func (m *packageYaml) removePackageServices(baseDir local.Part, inter interacter) error {
+func (m *packageYaml) removePackageServices(baseDir *local.Part, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
 	for _, service := range m.ServiceYamls {
 		serviceName := filepath.Base(generateServiceFileName(m, service))
@@ -631,7 +631,7 @@ func (m *packageYaml) removePackageServices(baseDir local.Part, inter interacter
 	return nil
 }
 
-func (m *packageYaml) addPackageBinaries(baseDir local.Part) error {
+func (m *packageYaml) addPackageBinaries(baseDir *local.Part) error {
 	if err := os.MkdirAll(dirs.SnapBinariesDir, 0755); err != nil {
 		return err
 	}
@@ -645,7 +645,7 @@ func (m *packageYaml) addPackageBinaries(baseDir local.Part) error {
 		// service file, this ensures that /apps/foo/1.0/bin/start
 		// is in the service file when the SetRoot() option
 		// is used
-		realBaseDir := stripGlobalRootDir(string(baseDir))
+		realBaseDir := stripGlobalRootDir(baseDir.Dir())
 		content, err := generateSnapBinaryWrapper(binary, realBaseDir, aaProfile, m)
 		if err != nil {
 			return err
@@ -659,7 +659,7 @@ func (m *packageYaml) addPackageBinaries(baseDir local.Part) error {
 	return nil
 }
 
-func (m *packageYaml) removePackageBinaries(baseDir local.Part) error {
+func (m *packageYaml) removePackageBinaries(baseDir *local.Part) error {
 	for _, binary := range m.Binaries {
 		os.Remove(generateBinaryName(m, binary))
 	}

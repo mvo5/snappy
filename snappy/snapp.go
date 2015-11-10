@@ -162,7 +162,7 @@ type SnapPart struct {
 	isInstalled bool
 	description string
 	deb         PackageFile
-	basedir     local.Part
+	basedir     *local.Part
 }
 
 var commasplitter = regexp.MustCompile(`\s*,\s*`).Split
@@ -533,7 +533,7 @@ func NewSnapPartFromSnapFile(snapFile string, origin string, unauthOk bool) (*Sn
 	instDir := filepath.Join(targetDir, fullName, m.Version)
 
 	return &SnapPart{
-		basedir: local.Part(instDir),
+		basedir: local.New(instDir),
 		origin:  origin,
 		m:       m,
 		deb:     d,
@@ -547,7 +547,7 @@ func NewSnapPartFromYaml(yamlPath, origin string, m *packageYaml) (*SnapPart, er
 	}
 
 	part := &SnapPart{
-		basedir: local.Part(filepath.Dir(filepath.Dir(yamlPath))),
+		basedir: local.New(filepath.Dir(filepath.Dir(yamlPath))),
 		origin:  origin,
 		m:       m,
 	}
@@ -617,7 +617,7 @@ func (s *SnapPart) Name() string {
 
 // Version returns the version
 func (s *SnapPart) Version() string {
-	if s.basedir != "" {
+	if s.basedir.Dir() != "" {
 		return s.basedir.Version()
 	}
 
@@ -672,7 +672,7 @@ func (s *SnapPart) Icon() string {
 		return iconPath(s)
 	}
 
-	return filepath.Join(string(s.basedir), s.m.Icon)
+	return filepath.Join(s.basedir.Dir(), s.m.Icon)
 }
 
 // IsActive returns true if the snap is active
@@ -749,14 +749,14 @@ func (s *SnapPart) Install(inter progress.Meter, flags pkg.InstallFlags) (name s
 	dataDir := filepath.Join(dirs.SnapDataDir, fullName, s.Version())
 
 	var oldPart *SnapPart
-	if currentActiveDir, _ := filepath.EvalSymlinks(filepath.Join(string(s.basedir), "..", "current")); currentActiveDir != "" {
+	if currentActiveDir, _ := filepath.EvalSymlinks(filepath.Join(s.basedir.Dir(), "..", "current")); currentActiveDir != "" {
 		oldPart, err = NewInstalledSnapPart(filepath.Join(currentActiveDir, "meta", "package.yaml"), s.origin)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	if err := os.MkdirAll(string(s.basedir), 0755); err != nil {
+	if err := os.MkdirAll(s.basedir.Dir(), 0755); err != nil {
 		logger.Noticef("Can not create %q: %v", s.basedir, err)
 		return "", err
 	}
@@ -772,13 +772,13 @@ func (s *SnapPart) Install(inter progress.Meter, flags pkg.InstallFlags) (name s
 
 	// we need to call the external helper so that we can reliable drop
 	// privs
-	if err := s.deb.UnpackWithDropPrivs(string(s.basedir), dirs.GlobalRootDir); err != nil {
+	if err := s.deb.UnpackWithDropPrivs(s.basedir.Dir(), dirs.GlobalRootDir); err != nil {
 		return "", err
 	}
 
 	// legacy, the hooks need this. Once we converted all hooks this can go
 	// away
-	clickMetaDir := filepath.Join(string(s.basedir), ".click", "info")
+	clickMetaDir := filepath.Join(s.basedir.Dir(), ".click", "info")
 	if err := os.MkdirAll(clickMetaDir, 0755); err != nil {
 		return "", err
 	}
@@ -787,7 +787,7 @@ func (s *SnapPart) Install(inter progress.Meter, flags pkg.InstallFlags) (name s
 	}
 
 	// write the hashes now
-	if err := s.deb.ExtractHashes(filepath.Join(string(s.basedir), "meta")); err != nil {
+	if err := s.deb.ExtractHashes(filepath.Join(s.basedir.Dir(), "meta")); err != nil {
 		return "", err
 	}
 
@@ -912,11 +912,11 @@ func (s *SnapPart) SetActive(active bool, pb progress.Meter) (err error) {
 }
 
 func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
-	currentActiveSymlink := filepath.Join(string(s.basedir), "..", "current")
+	currentActiveSymlink := filepath.Join(s.basedir.Dir(), "..", "current")
 	currentActiveDir, _ := filepath.EvalSymlinks(currentActiveSymlink)
 
 	// already active, nothing to do
-	if string(s.basedir) == currentActiveDir {
+	if s.basedir.Dir() == currentActiveDir {
 		return nil
 	}
 
@@ -934,12 +934,12 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 	}
 
 	if s.Type() == pkg.TypeFramework {
-		if err := policy.Install(s.Name(), string(s.basedir), dirs.GlobalRootDir); err != nil {
+		if err := policy.Install(s.Name(), s.basedir.Dir(), dirs.GlobalRootDir); err != nil {
 			return err
 		}
 	}
 
-	if err := installClickHooks(string(s.basedir), s.m, s.origin, inhibitHooks); err != nil {
+	if err := installClickHooks(s.basedir.Dir(), s.m, s.origin, inhibitHooks); err != nil {
 		// cleanup the failed hooks
 		removeClickHooks(s.m, s.origin, inhibitHooks)
 		return err
@@ -956,7 +956,7 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 
 	// generate the security policy from the package.yaml
 	appsDir := filepath.Join(dirs.SnapAppsDir, QualifiedName(s), s.Version())
-	if err := generatePolicy(s.m, local.Part(appsDir)); err != nil {
+	if err := generatePolicy(s.m, local.New(appsDir)); err != nil {
 		return err
 	}
 
@@ -971,7 +971,7 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 	}
 
 	// symlink is relative to parent dir
-	if err := os.Symlink(filepath.Base(string(s.basedir)), currentActiveSymlink); err != nil {
+	if err := os.Symlink(filepath.Base(s.basedir.Dir()), currentActiveSymlink); err != nil {
 		return err
 	}
 
@@ -979,11 +979,11 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		return err
 	}
 
-	return os.Symlink(filepath.Base(string(s.basedir)), currentDataSymlink)
+	return os.Symlink(filepath.Base(s.basedir.Dir()), currentDataSymlink)
 }
 
 func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
-	currentSymlink := filepath.Join(string(s.basedir), "..", "current")
+	currentSymlink := filepath.Join(s.basedir.Dir(), "..", "current")
 
 	// sanity check
 	currentActiveDir, err := filepath.EvalSymlinks(currentSymlink)
@@ -993,7 +993,7 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 		}
 		return err
 	}
-	if string(s.basedir) != currentActiveDir {
+	if s.basedir.Dir() != currentActiveDir {
 		return ErrSnapNotActive
 	}
 
@@ -1011,7 +1011,7 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 	}
 
 	if s.Type() == pkg.TypeFramework {
-		if err := policy.Remove(s.Name(), string(s.basedir), dirs.GlobalRootDir); err != nil {
+		if err := policy.Remove(s.Name(), s.basedir.Dir(), dirs.GlobalRootDir); err != nil {
 			return err
 		}
 	}
@@ -1079,7 +1079,7 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 	}
 
 	// best effort(?)
-	os.Remove(filepath.Dir(string(s.basedir)))
+	os.Remove(filepath.Dir(s.basedir.Dir()))
 
 	// don't fail if icon can't be removed
 	if helpers.FileExists(iconPath(s)) {
@@ -1196,7 +1196,7 @@ func (s *SnapPart) CanInstall(allowOEM bool, inter interacter) error {
 		}
 	}
 
-	curr, _ := filepath.EvalSymlinks(filepath.Join(string(s.basedir), "..", "current"))
+	curr, _ := filepath.EvalSymlinks(filepath.Join(s.basedir.Dir(), "..", "current"))
 	if err := s.m.checkLicenseAgreement(inter, s.deb, curr); err != nil {
 		return err
 	}
@@ -1238,9 +1238,9 @@ func (s *SnapPart) RequestSecurityPolicyUpdate(policies, templates map[string]bo
 func (s *SnapPart) RefreshDependentsSecurity(oldPart *SnapPart, inter interacter) (err error) {
 	oldBaseDir := ""
 	if oldPart != nil {
-		oldBaseDir = string(oldPart.basedir)
+		oldBaseDir = string(oldPart.basedir.Dir())
 	}
-	upPol, upTpl := policy.AppArmorDelta(oldBaseDir, string(s.basedir), s.Name()+"_")
+	upPol, upTpl := policy.AppArmorDelta(oldBaseDir, s.basedir.Dir(), s.Name()+"_")
 
 	deps, err := s.Dependents()
 	if err != nil {
@@ -1341,7 +1341,7 @@ func (s *SnapLocalRepository) partsForGlobExpr(globExpr string) (parts []abstrac
 
 // originFromYamlPath *must* return "" if it's returning error.
 func originFromYamlPath(path string) (string, error) {
-	origin := local.Part(filepath.Join(path, "..", "..")).Origin()
+	origin := local.New(filepath.Join(path, "..", "..")).Origin()
 
 	if origin == "" {
 		return "", ErrInvalidPart
@@ -1894,7 +1894,7 @@ func makeSnapHookEnv(part *SnapPart) (env []string) {
 	}{
 		part.Name(),
 		helpers.UbuntuArchitecture(),
-		string(part.basedir),
+		part.basedir.Dir(),
 		part.Version(),
 		QualifiedName(part),
 		part.Origin(),

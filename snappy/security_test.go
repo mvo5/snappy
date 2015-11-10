@@ -28,6 +28,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/part/local"
 	"github.com/ubuntu-core/snappy/pkg"
 )
 
@@ -123,7 +124,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfile(c *C) {
 		Version: "1.0",
 	}
 	b := Binary{Name: "bin/app"}
-	ap, err := getSecurityProfile(&m, b.Name, "/apps/foo.mvo/1.0/")
+	ap, err := getSecurityProfile(&m, b.Name, local.New("/apps/foo.mvo/1.0/"))
 	c.Assert(err, IsNil)
 	c.Check(ap, Equals, "foo.mvo_bin-app_1.0")
 }
@@ -134,7 +135,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfileInvalid(c *C) {
 		Version: "1.0",
 	}
 	b := Binary{Name: "bin/app"}
-	_, err := getSecurityProfile(&m, b.Name, "/apps/foo/1.0/")
+	_, err := getSecurityProfile(&m, b.Name, local.New("/apps/foo/1.0/"))
 	c.Assert(err, Equals, ErrInvalidPart)
 }
 
@@ -145,7 +146,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfileFramework(c *C) {
 		Type:    pkg.TypeFramework,
 	}
 	b := Binary{Name: "bin/app"}
-	ap, err := getSecurityProfile(&m, b.Name, "/apps/foo.mvo/1.0/")
+	ap, err := getSecurityProfile(&m, b.Name, local.New("/apps/foo.mvo/1.0/"))
 	c.Assert(err, IsNil)
 	c.Check(ap, Equals, "foo_bin-app_1.0")
 }
@@ -559,7 +560,7 @@ sc-network-client
 	}
 
 	// generate the apparmor profile
-	err := sd.generatePolicyForServiceBinary(m, "binary", "/apps/app.origin/1.0")
+	err := sd.generatePolicyForServiceBinary(m, "binary", local.New("/apps/app.origin/1.0"))
 	c.Assert(err, IsNil)
 
 	// ensure the apparmor policy got loaded

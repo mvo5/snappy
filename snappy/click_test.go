@@ -1137,7 +1137,7 @@ func (s *SnapTestSuite) TestAddPackageServicesStripsGlobalRootdir(c *C) {
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.New(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1166,7 +1166,7 @@ services:
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.New(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1188,7 +1188,7 @@ services:
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.New(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageServices(baseDir, false, nil)
 	c.Assert(err, IsNil)
 
@@ -1206,7 +1206,7 @@ func (s *SnapTestSuite) TestAddPackageBinariesStripsGlobalRootdir(c *C) {
 	c.Assert(err, IsNil)
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
-	baseDir := local.Part(filepath.Dir(filepath.Dir(yamlFile)))
+	baseDir := local.New(filepath.Dir(filepath.Dir(yamlFile)))
 	err = m.addPackageBinaries(baseDir)
 	c.Assert(err, IsNil)
 
@@ -1502,7 +1502,7 @@ services:
 	m, err := parsePackageYamlFile(yamlFile)
 	c.Assert(err, IsNil)
 	inter := &MockProgressMeter{}
-	c.Check(m.removePackageServices(local.Part(filepath.Dir(filepath.Dir(yamlFile))), inter), IsNil)
+	c.Check(m.removePackageServices(local.New(filepath.Dir(filepath.Dir(yamlFile))), inter), IsNil)
 	c.Assert(len(inter.notified) > 0, Equals, true)
 	c.Check(inter.notified[len(inter.notified)-1], Equals, "wat_wat_42.service refused to stop, killing.")
 	c.Assert(len(sysdLog) >= 3, Equals, true)

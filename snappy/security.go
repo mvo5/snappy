@@ -143,7 +143,7 @@ func (sp *securityPolicyType) policyDir() string {
 	return filepath.Join(dirs.GlobalRootDir, sp.basePolicyDir)
 }
 
-func getSecurityProfile(m *packageYaml, appName string, baseDir local.Part) (string, error) {
+func getSecurityProfile(m *packageYaml, appName string, baseDir *local.Part) (string, error) {
 	cleanedName := strings.Replace(appName, "/", "-", -1)
 	if m.Type == pkg.TypeFramework || m.Type == pkg.TypeOem {
 		return fmt.Sprintf("%s_%s_%s", m.Name, cleanedName, m.Version), nil
@@ -472,7 +472,7 @@ var loadAppArmorPolicy = func(fn string) ([]byte, error) {
 	return content, err
 }
 
-func (m *packageYaml) removeOneSecurityPolicy(name string, baseDir local.Part) error {
+func (m *packageYaml) removeOneSecurityPolicy(name string, baseDir *local.Part) error {
 	profileName, err := getSecurityProfile(m, filepath.Base(name), baseDir)
 	if err != nil {
 		return err
@@ -499,7 +499,7 @@ func (m *packageYaml) removeOneSecurityPolicy(name string, baseDir local.Part) e
 	return nil
 }
 
-func removePolicy(m *packageYaml, baseDir local.Part) error {
+func removePolicy(m *packageYaml, baseDir *local.Part) error {
 	for _, service := range m.ServiceYamls {
 		if err := m.removeOneSecurityPolicy(service.Name, baseDir); err != nil {
 			return err
@@ -540,7 +540,7 @@ type securityPolicyResult struct {
 	scFn     string
 }
 
-func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYaml, name string, baseDir local.Part) (*securityPolicyResult, error) {
+func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYaml, name string, baseDir *local.Part) (*securityPolicyResult, error) {
 	res := &securityPolicyResult{}
 	appID, err := getSecurityProfile(m, name, baseDir)
 	if err != nil {
@@ -563,12 +563,12 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 
 	sd.mergeAppArmorSecurityOverrides(&hwaccessOverrides)
 	if sd.SecurityPolicy != nil {
-		res.aaPolicy, err = getAppArmorCustomPolicy(m, res.id, filepath.Join(string(baseDir), sd.SecurityPolicy.AppArmor))
+		res.aaPolicy, err = getAppArmorCustomPolicy(m, res.id, filepath.Join(baseDir.Dir(), sd.SecurityPolicy.AppArmor))
 		if err != nil {
 			logger.Noticef("Failed to generate custom AppArmor policy for %s: %v", name, err)
 			return nil, err
 		}
-		res.scPolicy, err = getSeccompCustomPolicy(m, res.id, filepath.Join(string(baseDir), sd.SecurityPolicy.Seccomp))
+		res.scPolicy, err = getSeccompCustomPolicy(m, res.id, filepath.Join(baseDir.Dir(), sd.SecurityPolicy.Seccomp))
 		if err != nil {
 			logger.Noticef("Failed to generate custom seccomp policy for %s: %v", name, err)
 			return nil, err
@@ -600,7 +600,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 	return res, nil
 }
 
-func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, name string, baseDir local.Part) error {
+func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, name string, baseDir *local.Part) error {
 	p, err := sd.generatePolicyForServiceBinaryResult(m, name, baseDir)
 	if err != nil {
 		return err
@@ -628,7 +628,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, na
 	return nil
 }
 
-func generatePolicy(m *packageYaml, baseDir local.Part) error {
+func generatePolicy(m *packageYaml, baseDir *local.Part) error {
 	var foundError error
 
 	// generate default security config for snappy-config
@@ -729,7 +729,7 @@ func compareSinglePolicyToCurrent(oldPolicyFn, newPolicy string) error {
 // CompareGeneratePolicyFromFile is used to simulate security policy
 // generation and returns if the policy would have changed
 func CompareGeneratePolicyFromFile(d string) error {
-	baseDir := local.Part(d)
+	baseDir := local.New(d)
 	m, err := parsePackageYamlFile(baseDir.YamlPath())
 	if err != nil {
 		return err
@@ -796,7 +796,7 @@ func GeneratePolicyFromFile(fn string, force bool) error {
 
 	// TODO: verify cache files here
 
-	baseDir := local.Part(filepath.Dir(filepath.Dir(fn)))
+	baseDir := local.New(filepath.Dir(filepath.Dir(fn)))
 	err = generatePolicy(m, baseDir)
 	if err != nil {
 		return err
@@ -820,7 +820,7 @@ func RegenerateAllPolicy(force bool) error {
 
 		// FIXME: use ErrPolicyNeedsRegenerating here to check if
 		//        re-generation is needed
-		if err := CompareGeneratePolicyFromFile(string(basedir)); err == nil {
+		if err := CompareGeneratePolicyFromFile(basedir.Dir()); err == nil {
 			continue
 		}
 
