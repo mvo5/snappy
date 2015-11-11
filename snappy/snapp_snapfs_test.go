@@ -159,14 +159,14 @@ func (s *SnapfsTestSuite) TestInstallViaSnapfsWorks(c *C) {
 	c.Assert(string(content), Matches, "(?ms).*^What=/var/lib/snappy/snaps/hello-app.origin_1.10.snap")
 }
 
-func (s *SnapfsTestSuite) TestAddSnapfsAutomount(c *C) {
+func (s *SnapfsTestSuite) TestAddSnapfsMount(c *C) {
 	m := packageYaml{
 		Name:          "foo.origin",
 		Version:       "1.0",
 		Architectures: []string{"all"},
 	}
 	inter := &MockProgressMeter{}
-	err := m.addSnapfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
+	err := m.addSnapfsMount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
 	c.Assert(err, IsNil)
 
 	// ensure correct mount unit
@@ -180,40 +180,23 @@ What=/var/lib/snappy/snaps/foo.origin_1.0.snap
 Where=/apps/foo.origin/1.0
 `)
 
-	// and correct automount unit
-	automount, err := ioutil.ReadFile(filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.automount"))
-	c.Assert(err, IsNil)
-	c.Assert(string(automount), Equals, `[Unit]
-Description=Snapfs automount unit for foo.origin
-
-[Automount]
-Where=/apps/foo.origin/1.0
-TimeoutIdleSec=30
-
-[Install]
-WantedBy=multi-user.target
-`)
 }
 
-func (s *SnapfsTestSuite) TestRemoveSnapfsAutomount(c *C) {
+func (s *SnapfsTestSuite) TestRemoveSnapfsMountUnit(c *C) {
 	m := packageYaml{}
 	inter := &MockProgressMeter{}
-	err := m.addSnapfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
+	err := m.addSnapfsMount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), true, inter)
 	c.Assert(err, IsNil)
 
 	// ensure we have the files
-	for _, ext := range []string{"mount", "automount"} {
-		p := filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.") + ext
-		c.Assert(helpers.FileExists(p), Equals, true)
-	}
+	p := filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.mount")
+	c.Assert(helpers.FileExists(p), Equals, true)
 
 	// now call remove and ensure they are gone
-	err = m.removeSnapfsAutomount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), inter)
+	err = m.removeSnapfsMount(filepath.Join(dirs.SnapAppsDir, "foo.origin/1.0"), inter)
 	c.Assert(err, IsNil)
-	for _, ext := range []string{"mount", "automount"} {
-		p := filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.") + ext
-		c.Assert(helpers.FileExists(p), Equals, false)
-	}
+	p = filepath.Join(dirs.SnapServicesDir, "apps-foo.origin-1.0.mount")
+	c.Assert(helpers.FileExists(p), Equals, false)
 }
 
 func (s *SnapfsTestSuite) TestRemoveViaSnapfsWorks(c *C) {

@@ -97,7 +97,6 @@ type Systemd interface {
 	ServiceStatus(service string) (*ServiceStatus, error)
 	Logs(services []string) ([]Log, error)
 	WriteMountUnitFile(name, what, where string) (string, error)
-	WriteAutoMountUnitFile(name, where string) (string, error)
 }
 
 // A Log is a single entry in the systemd journal
@@ -531,20 +530,4 @@ Where=%s
 
 	mu := MountUnitPath(where, "mount")
 	return filepath.Base(mu), helpers.AtomicWriteFile(mu, []byte(c), 0644, 0)
-}
-
-func (s *systemd) WriteAutoMountUnitFile(name, where string) (string, error) {
-	c := fmt.Sprintf(`[Unit]
-Description=Snapfs automount unit for %s
-
-[Automount]
-Where=%s
-TimeoutIdleSec=30
-
-[Install]
-WantedBy=multi-user.target
-`, name, where)
-
-	mu := MountUnitPath(where, "automount")
-	return filepath.Base(mu), helpers.AtomicWriteFile(MountUnitPath(where, "automount"), []byte(c), 0644, 0)
 }

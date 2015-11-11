@@ -432,21 +432,3 @@ What=/var/lib/snappy/snaps/foo.origin_1.0.snap
 Where=/apps/foo.origin/1.0
 `)
 }
-
-func (s *SystemdTestSuite) TestWriteAutoMountUnit(c *C) {
-	mountUnitName, err := New("", nil).WriteAutoMountUnitFile("foo.origin", "/apps/foo.origin/1.0")
-	c.Assert(err, IsNil)
-
-	automount, err := ioutil.ReadFile(filepath.Join(dirs.SnapServicesDir, mountUnitName))
-	c.Assert(err, IsNil)
-	c.Assert(string(automount), Equals, `[Unit]
-Description=Snapfs automount unit for foo.origin
-
-[Automount]
-Where=/apps/foo.origin/1.0
-TimeoutIdleSec=30
-
-[Install]
-WantedBy=multi-user.target
-`)
-}

@@ -50,7 +50,7 @@ type File interface {
 
 	// NeedsAutoMountUnit determines if it's required to setup
 	// an automount unit for the snap when the snap is activated
-	NeedsAutoMountUnit() bool
+	NeedsMountUnit() bool
 }
 
 // Open opens a given snap file with the right backend.

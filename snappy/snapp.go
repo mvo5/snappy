@@ -1002,10 +1002,10 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		return err
 	}
 
-	// generate the automount unit for the squashfs
+	// generate the mount unit for the squashfs
 	// FIXME: this is ugly
-	if s.deb != nil && s.deb.NeedsAutoMountUnit() {
-		if err := s.m.addSnapfsAutomount(s.basedir, inhibitHooks, inter); err != nil {
+	if s.deb != nil && s.deb.NeedsMountUnit() {
+		if err := s.m.addSnapfsMount(s.basedir, inhibitHooks, inter); err != nil {
 			return err
 		}
 	}
@@ -1080,7 +1080,7 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 	if err := removePolicy(s.m, s.basedir); err != nil {
 		return err
 	}
-	if err := s.m.removeSnapfsAutomount(s.basedir, inter); err != nil {
+	if err := s.m.removeSnapfsMount(s.basedir, inter); err != nil {
 		return err
 	}
 
@@ -2022,43 +2022,37 @@ func makeSnapHookEnv(part SnapIF) (env []string) {
 	return env
 }
 
-func (m *packageYaml) addSnapfsAutomount(baseDir string, inhibitHooks bool, inter interacter) error {
+func (m *packageYaml) addSnapfsMount(baseDir string, inhibitHooks bool, inter interacter) error {
 	squashfsPath := stripGlobalRootDir(snapfs.BlobPath(baseDir))
 	whereDir := stripGlobalRootDir(baseDir)
 
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
-	_, err := sysd.WriteMountUnitFile(m.Name, squashfsPath, whereDir)
-	if err != nil {
-		return err
-	}
-	autoMountUnitName, err := sysd.WriteAutoMountUnitFile(m.Name, whereDir)
+	mountUnitName, err := sysd.WriteMountUnitFile(m.Name, squashfsPath, whereDir)
 	if err != nil {
 		return err
 	}
 
 	// we always enable the mount unit even in inhibit hooks
-	if err := sysd.Enable(autoMountUnitName); err != nil {
+	if err := sysd.Enable(mountUnitName); err != nil {
 		return err
 	}
 
 	if !inhibitHooks {
-		return sysd.Start(autoMountUnitName)
+		return sysd.Start(mountUnitName)
 	}
 
 	return nil
 }
 
-func (m *packageYaml) removeSnapfsAutomount(baseDir string, inter interacter) error {
+func (m *packageYaml) removeSnapfsMount(baseDir string, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
-	for _, s := range []string{"mount", "automount"} {
-		unit := systemd.MountUnitPath(stripGlobalRootDir(baseDir), s)
-		if helpers.FileExists(unit) {
-			// we ignore errors, nothing should stop removals
-			_ = sysd.Disable(filepath.Base(unit))
-			_ = sysd.Stop(filepath.Base(unit), time.Duration(1*time.Second))
-			if err := os.Remove(unit); err != nil {
-				return err
-			}
+	unit := systemd.MountUnitPath(stripGlobalRootDir(baseDir), "mount")
+	if helpers.FileExists(unit) {
+		// we ignore errors, nothing should stop removals
+		_ = sysd.Disable(filepath.Base(unit))
+		_ = sysd.Stop(filepath.Base(unit), time.Duration(1*time.Second))
+		if err := os.Remove(unit); err != nil {
+			return err
 		}
 	}
 

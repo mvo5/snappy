@@ -52,8 +52,8 @@ func (s *Snap) Name() string {
 	return filepath.Base(s.path)
 }
 
-// NeedsAutoMountUnit returns true.
-func (s *Snap) NeedsAutoMountUnit() bool {
+// NeedsMountUnit returns true.
+func (s *Snap) NeedsMountUnit() bool {
 	return true
 }
 
