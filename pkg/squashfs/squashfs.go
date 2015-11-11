@@ -80,12 +80,6 @@ func (s *Snap) ExtractHashes(dir string) error {
 
 // UnpackWithDropPrivs just copies the blob into place. - COMPAT
 func (s *Snap) UnpackWithDropPrivs(instDir, rootdir string) error {
-	// FIXME: we need to unpack "meta/*" here because otherwise there
-	//        is no meta/package.yaml for "snappy list -v" for
-	//        inactive versions.
-	if err := s.UnpackMeta(instDir); err != nil {
-		return err
-	}
 
 	// ensure mount-point and blob dir.
 	for _, dir := range []string{instDir, dirs.SnapBlobDir} {

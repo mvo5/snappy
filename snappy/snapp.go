@@ -779,12 +779,6 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		return "", err
 	}
 
-	manifestData, err := s.deb.ControlMember("manifest")
-	if err != nil {
-		logger.Noticef("Snap inspect failed for %q: %v", s.Name(), err)
-		return "", err
-	}
-
 	fullName := QualifiedName(s)
 	dataDir := filepath.Join(dirs.SnapDataDir, fullName, s.Version())
 
@@ -828,16 +822,6 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		if err := s.m.addSquashfsMount(s.basedir, inhibitHooks, inter); err != nil {
 			return "", err
 		}
-	}
-
-	// legacy, the hooks need this. Once we converted all hooks this can go
-	// away
-	clickMetaDir := filepath.Join(s.basedir, ".click", "info")
-	if err := os.MkdirAll(clickMetaDir, 0755); err != nil {
-		return "", err
-	}
-	if err := writeCompatManifestJSON(clickMetaDir, manifestData, s.origin); err != nil {
-		return "", err
 	}
 
 	// write the hashes now
