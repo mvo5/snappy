@@ -828,8 +828,7 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 	}
 
 	// generate the mount unit for the squashfs
-	// FIXME: this is ugly
-	if s.deb != nil && s.deb.NeedsMountUnit() {
+	if s.deb.NeedsMountUnit() {
 		if err := s.m.addSnapfsMount(s.basedir, inhibitHooks, inter); err != nil {
 			return "", err
 		}
