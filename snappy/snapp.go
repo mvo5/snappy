@@ -827,6 +827,14 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		}
 	}
 
+	// generate the mount unit for the squashfs
+	// FIXME: this is ugly
+	if s.deb != nil && s.deb.NeedsMountUnit() {
+		if err := s.m.addSnapfsMount(s.basedir, inhibitHooks, inter); err != nil {
+			return "", err
+		}
+	}
+
 	// legacy, the hooks need this. Once we converted all hooks this can go
 	// away
 	clickMetaDir := filepath.Join(s.basedir, ".click", "info")
@@ -1002,14 +1010,6 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		return err
 	}
 
-	// generate the mount unit for the squashfs
-	// FIXME: this is ugly
-	if s.deb != nil && s.deb.NeedsMountUnit() {
-		if err := s.m.addSnapfsMount(s.basedir, inhibitHooks, inter); err != nil {
-			return err
-		}
-	}
-
 	// add the "binaries:" from the package.yaml
 	if err := s.m.addPackageBinaries(s.basedir); err != nil {
 		return err
@@ -1080,9 +1080,6 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 	if err := removePolicy(s.m, s.basedir); err != nil {
 		return err
 	}
-	if err := s.m.removeSnapfsMount(s.basedir, inter); err != nil {
-		return err
-	}
 
 	if s.Type() == pkg.TypeFramework {
 		if err := policy.Remove(s.Name(), s.basedir, dirs.GlobalRootDir); err != nil {
@@ -1140,6 +1137,12 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 		return err
 	}
 
+	// ensure mount unit stops
+	if err := s.m.removeSnapfsMount(s.basedir, inter); err != nil {
+		return err
+	}
+
+	// FIXME: do we need this? when we do the above
 	// unmount squashfs but ignore errors as its ok if the fs is not mounted
 	exec.Command("unmount", "--lazy", filepath.Join(s.basedir)).CombinedOutput()
 
