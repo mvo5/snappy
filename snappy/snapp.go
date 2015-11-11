@@ -1255,7 +1255,7 @@ func (s *SnapPart) CanInstall(allowOEM bool, inter interacter) error {
 	}
 
 	// verify we have a valid architecture
-	if !helpers.IsSupportedArchitecture(s.m.Architectures) {
+	if !helpers.IsSupportedArchitecture(string(Architecture()), s.m.Architectures) {
 		return &ErrArchitectureNotSupported{s.m.Architectures}
 	}
 

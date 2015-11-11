@@ -205,9 +205,7 @@ func UbuntuArchitecture() string {
 
 // IsSupportedArchitecture returns true if the system architecture is in the
 // list of architectures.
-func IsSupportedArchitecture(architectures []string) bool {
-	systemArch := UbuntuArchitecture()
-
+func IsSupportedArchitecture(systemArch string, architectures []string) bool {
 	for _, arch := range architectures {
 		if arch == "all" || arch == systemArch {
 			return true
