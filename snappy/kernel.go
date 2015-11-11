@@ -106,8 +106,8 @@ func (s *KernelSnap) Install(inter progress.Meter, flags InstallFlags) (name str
 		}
 	}
 	if s.m.Dtbs != "" {
-		src := s.m.Dtbs
-		dst := filepath.Join(dstDir, s.m.Dtbs)
+		src := filepath.Join(s.m.Dtbs, "*")
+		dst := s.m.Dtbs
 		if err := s.deb.Unpack(src, dst); err != nil {
 			return name, err
 		}
