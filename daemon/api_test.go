@@ -34,7 +34,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
 	"time"
 
 	"gopkg.in/check.v1"
@@ -47,9 +46,6 @@ import (
 	"github.com/ubuntu-core/snappy/snappy"
 	"github.com/ubuntu-core/snappy/systemd"
 )
-
-// Hook up check.v1 into the "go test" runner
-func Test(t *testing.T) { check.TestingT(t) }
 
 type apiSuite struct {
 	parts []snappy.Part
@@ -91,10 +87,15 @@ func (s *apiSuite) TearDownSuite(c *check.C) {
 
 func (s *apiSuite) SetUpTest(c *check.C) {
 	dirs.SetRootDir(c.MkDir())
+	c.Assert(os.MkdirAll(filepath.Dir(dirs.SnapLockFile), 0755), check.IsNil)
 
 	s.parts = nil
 	s.err = nil
 	s.vars = nil
+}
+
+func (s *apiSuite) TearDownTest(c *check.C) {
+	findServices = snappy.FindServices
 }
 
 func (s *apiSuite) mkInstalled(c *check.C, name, origin, version string, active bool, extraYaml string) {
@@ -134,8 +135,7 @@ oem: {store: {id: %q}}
 }
 
 func (s *apiSuite) TestPackageInfoOneIntegration(c *check.C) {
-	d := New()
-	d.addRoutes()
+	newTestDaemon()
 
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
 
@@ -148,7 +148,7 @@ func (s *apiSuite) TestPackageInfoOneIntegration(c *check.C) {
 		vendor:       "a vendor",
 		isInstalled:  true,
 		isActive:     true,
-		icon:         dirs.SnapIconsDir + "icon.png",
+		icon:         filepath.Join(dirs.SnapIconsDir, "icon.png"),
 		_type:        pkg.TypeApp,
 		downloadSize: 2,
 	}}
@@ -178,7 +178,7 @@ func (s *apiSuite) TestPackageInfoOneIntegration(c *check.C) {
 			"origin":             "bar",
 			"vendor":             "a vendor",
 			"status":             "active",
-			"icon":               "/1.0/icons/foo.bar/icon",
+			"icon":               "/1.0/icons/icon.png",
 			"type":               string(pkg.TypeApp),
 			"download_size":      "2",
 			"resource":           "/1.0/packages/foo.bar",
@@ -217,8 +217,7 @@ func (s *apiSuite) TestPackageInfoIgnoresRemoteErrors(c *check.C) {
 func (s *apiSuite) TestPackageInfoWeirdRoute(c *check.C) {
 	// can't really happen
 
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	// use the wrong command to force the issue
 	wrongCmd := &Command{Path: "/{what}", d: d}
@@ -230,8 +229,7 @@ func (s *apiSuite) TestPackageInfoWeirdRoute(c *check.C) {
 func (s *apiSuite) TestPackageInfoBadRoute(c *check.C) {
 	// can't really happen, v2
 
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	// get the route and break it
 	route := d.router.Get(packageCmd.Path)
@@ -374,9 +372,6 @@ func (s *apiSuite) TestV1Store(c *check.C) {
 }
 
 func (s *apiSuite) TestPackagesInfoOnePerIntegration(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	req, err := http.NewRequest("GET", "/1.0/packages", nil)
 	c.Assert(err, check.IsNil)
 
@@ -416,9 +411,6 @@ func (s *apiSuite) TestPackagesInfoOnePerIntegration(c *check.C) {
 }
 
 func (s *apiSuite) TestDeleteOpNotFound(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	s.vars = map[string]string{"uuid": "42"}
 	rsp := deleteOp(operationCmd, nil).Self(nil, nil).(*resp)
 	c.Check(rsp.Type, check.Equals, ResponseTypeError)
@@ -426,8 +418,7 @@ func (s *apiSuite) TestDeleteOpNotFound(c *check.C) {
 }
 
 func (s *apiSuite) TestDeleteOpStillRunning(c *check.C) {
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	d.tasks["42"] = &Task{}
 	s.vars = map[string]string{"uuid": "42"}
@@ -437,8 +428,7 @@ func (s *apiSuite) TestDeleteOpStillRunning(c *check.C) {
 }
 
 func (s *apiSuite) TestDeleteOp(c *check.C) {
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	task := &Task{}
 	d.tasks["42"] = task
@@ -450,8 +440,7 @@ func (s *apiSuite) TestDeleteOp(c *check.C) {
 }
 
 func (s *apiSuite) TestGetOpInfoIntegration(c *check.C) {
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	s.vars = map[string]string{"uuid": "42"}
 	rsp := getOpInfo(operationCmd, nil).Self(nil, nil).(*resp)
@@ -504,9 +493,6 @@ func (s *apiSuite) TestGetOpInfoIntegration(c *check.C) {
 }
 
 func (s *apiSuite) TestPostPackageBadRequest(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	s.vars = map[string]string{"uuid": "42"}
 	rsp := getOpInfo(operationCmd, nil).Self(nil, nil).(*resp)
 	c.Check(rsp.Type, check.Equals, ResponseTypeError)
@@ -524,9 +510,6 @@ func (s *apiSuite) TestPostPackageBadRequest(c *check.C) {
 }
 
 func (s *apiSuite) TestPostPackageBadAction(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	s.vars = map[string]string{"uuid": "42"}
 	c.Check(getOpInfo(operationCmd, nil).Self(nil, nil).(*resp).Status, check.Equals, http.StatusNotFound)
 
@@ -542,8 +525,7 @@ func (s *apiSuite) TestPostPackageBadAction(c *check.C) {
 }
 
 func (s *apiSuite) TestPostPackage(c *check.C) {
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	s.vars = map[string]string{"uuid": "42"}
 	c.Check(getOpInfo(operationCmd, nil).Self(nil, nil).(*resp).Status, check.Equals, http.StatusNotFound)
@@ -623,9 +605,6 @@ func (c cfgc) Load(string) (snappy.Part, error) {
 }
 
 func (s *apiSuite) TestPackageGetConfig(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	req, err := http.NewRequest("GET", "/1.0/packages/foo.bar/config", bytes.NewBuffer(nil))
 	c.Assert(err, check.IsNil)
 
@@ -688,9 +667,6 @@ func (s *apiSuite) TestPackageGetConfigNoConfig(c *check.C) {
 }
 
 func (s *apiSuite) TestPackagePutConfig(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	newConfigStr := "some other config"
 	req, err := http.NewRequest("PUT", "/1.0/packages/foo.bar/config", bytes.NewBufferString(newConfigStr))
 	c.Assert(err, check.IsNil)
@@ -754,8 +730,7 @@ func (s *apiSuite) TestPackagePutConfigNoConfig(c *check.C) {
 }
 
 func (s *apiSuite) TestConfigMultiBadBody(c *check.C) {
-	d := New()
-	d.addRoutes()
+	newTestDaemon()
 
 	req, err := http.NewRequest("PUT", "/1.0/packages", bytes.NewBuffer(nil))
 	c.Assert(err, check.IsNil)
@@ -785,8 +760,7 @@ func (s *apiSuite) TestPackagesPutNil(c *check.C) {
 }
 
 func (s *apiSuite) genericTestPackagePut(c *check.C, body io.Reader, concreteNo int, expected map[string]*configSubtask) {
-	d := New()
-	d.addRoutes()
+	d := newTestDaemon()
 
 	req, err := http.NewRequest("PUT", "/1.0/packages", body)
 	c.Assert(err, check.IsNil)
@@ -858,9 +832,6 @@ func (s *apiSuite) genericTestPackagePut(c *check.C, body io.Reader, concreteNo 
 }
 
 func (s *apiSuite) TestPackageServiceGet(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	findServices = func(string, string, progress.Meter) (snappy.ServiceActor, error) {
 		return &tSA{ssout: []*snappy.PackageServiceStatus{{ServiceName: "svc"}}}, nil
 	}
@@ -884,9 +855,6 @@ func (s *apiSuite) TestPackageServiceGet(c *check.C) {
 }
 
 func (s *apiSuite) TestPackageServicePut(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	findServices = func(string, string, progress.Meter) (snappy.ServiceActor, error) {
 		return &tSA{ssout: []*snappy.PackageServiceStatus{{ServiceName: "svc"}}}, nil
 	}
@@ -953,9 +921,6 @@ func (s *apiSuite) sideloadCheck(c *check.C, content string, unsignedExpected bo
 }
 
 func (s *apiSuite) TestServiceLogs(c *check.C) {
-	d := New()
-	d.addRoutes()
-
 	log := systemd.Log{
 		"__REALTIME_TIMESTAMP": "42",
 		"MESSAGE":              "hi",
@@ -974,4 +939,103 @@ func (s *apiSuite) TestServiceLogs(c *check.C) {
 		Status: http.StatusOK,
 		Result: []map[string]interface{}{{"message": "hi", "timestamp": "42", "raw": log}},
 	})
+}
+
+func (s *apiSuite) TestMetaIconGet(c *check.C) {
+	// have an “icon” on the system
+	c.Check(os.MkdirAll(dirs.SnapIconsDir, 0755), check.IsNil)
+	c.Check(ioutil.WriteFile(filepath.Join(dirs.SnapIconsDir, "yadda"), []byte("yadda icon"), 0644), check.IsNil)
+
+	s.vars = map[string]string{"icon": "yadda"}
+	req, err := http.NewRequest("GET", "/1.0/icons/yadda", nil)
+	c.Assert(err, check.IsNil)
+
+	rec := httptest.NewRecorder()
+
+	metaIconCmd.GET(metaIconCmd, req).ServeHTTP(rec, req)
+	c.Check(rec.Code, check.Equals, 200)
+	c.Check(rec.Body.String(), check.Equals, "yadda icon")
+}
+
+func (s *apiSuite) TestMetaIconGetNoCheating(c *check.C) {
+	d := newTestDaemon()
+	// a test server
+	server := httptest.NewServer(d.router)
+
+	// write something one up from the icons
+	c.Check(os.MkdirAll(dirs.SnapIconsDir, 0755), check.IsNil)
+	c.Check(ioutil.WriteFile(filepath.Join(dirs.SnapIconsDir, "..", "yadda"), []byte("yadda cheat"), 0644), check.IsNil)
+
+	// try to get at the thing
+	req, err := http.NewRequest("GET", server.URL+"/1.0/icons/../yadda", nil)
+	c.Assert(err, check.IsNil)
+
+	res, err := http.DefaultClient.Do(req)
+	c.Assert(err, check.IsNil)
+
+	// the response is a 4xx
+	c.Check(res.StatusCode/100, check.Equals, 4)
+}
+
+func (s *apiSuite) TestAppIconGet(c *check.C) {
+	// have an active foo.bar in the system
+	s.mkInstalled(c, "foo", "bar", "v1", true, "icon: icon.ick")
+
+	// have an icon for it in the package itself
+	iconfile := filepath.Join(dirs.SnapAppsDir, "foo.bar", "v1", "icon.ick")
+	c.Check(ioutil.WriteFile(iconfile, []byte("ick"), 0644), check.IsNil)
+
+	s.vars = map[string]string{"name": "foo", "origin": "bar"}
+	req, err := http.NewRequest("GET", "/1.0/icons/foo.bar/icon", nil)
+	c.Assert(err, check.IsNil)
+
+	rec := httptest.NewRecorder()
+
+	appIconCmd.GET(appIconCmd, req).ServeHTTP(rec, req)
+	c.Check(rec.Code, check.Equals, 200)
+	c.Check(rec.Body.String(), check.Equals, "ick")
+}
+
+func (s *apiSuite) TestAppIconGetInactive(c *check.C) {
+	// have an *in*active foo.bar in the system
+	s.mkInstalled(c, "foo", "bar", "v1", false, "icon: icon.ick")
+
+	// have an icon for it in the package itself
+	iconfile := filepath.Join(dirs.SnapAppsDir, "foo.bar", "v1", "icon.ick")
+	c.Check(ioutil.WriteFile(iconfile, []byte("ick"), 0644), check.IsNil)
+
+	s.vars = map[string]string{"name": "foo", "origin": "bar"}
+	req, err := http.NewRequest("GET", "/1.0/icons/foo.bar/icon", nil)
+	c.Assert(err, check.IsNil)
+
+	rec := httptest.NewRecorder()
+
+	appIconCmd.GET(appIconCmd, req).ServeHTTP(rec, req)
+	c.Check(rec.Code, check.Equals, 200)
+	c.Check(rec.Body.String(), check.Equals, "ick")
+}
+
+func (s *apiSuite) TestAppIconGetNoIcon(c *check.C) {
+	// have an *in*active foo.bar in the system
+	s.mkInstalled(c, "foo", "bar", "v1", true, "") // NOTE: no icon in the yaml
+
+	s.vars = map[string]string{"name": "foo", "origin": "bar"}
+	req, err := http.NewRequest("GET", "/1.0/icons/foo.bar/icon", nil)
+	c.Assert(err, check.IsNil)
+
+	rec := httptest.NewRecorder()
+
+	appIconCmd.GET(appIconCmd, req).ServeHTTP(rec, req)
+	c.Check(rec.Code/100, check.Equals, 4)
+}
+
+func (s *apiSuite) TestAppIconGetNoApp(c *check.C) {
+	s.vars = map[string]string{"name": "foo", "origin": "bar"}
+	req, err := http.NewRequest("GET", "/1.0/icons/foo.bar/icon", nil)
+	c.Assert(err, check.IsNil)
+
+	rec := httptest.NewRecorder()
+
+	appIconCmd.GET(appIconCmd, req).ServeHTTP(rec, req)
+	c.Check(rec.Code, check.Equals, 404)
 }

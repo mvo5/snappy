@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: snappy\n"
         "Report-Msgid-Bugs-To: snappy-devel@lists.ubuntu.com\n"
-        "POT-Creation-Date: 2015-10-15 15:53+0200\n"
+        "POT-Creation-Date: 2015-11-06 16:59+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,6 +70,11 @@ msgstr  ""
 msgid   "Allows rollback of a snap to a previous installed version. Without any arguments, the previous installed version is selected. It is also possible to specify the version to rollback to as a additional argument.\n"
 msgstr  ""
 
+#, c-format
+msgid   "Another snappy is running, will try again in %d seconds...\n"
+        "Press ctrl-c to cancel.\n"
+msgstr  ""
+
 msgid   "Assign a hardware device to a package"
 msgstr  ""
 
@@ -106,6 +111,12 @@ msgid   "Ensures system is running with latest parts"
 msgstr  ""
 
 msgid   "First boot has already run"
+msgstr  ""
+
+msgid   "Force policy generation."
+msgstr  ""
+
+msgid   "Generate the apparmor policy"
 msgstr  ""
 
 #. TRANSLATORS: the %s is a pkgname
@@ -268,10 +279,24 @@ msgstr  ""
 msgid   "Snap\tService\tState"
 msgstr  ""
 
+#. TRANSLATORS: please keep each line under 80 characters.
+#, c-format
+msgid   "Snappy is updating your system in the background. This may take some minutes.\n"
+        "Will try again in %d seconds...\n"
+        "Press ctrl-c to cancel.\n"
+msgstr  ""
+
+#. TRANSLATORS: please keep this under 80 characters if possible
+msgid   "Snappy needs to reboot to finish an update. Defer with 'sudo shutdown -c'."
+msgstr  ""
+
 msgid   "Specify an alternate output directory for the resulting package"
 msgstr  ""
 
 msgid   "The Package to install (name or path)"
+msgstr  ""
+
+msgid   "The Package to update"
 msgstr  ""
 
 msgid   "The \"versions\" command is no longer available.\n"
@@ -291,6 +316,9 @@ msgid   "The hardware device path (e.g. /dev/ttyUSB0)"
 msgstr  ""
 
 msgid   "The package to rollback "
+msgstr  ""
+
+msgid   "The path to the package.yaml used to generate the apparmor policy."
 msgstr  ""
 
 msgid   "The version to rollback to"
@@ -359,6 +387,9 @@ msgstr  ""
 msgid   "installed: %s\n"
 msgstr  ""
 
+msgid   "must supply path to package.yaml"
+msgstr  ""
+
 msgid   "package name is required"
 msgstr  ""
 
@@ -368,9 +399,6 @@ msgstr  ""
 #. TRANSLATORS: the %s release string
 #, c-format
 msgid   "release: %s\n"
-msgstr  ""
-
-msgid   "snappy autopilot triggered a reboot to boot into an up to date system -- temprorarily disable the reboot by running 'sudo shutdown -c'"
 msgstr  ""
 
 #. TRANSLATORS: the first %s is the package name, the second is the service name; the %v is the error

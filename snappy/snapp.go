@@ -55,6 +55,11 @@ import (
 const (
 	// SideloadedOrigin is the (forced) origin for sideloaded snaps
 	SideloadedOrigin = "sideload"
+
+	// UbuntuCoreWireProtocol is the protocol level we support when
+	// communicating with the store. History:
+	//  - "1": client supports squashfs snaps
+	UbuntuCoreWireProtocol = "1"
 )
 
 // SharedName is a structure that holds an Alias to the preferred package and
@@ -88,32 +93,6 @@ type Port struct {
 type Ports struct {
 	Internal map[string]Port `yaml:"internal,omitempty" json:"internal,omitempty"`
 	External map[string]Port `yaml:"external,omitempty" json:"external,omitempty"`
-}
-
-// SecurityOverrideDefinition is used to override apparmor or seccomp
-// security defaults
-type SecurityOverrideDefinition struct {
-	Apparmor string `yaml:"apparmor" json:"apparmor"`
-	Seccomp  string `yaml:"seccomp" json:"seccomp"`
-}
-
-// SecurityPolicyDefinition is used to provide hand-crafted policy
-type SecurityPolicyDefinition struct {
-	Apparmor string `yaml:"apparmor" json:"apparmor"`
-	Seccomp  string `yaml:"seccomp" json:"seccomp"`
-}
-
-// SecurityDefinitions contains the common apparmor/seccomp definitions
-type SecurityDefinitions struct {
-	// SecurityTemplate is a template like "default"
-	SecurityTemplate string `yaml:"security-template,omitempty" json:"security-template,omitempty"`
-	// SecurityOverride is a override for the high level security json
-	SecurityOverride *SecurityOverrideDefinition `yaml:"security-override,omitempty" json:"security-override,omitempty"`
-	// SecurityPolicy is a hand-crafted low-level policy
-	SecurityPolicy *SecurityPolicyDefinition `yaml:"security-policy,omitempty" json:"security-policy,omitempty"`
-
-	// SecurityCaps is are the apparmor/seccomp capabilities for an app
-	SecurityCaps []string `yaml:"caps,omitempty" json:"caps,omitempty"`
 }
 
 // NeedsAppArmorUpdate checks whether the security definitions are impacted by
@@ -481,25 +460,6 @@ func (m *packageYaml) checkLicenseAgreement(ag agreer, d pkg.File, currentActive
 	return nil
 }
 
-func (m *packageYaml) legacyIntegrateSecDef(hookName string, s *SecurityDefinitions) {
-	// see if we have a custom security policy
-	if s.SecurityPolicy != nil && s.SecurityPolicy.Apparmor != "" {
-		m.Integration[hookName]["apparmor-profile"] = s.SecurityPolicy.Apparmor
-		return
-	}
-
-	// see if we have a security override
-	if s.SecurityOverride != nil && s.SecurityOverride.Apparmor != "" {
-		m.Integration[hookName]["apparmor"] = s.SecurityOverride.Apparmor
-		return
-	}
-
-	// apparmor template
-	m.Integration[hookName]["apparmor"] = filepath.Join("meta", hookName+".apparmor")
-
-	return
-}
-
 // legacyIntegration sets up the Integration property of packageYaml from its other attributes
 func (m *packageYaml) legacyIntegration(hasConfig bool) {
 	if m.Integration != nil {
@@ -518,8 +478,6 @@ func (m *packageYaml) legacyIntegration(hasConfig bool) {
 		}
 		// legacy click hook
 		m.Integration[hookName]["bin-path"] = v.Exec
-
-		m.legacyIntegrateSecDef(hookName, &v.SecurityDefinitions)
 	}
 
 	for _, v := range m.ServiceYamls {
@@ -528,9 +486,6 @@ func (m *packageYaml) legacyIntegration(hasConfig bool) {
 		if _, ok := m.Integration[hookName]; !ok {
 			m.Integration[hookName] = clickAppHook{}
 		}
-
-		// handle the apparmor stuff
-		m.legacyIntegrateSecDef(hookName, &v.SecurityDefinitions)
 	}
 
 	if hasConfig {
@@ -752,6 +707,10 @@ func (s *SnapPart) Icon() string {
 		return iconPath(s)
 	}
 
+	if s.m.Icon == "" {
+		return ""
+	}
+
 	return filepath.Join(s.basedir, s.m.Icon)
 }
 
@@ -868,8 +827,8 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		}
 	}
 
-	// legacy, the hooks (e.g. apparmor) need this. Once we converted
-	// all hooks this can go away
+	// legacy, the hooks need this. Once we converted all hooks this can go
+	// away
 	clickMetaDir := filepath.Join(s.basedir, ".click", "info")
 	if err := os.MkdirAll(clickMetaDir, 0755); err != nil {
 		return "", err
@@ -1051,11 +1010,6 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		}
 	}
 
-	// generate the security policy from the package.yaml
-	if err := s.m.addSecurityPolicy(s.basedir); err != nil {
-		return err
-	}
-
 	// add the "binaries:" from the package.yaml
 	if err := s.m.addPackageBinaries(s.basedir); err != nil {
 		return err
@@ -1064,7 +1018,13 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 	if err := s.m.addPackageServices(s.basedir, inhibitHooks, inter); err != nil {
 		return err
 	}
-	// update current symlink
+
+	// generate the security policy from the package.yaml
+	appsDir := filepath.Join(dirs.SnapAppsDir, QualifiedName(s), s.Version())
+	if err := generatePolicy(s.m, appsDir); err != nil {
+		return err
+	}
+
 	if err := os.Remove(currentActiveSymlink); err != nil && !os.IsNotExist(err) {
 		logger.Noticef("Failed to remove %q: %v", currentActiveSymlink, err)
 	}
@@ -1117,7 +1077,7 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 		return err
 	}
 
-	if err := s.m.removeSecurityPolicy(s.basedir); err != nil {
+	if err := removePolicy(s.m, s.basedir); err != nil {
 		return err
 	}
 	if err := s.m.removeSnapfsAutomount(s.basedir, inter); err != nil {
@@ -1342,32 +1302,31 @@ func (s *SnapPart) CanInstall(allowOEM bool, inter interacter) error {
 	return nil
 }
 
-var timestampUpdater = helpers.UpdateTimestamp
-
-func updateAppArmorJSONTimestamp(fullName, thing, version string) error {
-	fn := filepath.Join(dirs.SnapAppArmorDir, fmt.Sprintf("%s_%s_%s.json", fullName, thing, version))
-	return timestampUpdater(fn)
-}
-
-// RequestAppArmorUpdate checks whether changes to the given policies and
-// templates impacts the snap, and updates the timestamp of the relevant json
-// symlinks (thus requesting aaClickHookCmd regenerate the appropriate bits).
-func (s *SnapPart) RequestAppArmorUpdate(policies, templates map[string]bool) error {
-
-	fullName := QualifiedName(s)
+// RequestSecurityPolicyUpdate checks whether changes to the given policies and
+// templates impacts the snap, and updates the policy if needed
+func (s *SnapPart) RequestSecurityPolicyUpdate(policies, templates map[string]bool) error {
+	var foundError error
 	for _, svc := range s.ServiceYamls() {
 		if svc.NeedsAppArmorUpdate(policies, templates) {
-			if err := updateAppArmorJSONTimestamp(fullName, svc.Name, s.Version()); err != nil {
-				return err
+			err := svc.generatePolicyForServiceBinary(s.m, svc.Name, s.basedir)
+			if err != nil {
+				logger.Noticef("Failed to regenerate policy for %s: %v", svc.Name, err)
+				foundError = err
 			}
 		}
 	}
 	for _, bin := range s.Binaries() {
 		if bin.NeedsAppArmorUpdate(policies, templates) {
-			if err := updateAppArmorJSONTimestamp(fullName, bin.Name, s.Version()); err != nil {
-				return err
+			err := bin.generatePolicyForServiceBinary(s.m, bin.Name, s.basedir)
+			if err != nil {
+				logger.Noticef("Failed to regenerate policy for %s: %v", bin.Name, err)
+				foundError = err
 			}
 		}
+	}
+
+	if foundError != nil {
+		return foundError
 	}
 
 	return nil
@@ -1387,21 +1346,10 @@ func (s *SnapPart) RefreshDependentsSecurity(oldPart SnapIF, inter interacter) (
 	}
 
 	for _, dep := range deps {
-		err := dep.RequestAppArmorUpdate(upPol, upTpl)
+		err := dep.RequestSecurityPolicyUpdate(upPol, upTpl)
 		if err != nil {
 			return err
 		}
-	}
-
-	cmd := exec.Command(aaClickHookCmd)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		if exitCode, err := helpers.ExitCode(err); err == nil {
-			return &ErrApparmorGenerate{
-				ExitCode: exitCode,
-				Output:   output,
-			}
-		}
-		return err
 	}
 
 	return nil
@@ -1836,6 +1784,7 @@ func setUbuntuStoreHeaders(req *http.Request) {
 	req.Header.Set("X-Ubuntu-Frameworks", strings.Join(addCoreFmk(frameworks), ","))
 	req.Header.Set("X-Ubuntu-Architecture", string(Architecture()))
 	req.Header.Set("X-Ubuntu-Release", release.String())
+	req.Header.Set("X-Ubuntu-Wire-Protocol", UbuntuCoreWireProtocol)
 	req.Header.Set("X-Ubuntu-Device-Channel", release.Get().Channel)
 
 	if storeID := os.Getenv("UBUNTU_STORE_ID"); storeID != "" {

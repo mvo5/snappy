@@ -1,3 +1,4 @@
+[![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url]
 # snappy
 
 Snappy is part of Ubuntu Core and enables a fully transactional Ubuntu system.
@@ -46,6 +47,20 @@ the `-d` flag. More details on the `go get` flags are available using
 At this point you will have the git local repository of the `snappy` source at
 `$GOPATH/github.com/ubuntu-core/snappy/snappy`. The source for any
 dependent packages will also be available inside `$GOPATH`.
+
+### Dependencies handling
+
+To generate dependencies.tsv you need `godeps`, so
+
+    go get launchpad.net/godeps
+
+To obtain the correct dependencies for the project, run:
+
+    godeps -t -u dependencies.tsv
+
+If the dependencies need updating
+
+    godeps -t ./... > dependencies.tsv
 
 ### Building
 
@@ -98,17 +113,12 @@ If a test hangs, you can enable verbose mode:
 (or -check.v for less verbose output).
 
 There is more to read about the testing framework on the [website](https://labix.org/gocheck)
-### Dependencies handling
 
-To generate dependencies.tsv you need `godeps`, so
 
-    go get launchpad.net/godeps
+[travis-image]: https://travis-ci.org/ubuntu-core/snappy.svg?branch=master
+[travis-url]: https://travis-ci.org/ubuntu-core/snappy
 
-To obtain the correct dependencies for the project, run:
+[coveralls-image]: https://coveralls.io/repos/ubuntu-core/snappy/badge.svg?branch=master&service=github
+[coveralls-url]: https://coveralls.io/github/ubuntu-core/snappy?branch=master
 
-    godeps -t -u dependencies.tsv
-
-If the dependencies need updating
-
-    godeps -t ./... > dependencies.tsv
 

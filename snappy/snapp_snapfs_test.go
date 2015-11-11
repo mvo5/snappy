@@ -99,8 +99,6 @@ type SnapfsTestSuite struct {
 }
 
 func (s *SnapfsTestSuite) SetUpTest(c *C) {
-	// mocks
-	aaClickHookCmd = "/bin/true"
 	dirs.SetRootDir(c.MkDir())
 	os.MkdirAll(filepath.Join(dirs.SnapServicesDir, "multi-user.target.wants"), 0755)
 

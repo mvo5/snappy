@@ -38,7 +38,7 @@ func init() {
 }
 
 func (x *cmdBooted) Execute(args []string) error {
-	return withMutex(x.doBooted)
+	return withMutexAndRetry(x.doBooted)
 }
 
 func (x *cmdBooted) doBooted() error {

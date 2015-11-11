@@ -20,17 +20,68 @@
 package main
 
 import (
+	"fmt"
+	"os/exec"
+	"strings"
+	sys "syscall"
+	"time"
+
+	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/i18n"
+	"github.com/ubuntu-core/snappy/lockfile"
 	"github.com/ubuntu-core/snappy/logger"
-	"github.com/ubuntu-core/snappy/priv"
+	"github.com/ubuntu-core/snappy/snappy"
 
 	"github.com/jessevdk/go-flags"
 )
 
-const snappyLockFile = "/run/snappy.lock"
+func isAutoUpdateRunning() bool {
+	unitName := "snappy-autopilot"
+	bs, err := exec.Command("systemctl", "show", "--property=SubState", unitName).CombinedOutput()
+	if err != nil {
+		return false
+	}
 
-// withMutex runs the given function with a filelock mutex
-func withMutex(f func() error) error {
-	return priv.WithMutex(snappyLockFile, f)
+	return strings.TrimSpace(string(bs)) == "SubState=running"
+}
+
+// withMutexAndRetry runs the given function with a filelock mutex and provides
+// automatic re-try and helpful messages if the lock is already taken
+func withMutexAndRetry(f func() error) error {
+	if sys.Getuid() != 0 {
+		return snappy.ErrNeedRoot
+	}
+	for {
+		err := lockfile.WithLock(dirs.SnapLockFile, f)
+		// if already locked, auto-retry
+		if err == lockfile.ErrAlreadyLocked {
+			var msg string
+			if isAutoUpdateRunning() {
+				// FIXME: we could even do a
+				//    journalctl -u snappy-autopilot
+				// here
+
+				// TRANSLATORS: please keep each line under 80 characters.
+				msg = i18n.G(
+					`Snappy is updating your system in the background. This may take some minutes.
+Will try again in %d seconds...
+Press ctrl-c to cancel.
+`)
+			} else {
+				msg = i18n.G(
+					`Another snappy is running, will try again in %d seconds...
+Press ctrl-c to cancel.
+`)
+			}
+			// wait a wee bit
+			wait := 5
+			fmt.Printf(msg, wait)
+			time.Sleep(time.Duration(wait) * time.Second)
+			continue
+		}
+
+		return err
+	}
 }
 
 // addOptionDescription will try to find the given longName in the
