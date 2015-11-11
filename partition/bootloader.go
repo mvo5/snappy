@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 )
 
@@ -337,10 +338,13 @@ var BootloaderDir = BootloaderDirImpl
 // for tests
 // FIXME: used in the tests right now, but we don't want to expose the Impl
 func BootloaderDirImpl() string {
-	if helpers.FileExists(bootloaderUbootDir) {
-		return bootloaderUbootDir
-	} else if helpers.FileExists(bootloaderGrubDir) {
-		return bootloaderGrubDir
+	ud := filepath.Join(dirs.GlobalRootDir, bootloaderUbootDir)
+	gd := filepath.Join(dirs.GlobalRootDir, bootloaderGrubDir)
+
+	if helpers.FileExists(ud) {
+		return ud
+	} else if helpers.FileExists(gd) {
+		return gd
 	}
 
 	return ""
