@@ -521,7 +521,7 @@ func MountUnitPath(baseDir, ext string) string {
 
 func (s *systemd) WriteMountUnitFile(name, what, where string) (string, error) {
 	c := fmt.Sprintf(`[Unit]
-Description=Snapfs mount unit for %s
+Description=Squashfs mount unit for %s
 
 [Mount]
 What=%s

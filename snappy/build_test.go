@@ -512,7 +512,7 @@ vendor: Foo <foo@example.com>
 	c.Assert(err, ErrorMatches, "can not handle type of file .*")
 }
 
-func (s *SnapTestSuite) TestBuildSnapfsSimple(c *C) {
+func (s *SnapTestSuite) TestBuildSquashfsSimple(c *C) {
 	sourceDir := makeExampleSnapSourceDir(c, `name: hello
 version: 1.0.1
 vendor: Foo <foo@example.com>
@@ -522,7 +522,7 @@ integration:
   apparmor-profile: meta/hello.apparmor
 `)
 
-	resultSnap, err := BuildSnapfsSnap(sourceDir, "")
+	resultSnap, err := BuildSquashfsSnap(sourceDir, "")
 	c.Assert(err, IsNil)
 	defer os.Remove(resultSnap)
 

@@ -45,7 +45,7 @@ import (
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
-	"github.com/ubuntu-core/snappy/pkg/snapfs"
+	"github.com/ubuntu-core/snappy/pkg/squashfs"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/release"
@@ -820,16 +820,16 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 		return "", err
 	}
 
-	// FIXME: kill this check once we have only "snapfs" snaps
+	// FIXME: kill this check once we have only "squashfs" snaps
 	if s.m.Type == pkg.TypeKernel || s.m.Type == pkg.TypeOS {
-		if _, ok := s.deb.(*snapfs.Snap); !ok {
-			return "", fmt.Errorf("kernel/os snap must be of type snapfs")
+		if _, ok := s.deb.(*squashfs.Snap); !ok {
+			return "", fmt.Errorf("kernel/os snap must be of type squashfs")
 		}
 	}
 
 	// generate the mount unit for the squashfs
 	if s.deb.NeedsMountUnit() {
-		if err := s.m.addSnapfsMount(s.basedir, inhibitHooks, inter); err != nil {
+		if err := s.m.addSquashfsMount(s.basedir, inhibitHooks, inter); err != nil {
 			return "", err
 		}
 	}
@@ -1137,7 +1137,7 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 	}
 
 	// ensure mount unit stops
-	if err := s.m.removeSnapfsMount(s.basedir, inter); err != nil {
+	if err := s.m.removeSquashfsMount(s.basedir, inter); err != nil {
 		return err
 	}
 
@@ -1150,7 +1150,7 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 		return err
 	}
 
-	err = os.RemoveAll(snapfs.BlobPath(s.basedir))
+	err = os.RemoveAll(squashfs.BlobPath(s.basedir))
 	if err != nil {
 		return err
 	}
@@ -1192,7 +1192,7 @@ func (s *SnapPart) NeedsReboot() bool {
 		}
 		nextBootVer, _ := b.GetBootVar(nextBoot)
 		goodBootVer, _ := b.GetBootVar(goodBoot)
-		squashfsName := filepath.Base(stripGlobalRootDir(snapfs.BlobPath(s.basedir)))
+		squashfsName := filepath.Base(stripGlobalRootDir(squashfs.BlobPath(s.basedir)))
 		if nextBootVer == squashfsName && goodBootVer != nextBootVer {
 			return true
 		}
@@ -2024,8 +2024,8 @@ func makeSnapHookEnv(part SnapIF) (env []string) {
 	return env
 }
 
-func (m *packageYaml) addSnapfsMount(baseDir string, inhibitHooks bool, inter interacter) error {
-	squashfsPath := stripGlobalRootDir(snapfs.BlobPath(baseDir))
+func (m *packageYaml) addSquashfsMount(baseDir string, inhibitHooks bool, inter interacter) error {
+	squashfsPath := stripGlobalRootDir(squashfs.BlobPath(baseDir))
 	whereDir := stripGlobalRootDir(baseDir)
 
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
@@ -2046,7 +2046,7 @@ func (m *packageYaml) addSnapfsMount(baseDir string, inhibitHooks bool, inter in
 	return nil
 }
 
-func (m *packageYaml) removeSnapfsMount(baseDir string, inter interacter) error {
+func (m *packageYaml) removeSquashfsMount(baseDir string, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
 	unit := systemd.MountUnitPath(stripGlobalRootDir(baseDir), "mount")
 	if helpers.FileExists(unit) {
