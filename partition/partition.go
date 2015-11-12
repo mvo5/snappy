@@ -382,7 +382,7 @@ func (p *Partition) markBootSuccessfulAllSnaps() error {
 	}
 
 	// legacy uboot support, does not error if the file is not there
-	return os.RemoveAll(bootloaderUbootStampFile)
+	return os.RemoveAll(bootloaderUbootStampFile())
 }
 
 // IsNextBootOther return true if the next boot will use the other rootfs

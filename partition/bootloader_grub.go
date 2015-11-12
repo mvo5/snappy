@@ -31,18 +31,14 @@ import (
 
 const (
 	bootloaderGrubDirReal        = "/boot/grub"
-	bootloaderGrubConfigFileReal = "/boot/grub/grub.cfg"
-	bootloaderGrubEnvFileReal    = "/boot/grub/grubenv"
+	bootloaderGrubConfigFileReal = "grub.cfg"
+	bootloaderGrubEnvFileReal    = "grubenv"
 
 	bootloaderGrubEnvCmdReal = "/usr/bin/grub-editenv"
 )
 
 // var to make it testable
 var (
-	bootloaderGrubDir        = bootloaderGrubDirReal
-	bootloaderGrubConfigFile = bootloaderGrubConfigFileReal
-	bootloaderGrubEnvFile    = bootloaderGrubEnvFileReal
-
 	bootloaderGrubEnvCmd = bootloaderGrubEnvCmdReal
 )
 
@@ -52,13 +48,23 @@ type grub struct {
 
 const bootloaderNameGrub BootloaderName = "grub"
 
+func bootloaderGrubDir() string {
+	return filepath.Join(dirs.GlobalRootDir, bootloaderGrubDirReal)
+}
+func bootloaderGrubConfigFile() string {
+	return filepath.Join(bootloaderGrubDir(), bootloaderGrubConfigFileReal)
+}
+func bootloaderGrubEnvFile() string {
+	return filepath.Join(bootloaderGrubDir(), bootloaderGrubEnvFileReal)
+}
+
 // newGrub create a new Grub bootloader object
 func newGrub(partition *Partition) BootLoader {
-	if !helpers.FileExists(bootloaderGrubConfigFile) {
+	if !helpers.FileExists(bootloaderGrubConfigFile()) {
 		return nil
 	}
 
-	b := newBootLoader(partition, bootloaderGrubDir)
+	b := newBootLoader(partition, bootloaderGrubConfigFile())
 	if b == nil {
 		return nil
 	}
@@ -91,7 +97,7 @@ func (g *grub) ToggleRootFS(otherRootfs string) (err error) {
 func (g *grub) GetBootVar(name string) (value string, err error) {
 	// Grub doesn't provide a get verb, so retrieve all values and
 	// search for the required variable ourselves.
-	output, err := runCommandWithStdout(bootloaderGrubEnvCmd, filepath.Join(dirs.GlobalRootDir, bootloaderGrubEnvFile), "list")
+	output, err := runCommandWithStdout(bootloaderGrubEnvCmd, bootloaderGrubEnvFile(), "list")
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +116,7 @@ func (g *grub) SetBootVar(name, value string) (err error) {
 	// RunCommand() does not use a shell and thus adding quotes
 	// stores them in the environment file (which is not desirable)
 	arg := fmt.Sprintf("%s=%s", name, value)
-	return runCommand(bootloaderGrubEnvCmd, filepath.Join(dirs.GlobalRootDir, bootloaderGrubEnvFile), "set", arg)
+	return runCommand(bootloaderGrubEnvCmd, bootloaderGrubEnvFile(), "set", arg)
 }
 
 func (g *grub) GetNextBootRootFSName() (label string, err error) {
@@ -131,5 +137,5 @@ func (g *grub) MarkCurrentBootSuccessful(currentRootfs string) (err error) {
 }
 
 func (g *grub) BootDir() string {
-	return bootloaderGrubDir
+	return bootloaderGrubDir()
 }
