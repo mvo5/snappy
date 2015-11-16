@@ -21,6 +21,7 @@ package snappy
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -90,6 +91,10 @@ type SecurityOverrideDefinition struct {
 	WritePaths   []string `yaml:"write-paths,omitempty" json:"write-paths,omitempty"`
 	Abstractions []string `yaml:"abstractions,omitempty" json:"abstractions,omitempty"`
 	Syscalls     []string `yaml:"syscalls,omitempty" json:"syscalls,omitempty"`
+
+	// deprecated keys, we warn when we see those
+	DeprecatedAppArmor interface{} `yaml:"apparmor,omitempty" json:"apparmor,omitempty"`
+	DeprecatedSeccomp  interface{} `yaml:"seccomp,omitempty" json:"seccomp,omitempty"`
 }
 
 // SecurityPolicyDefinition is used to provide hand-crafted policy
@@ -152,7 +157,7 @@ func (sp *securityPolicyType) findTemplate(templateName string) (string, error) 
 	for _, fn := range fns {
 		content, err := ioutil.ReadFile(fn)
 		// it is ok if the file does not exists
-		if err != nil && os.IsNotExist(err) {
+		if os.IsNotExist(err) {
 			continue
 		}
 		// but any other error is a failure
@@ -198,7 +203,7 @@ func (sp *securityPolicyType) findSingleCap(capName, systemPolicyDir, fwPolicyDi
 		fn := filepath.Join(dir, capName)
 		newCaps, err := readSingleCapFile(fn)
 		// its ok if the file does not exist
-		if err != nil && os.IsNotExist(err) {
+		if os.IsNotExist(err) {
 			continue
 		}
 		// but any other error is not ok
@@ -291,17 +296,17 @@ const allowed = `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789`
 
 // Generate a string suitable for use in a DBus object
 func dbusPath(s string) string {
-	dbusStr := ""
+	buf := bytes.NewBuffer(make([]byte, 0, len(s)))
 
 	for _, c := range []byte(s) {
 		if strings.IndexByte(allowed, c) >= 0 {
-			dbusStr += fmt.Sprintf("%c", c)
+			fmt.Fprintf(buf, "%c", c)
 		} else {
-			dbusStr += fmt.Sprintf("_%02x", c)
+			fmt.Fprintf(buf, "_%02x", c)
 		}
 	}
 
-	return dbusStr
+	return buf.String()
 }
 
 // Calculate whitespace prefix based on occurrence of s in t
@@ -348,16 +353,16 @@ func newAppID(appID string) (*securityAppID, error) {
 
 // TODO: once verified, reorganize all these
 func (sa *securityAppID) appArmorVars() string {
-	aavars := "\n# Specified profile variables\n"
-	aavars += fmt.Sprintf("@{APP_APPNAME}=\"%s\"\n", sa.Appname)
-	aavars += fmt.Sprintf("@{APP_ID_DBUS}=\"%s\"\n", dbusPath(sa.AppID))
-	aavars += fmt.Sprintf("@{APP_PKGNAME_DBUS}=\"%s\"\n", dbusPath(sa.Pkgname))
-	aavars += fmt.Sprintf("@{APP_PKGNAME}=\"%s\"\n", sa.Pkgname)
-	aavars += fmt.Sprintf("@{APP_VERSION}=\"%s\"\n", sa.Version)
-	aavars += "@{INSTALL_DIR}=\"{/apps,/oem}\"\n"
-	aavars += "# Deprecated:\n"
-	aavars += "@{CLICK_DIR}=\"{/apps,/oem}\""
-
+	aavars := fmt.Sprintf(`
+# Specified profile variables
+@{APP_APPNAME}="%s"
+@{APP_ID_DBUS}="%s"
+@{APP_PKGNAME_DBUS}="%s"
+@{APP_PKGNAME}="%s"
+@{APP_VERSION}="%s"
+@{INSTALL_DIR}="{/apps,/oem}"
+# Deprecated:
+@{CLICK_DIR}="{/apps,/oem}"`, sa.Appname, dbusPath(sa.AppID), dbusPath(sa.Pkgname), sa.Pkgname, sa.Version)
 	return aavars
 }
 
@@ -463,7 +468,7 @@ func getAppArmorTemplatedPolicy(m *packageYaml, appID *securityAppID, template s
 		prefix := findWhitespacePrefix(t, "###POLICYGROUPS###")
 		for _, line := range p {
 			if len(line) == 0 {
-				aacaps += line + "\n"
+				aacaps += "\n"
 			} else {
 				aacaps += fmt.Sprintf("%s%s\n", prefix, line)
 			}
@@ -498,6 +503,8 @@ func getSeccompTemplatedPolicy(m *packageYaml, appID *securityAppID, templateNam
 	return scPolicy, nil
 }
 
+var finalCurtain = regexp.MustCompile(`}\s*$`)
+
 func getAppArmorCustomPolicy(m *packageYaml, appID *securityAppID, fn string, overrides *SecurityOverrideDefinition) (string, error) {
 	custom, err := ioutil.ReadFile(fn)
 	if err != nil {
@@ -506,6 +513,15 @@ func getAppArmorCustomPolicy(m *packageYaml, appID *securityAppID, fn string, ov
 
 	aaPolicy := strings.Replace(string(custom), "\n###VAR###\n", appID.appArmorVars()+"\n", 1)
 	aaPolicy = strings.Replace(aaPolicy, "\n###PROFILEATTACH###", fmt.Sprintf("\nprofile \"%s\"", appID.AppID), 1)
+
+	// a custom policy may not have the overrides defined that we
+	// use for the hw-assign work. so we insert them here
+	aaPolicy = finalCurtain.ReplaceAllString(aaPolicy, `
+###READS###
+###WRITES###
+###ABSTRACTIONS###
+}
+`)
 
 	return mergeAppArmorTemplateAdditionalContent("", aaPolicy, overrides)
 }
@@ -607,11 +623,20 @@ type securityPolicyResult struct {
 	scFn     string
 }
 
+func (sd *SecurityDefinitions) warnDeprecatedKeys() {
+	if sd.SecurityOverride != nil && sd.SecurityOverride.DeprecatedAppArmor != nil {
+		logger.Noticef("The security-override.apparmor key is no longer supported, please use use security-override directly")
+	}
+	if sd.SecurityOverride != nil && sd.SecurityOverride.DeprecatedSeccomp != nil {
+		logger.Noticef("The security-override.seccomp key is no longer supported, please use use security-override directly")
+	}
+}
+
 func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYaml, name string, baseDir string) (*securityPolicyResult, error) {
 	res := &securityPolicyResult{}
 	appID, err := getSecurityProfile(m, name, baseDir)
 	if err != nil {
-		logger.Noticef("Failed to obtain APP_ID for %s: %v", name, err)
+		logger.Noticef("Failed to obtain security profile for %s: %v", name, err)
 		return nil, err
 	}
 
@@ -621,10 +646,16 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 		return nil, err
 	}
 
+	// warn about deprecated
+	sd.warnDeprecatedKeys()
+
 	// add the hw-override parts and merge with the other overrides
-	origin, err := originFromYamlPath(filepath.Join(baseDir, "meta", "package.yaml"))
-	if err != nil {
-		return nil, err
+	origin := ""
+	if m.Type != pkg.TypeFramework && m.Type != pkg.TypeOem {
+		origin, err = originFromYamlPath(filepath.Join(baseDir, "meta", "package.yaml"))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	hwaccessOverrides, err := readHWAccessYamlFile(m.qualifiedName(origin))
@@ -670,14 +701,14 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *packageYaml, na
 	}
 
 	os.MkdirAll(filepath.Dir(p.scFn), 0755)
-	err = ioutil.WriteFile(p.scFn, []byte(p.scPolicy), 0644)
+	err = helpers.AtomicWriteFile(p.scFn, []byte(p.scPolicy), 0644, 0)
 	if err != nil {
 		logger.Noticef("Failed to write seccomp policy for %s: %v", name, err)
 		return err
 	}
 
 	os.MkdirAll(filepath.Dir(p.aaFn), 0755)
-	err = ioutil.WriteFile(p.aaFn, []byte(p.aaPolicy), 0644)
+	err = helpers.AtomicWriteFile(p.aaFn, []byte(p.aaPolicy), 0644, 0)
 	if err != nil {
 		logger.Noticef("Failed to write AppArmor policy for %s: %v", name, err)
 		return err
@@ -711,7 +742,7 @@ func generatePolicy(m *packageYaml, baseDir string) error {
 		err := service.generatePolicyForServiceBinary(m, service.Name, baseDir)
 		if err != nil {
 			foundError = err
-			logger.Noticef("Failed to obtain APP_ID for %s: %v", service.Name, err)
+			logger.Noticef("Failed to generate policy for service %s: %v", service.Name, err)
 			continue
 		}
 	}
@@ -720,11 +751,13 @@ func generatePolicy(m *packageYaml, baseDir string) error {
 		err := binary.generatePolicyForServiceBinary(m, binary.Name, baseDir)
 		if err != nil {
 			foundError = err
-			logger.Noticef("Failed to obtain APP_ID for %s: %v", binary.Name, err)
+			logger.Noticef("Failed to generate policy for binary %s: %v", binary.Name, err)
 			continue
 		}
 	}
 
+	// FIXME: if there are multiple errors only the last one
+	//        will be preserved
 	if foundError != nil {
 		return foundError
 	}
@@ -797,10 +830,11 @@ func compareSinglePolicyToCurrent(oldPolicyFn, newPolicy string) error {
 // CompareGeneratePolicyFromFile is used to simulate security policy
 // generation and returns if the policy would have changed
 func CompareGeneratePolicyFromFile(fn string) error {
-	m, err := parsePackageYamlFile(fn)
+	m, err := parsePackageYamlFileWithVersion(fn)
 	if err != nil {
 		return err
 	}
+
 	baseDir := filepath.Dir(filepath.Dir(fn))
 
 	for _, service := range m.ServiceYamls {
@@ -842,12 +876,22 @@ func CompareGeneratePolicyFromFile(fn string) error {
 	return nil
 }
 
+// FIXME: refactor so that we don't need this
+func parsePackageYamlFileWithVersion(fn string) (*packageYaml, error) {
+	m, err := parsePackageYamlFile(fn)
+
+	// FIXME: duplicated code from snapp.go:NewSnapPartFromYaml,
+	//        version is overriden by sideloaded versions
+	m.Version = filepath.Base(filepath.Dir(filepath.Dir(fn)))
+
+	return m, err
+}
+
 // GeneratePolicyFromFile is used to generate security policy on the system
 // from the specified manifest file name
 func GeneratePolicyFromFile(fn string, force bool) error {
 	// FIXME: force not used yet
-
-	m, err := parsePackageYamlFile(fn)
+	m, err := parsePackageYamlFileWithVersion(fn)
 	if err != nil {
 		return err
 	}
@@ -881,10 +925,11 @@ func RegenerateAllPolicy(force bool) error {
 	}
 
 	for _, p := range installed {
-		if _, ok := p.(*SnapPart); !ok {
+		part, ok := p.(*SnapPart)
+		if !ok {
 			continue
 		}
-		basedir := p.(*SnapPart).basedir
+		basedir := part.basedir
 		yFn := filepath.Join(basedir, "meta", "package.yaml")
 
 		// FIXME: use ErrPolicyNeedsRegenerating here to check if

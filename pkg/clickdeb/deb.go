@@ -226,7 +226,7 @@ func (d *ClickDeb) ExtractHashes(dir string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(hashesFile, hashesData, 0644)
+	return helpers.AtomicWriteFile(hashesFile, hashesData, 0644, 0)
 }
 
 // Unpack unpacks the clickdeb

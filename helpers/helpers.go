@@ -294,7 +294,7 @@ func NewSideloadVersion() string {
 type AtomicWriteFlags uint
 
 const (
-	// AtomicWriteFollow makes AtomicWriteFile follows symlinks
+	// AtomicWriteFollow makes AtomicWriteFile follow symlinks
 	AtomicWriteFollow AtomicWriteFlags = 1 << iota
 )
 

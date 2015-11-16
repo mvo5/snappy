@@ -1009,18 +1009,20 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		return err
 	}
 
+	// generate the security policy from the package.yaml
+	// Note that this must happen before binaries/services are
+	// generated because serices may get started
+	appsDir := filepath.Join(dirs.SnapAppsDir, QualifiedName(s), s.Version())
+	if err := generatePolicy(s.m, appsDir); err != nil {
+		return err
+	}
+
 	// add the "binaries:" from the package.yaml
 	if err := s.m.addPackageBinaries(s.basedir); err != nil {
 		return err
 	}
 	// add the "services:" from the package.yaml
 	if err := s.m.addPackageServices(s.basedir, inhibitHooks, inter); err != nil {
-		return err
-	}
-
-	// generate the security policy from the package.yaml
-	appsDir := filepath.Join(dirs.SnapAppsDir, QualifiedName(s), s.Version())
-	if err := generatePolicy(s.m, appsDir); err != nil {
 		return err
 	}
 
@@ -1327,6 +1329,8 @@ func (s *SnapPart) RequestSecurityPolicyUpdate(policies, templates map[string]bo
 		}
 	}
 
+	// FIXME: if there are multiple errors only the last one
+	//        will be preserved
 	if foundError != nil {
 		return foundError
 	}
@@ -1644,7 +1648,7 @@ func (s *RemoteSnapPart) saveStoreManifest() error {
 	}
 
 	// don't worry about previous contents
-	return ioutil.WriteFile(RemoteManifestPath(s), content, 0644)
+	return helpers.AtomicWriteFile(RemoteManifestPath(s), content, 0644, 0)
 }
 
 // Install installs the snap
