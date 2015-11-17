@@ -112,12 +112,6 @@ func (s *SquashfsTestSuite) SetUpTest(c *C) {
 	}
 	partition.Bootloader = newMockBootloader
 
-	// and bootloader dir
-	s.mockBootloaderDir = c.MkDir()
-	partition.BootloaderDir = func() string {
-		return s.mockBootloaderDir
-	}
-
 	// ensure we use the right builder func (squshfs)
 	snapBuilderFunc = BuildSquashfsSnap
 }
@@ -125,7 +119,6 @@ func (s *SquashfsTestSuite) SetUpTest(c *C) {
 func (s *SquashfsTestSuite) TearDownTest(c *C) {
 	snapBuilderFunc = BuildLegacySnap
 	partition.Bootloader = partition.BootloaderImpl
-	partition.BootloaderDir = partition.BootloaderDirImpl
 }
 
 var _ = Suite(&SquashfsTestSuite{})
