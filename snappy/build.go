@@ -489,7 +489,8 @@ func prepare(sourceDir, targetDir, buildDir string) (snapName string, err error)
 	return snapName, nil
 }
 
-// BuildSquashfsSnap the given sourceDirectory and return the generated snap file
+// BuildSquashfsSnap the given sourceDirectory and return the generated
+// snap file
 func BuildSquashfsSnap(sourceDir, targetDir string) (string, error) {
 	// create build dir
 	buildDir, err := ioutil.TempDir("", "snappy-build-")

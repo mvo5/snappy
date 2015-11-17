@@ -97,6 +97,8 @@ type SquashfsTestSuite struct {
 	mockBootloaderDir string
 }
 
+var _ = Suite(&SquashfsTestSuite{})
+
 func (s *SquashfsTestSuite) SetUpTest(c *C) {
 	dirs.SetRootDir(c.MkDir())
 	os.MkdirAll(filepath.Join(dirs.SnapServicesDir, "multi-user.target.wants"), 0755)
@@ -120,8 +122,6 @@ func (s *SquashfsTestSuite) TearDownTest(c *C) {
 	snapBuilderFunc = BuildLegacySnap
 	partition.Bootloader = partition.BootloaderImpl
 }
-
-var _ = Suite(&SquashfsTestSuite{})
 
 func (s *SquashfsTestSuite) TestMakeSnapMakesSquashfs(c *C) {
 	snapPkg := makeTestSnapPackage(c, packageHello)
