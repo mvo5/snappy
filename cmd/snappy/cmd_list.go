@@ -126,12 +126,6 @@ func showVerboseList(installed []snappy.Part, o io.Writer) {
 }
 
 func showRebootMessage(installed []snappy.Part, o io.Writer) {
-	// Initialise to handle systems without a provisioned "other"
-	otherVersion := "0"
-	currentVersion := "0"
-	otherName := ""
-	needsReboot := false
-
 	// display all parts that require a reboot
 	for _, part := range installed {
 		if !part.NeedsReboot() {
