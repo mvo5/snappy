@@ -331,12 +331,7 @@ func (b *bootloaderType) HandleAssets() (err error) {
 
 // BootloaderDir returns the full path to the (mounted and writable)
 // bootloader-specific boot directory.
-var BootloaderDir = BootloaderDirImpl
-
-// BootloaderDirImpl is the actual bootloder dir implementation, useful
-// for tests
-// FIXME: used in the tests right now, but we don't want to expose the Impl
-func BootloaderDirImpl() string {
+func BootloaderDir() string {
 	if helpers.FileExists(bootloaderUbootDir()) {
 		return bootloaderUbootDir()
 	} else if helpers.FileExists(bootloaderGrubDir()) {
