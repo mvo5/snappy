@@ -132,31 +132,14 @@ func showRebootMessage(installed []snappy.Part, o io.Writer) {
 	otherName := ""
 	needsReboot := false
 
+	// display all parts that require a reboot
 	for _, part := range installed {
 		if !part.NeedsReboot() {
 			continue
 		}
-		needsReboot = true
 
-		if part.IsActive() {
-			currentVersion = part.Version()
-		} else {
-			otherVersion = part.Version()
-			otherName = part.Name()
-		}
-	}
-
-	// nothing to show
-	if !needsReboot {
-		return
-	}
-
-	if snappy.VersionCompare(otherVersion, currentVersion) > 0 {
-		// TRANSLATORS: the %s is a pkgname
-		fmt.Fprintln(o, fmt.Sprintf(i18n.G("Reboot to use the new %s."), otherName))
-	} else {
 		// TRANSLATORS: the first %s is a pkgname the second a version
-		fmt.Fprintln(o, fmt.Sprintf(i18n.G("Reboot to use %s version %s."), otherName, otherVersion))
+		fmt.Fprintln(o, fmt.Sprintf(i18n.G("Reboot to use %s version %s."), part.Version(), part.Name()))
 	}
 }
 
