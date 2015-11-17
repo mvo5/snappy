@@ -88,28 +88,6 @@ func (ts *HTestSuite) TestUnpack(c *C) {
 	c.Check(fn, Equals, "/etc/fstab")
 }
 
-func (ts *HTestSuite) TestUbuntuArchitecture(c *C) {
-	goarch = "arm"
-	c.Check(UbuntuArchitecture(), Equals, "armhf")
-
-	goarch = "amd64"
-	c.Check(UbuntuArchitecture(), Equals, "amd64")
-
-	goarch = "386"
-	c.Check(UbuntuArchitecture(), Equals, "i386")
-}
-
-func (ts *HTestSuite) TestSupportedArchitectures(c *C) {
-
-	c.Check(IsSupportedArchitecture("armhf", []string{"all"}), Equals, true)
-	c.Check(IsSupportedArchitecture("armhf", []string{"amd64", "armhf", "powerpc"}), Equals, true)
-	c.Check(IsSupportedArchitecture("armhf", []string{"armhf"}), Equals, true)
-	c.Check(IsSupportedArchitecture("armhf", []string{"amd64", "powerpc"}), Equals, false)
-
-	c.Check(IsSupportedArchitecture("amd64", []string{"amd64", "armhf", "powerpc"}), Equals, true)
-	c.Check(IsSupportedArchitecture("amd64", []string{"powerpc"}), Equals, false)
-}
-
 func (ts *HTestSuite) TestChdir(c *C) {
 	tmpdir := c.MkDir()
 
