@@ -712,6 +712,11 @@ func installClick(snapFile string, flags InstallFlags, inter progress.Meter, ori
 	if err != nil {
 		return "", err
 	}
+	// HACK: the only thing that might needs closing is clickdeb
+	//       (and soon we can get rid of that!)
+	if sp, ok := part.(*SnapPart); ok {
+		defer sp.deb.Close()
+	}
 
 	return part.Install(inter, flags)
 }
