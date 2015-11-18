@@ -1139,9 +1139,12 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 		return err
 	}
 
-	// FIXME: do we need this? when we do the above
-	// unmount squashfs but ignore errors as its ok if the fs is not mounted
-	exec.Command("unmount", "--lazy", filepath.Join(s.basedir)).CombinedOutput()
+	// unmount squashfs snaps is needed
+	if isMounted(s.basedir) {
+		if err := lazyUnmount(s.basedir); err != nil {
+			return err
+		}
+	}
 
 	err = os.RemoveAll(s.basedir)
 	if err != nil {

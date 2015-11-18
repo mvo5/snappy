@@ -150,7 +150,10 @@ func (d *ClickDeb) Name() string {
 	return d.path
 }
 
-// NeedsMountUnit returns false.
+// NeedsMountUnit returns false because a clickdeb is fully unpacked
+// on disk.
+func (d *ClickDeb) NeedsAutoMountUnit() bool {
+
 func (d *ClickDeb) NeedsMountUnit() bool {
 	return false
 }

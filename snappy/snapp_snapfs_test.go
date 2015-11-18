@@ -114,7 +114,13 @@ func (s *SquashfsTestSuite) SetUpTest(c *C) {
 	}
 	partition.Bootloader = newMockBootloader
 
-	// ensure we use the right builder func (squshfs)
+	// and bootloader dir
+	s.mockBootloaderDir = c.MkDir()
+	partition.BootloaderDir = func() string {
+		return s.mockBootloaderDir
+	}
+
+	// ensure we use the right builder func (squashfs)
 	snapBuilderFunc = BuildSquashfsSnap
 }
 
