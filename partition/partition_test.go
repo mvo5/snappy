@@ -366,12 +366,12 @@ type mockBootloader struct {
 	HandleAssetsCalled              bool
 	MarkCurrentBootSuccessfulCalled bool
 	SyncBootFilesCalled             bool
-	Bootvars                        map[string]string
+	BootVars                        map[string]string
 }
 
 func newMockBootloader() *mockBootloader {
 	return &mockBootloader{
-		Bootvars: make(map[string]string),
+		BootVars: make(map[string]string),
 	}
 }
 
@@ -391,10 +391,10 @@ func (b *mockBootloader) HandleAssets() error {
 	return nil
 }
 func (b *mockBootloader) GetBootVar(name string) (string, error) {
-	return b.Bootvars[name], nil
+	return b.BootVars[name], nil
 }
 func (b *mockBootloader) SetBootVar(name, value string) error {
-	b.Bootvars[name] = value
+	b.BootVars[name] = value
 	return nil
 }
 func (b *mockBootloader) GetNextBootRootFSName() (string, error) {
@@ -453,11 +453,11 @@ func (s *PartitionTestSuite) TestMarkBootSuccessfulAllSnap(c *C) {
 	p := New()
 	c.Assert(c, NotNil)
 
-	b.Bootvars["snappy_os"] = "os1"
-	b.Bootvars["snappy_kernel"] = "k1"
+	b.BootVars["snappy_os"] = "os1"
+	b.BootVars["snappy_kernel"] = "k1"
 	err := p.MarkBootSuccessful()
 	c.Assert(err, IsNil)
-	c.Assert(b.Bootvars, DeepEquals, map[string]string{
+	c.Assert(b.BootVars, DeepEquals, map[string]string{
 		"snappy_mode":        "regular",
 		"snappy_trial_boot":  "0",
 		"snappy_kernel":      "k1",
