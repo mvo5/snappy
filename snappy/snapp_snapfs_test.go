@@ -101,12 +101,6 @@ var _ = Suite(&SquashfsTestSuite{})
 
 func (s *SquashfsTestSuite) SetUpTest(c *C) {
 	dirs.SetRootDir(c.MkDir())
-	os.MkdirAll(filepath.Join(dirs.SnapServicesDir, "multi-user.target.wants"), 0755)
-
-	// ensure we do not run a real systemd (slows down tests)
-	systemd.SystemctlCmd = func(cmd ...string) ([]byte, error) {
-		return []byte("ActiveState=inactive\n"), nil
-	}
 
 	// mock bootloader
 	mockb = mockBootloader{
@@ -118,6 +112,13 @@ func (s *SquashfsTestSuite) SetUpTest(c *C) {
 	s.mockBootloaderDir = c.MkDir()
 	partition.BootloaderDir = func() string {
 		return s.mockBootloaderDir
+	}
+
+	os.MkdirAll(filepath.Join(dirs.SnapServicesDir, "multi-user.target.wants"), 0755)
+
+	// ensure we do not run a real systemd
+	systemd.SystemctlCmd = func(cmd ...string) ([]byte, error) {
+		return []byte("ActiveState=inactive\n"), nil
 	}
 
 	// ensure we use the right builder func (squashfs)

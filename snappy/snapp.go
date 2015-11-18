@@ -1134,13 +1134,12 @@ func (s *SnapPart) remove(inter interacter) (err error) {
 		return err
 	}
 
-	err = os.RemoveAll(squashfs.BlobPath(s.basedir))
-	if err != nil {
-		return err
-	}
-
 	// best effort(?)
 	os.Remove(filepath.Dir(s.basedir))
+
+	if err := os.RemoveAll(squashfs.BlobPath(s.basedir)); err != nil {
+		return err
+	}
 
 	// don't fail if icon can't be removed
 	if helpers.FileExists(iconPath(s)) {

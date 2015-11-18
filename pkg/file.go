@@ -48,8 +48,8 @@ type File interface {
 	// them into the filesystem for verification.
 	ExtractHashes(targetDir string) error
 
-	// NeedsAutoMountUnit determines if it's required to setup
-	// an automount unit for the snap when the snap is activated
+	// NeedsMountUnit determines if it's required to setup
+	// a mount unit for the snap when the snap is installed
 	NeedsMountUnit() bool
 }
 

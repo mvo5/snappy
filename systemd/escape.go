@@ -20,6 +20,7 @@
 package systemd
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -33,7 +34,7 @@ const allowed = `:_.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567
 //        because versions >= 2 are not compatible with go1.3 from
 //        15.04
 func EscapePath(in string) string {
-	out := ""
+	buf := bytes.NewBuffer(nil)
 
 	// clean and trim leading/trailing "/"
 	in = filepath.Clean(in)
@@ -45,20 +46,20 @@ func EscapePath(in string) string {
 	}
 	// leading "." is special
 	if in[0] == '.' {
-		out += fmt.Sprintf(`\x%x`, in[0])
+		fmt.Fprintf(buf, `\x%x`, in[0])
 		in = in[1:len(in)]
 	}
 
 	// replace all special chars
 	for i := 0; i < len(in); i++ {
 		if strings.IndexByte(allowed, in[i]) >= 0 {
-			out += fmt.Sprintf("%c", in[i])
+			fmt.Fprintf(buf, "%c", in[i])
 		} else {
-			out += fmt.Sprintf(`\x%x`, (in[i]))
+			fmt.Fprintf(buf, `\x%x`, (in[i]))
 		}
 	}
 	// now replace the special char "/" with "-"
-	out = strings.Replace(out, `\x2f`, `-`, -1)
+	res := bytes.Replace(buf.Bytes(), []byte(`\x2f`), []byte(`-`), -1)
 
-	return out
+	return string(res)
 }
