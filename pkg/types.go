@@ -33,7 +33,7 @@ const (
 	TypeApp       Type = "app"
 	TypeCore      Type = "core"
 	TypeFramework Type = "framework"
-	TypeOem       Type = "oem"
+	TypeGadget    Type = "oem"
 )
 
 // MarshalJSON returns *m as the JSON encoding of m.

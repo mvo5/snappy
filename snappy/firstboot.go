@@ -52,7 +52,7 @@ var activeSnapsByType = ActiveSnapsByType
 // OemConfig checks for an oem snap and if found applies the configuration
 // set there to the system
 func oemConfig() error {
-	oemSnap, err := activeSnapsByType(pkg.TypeOem)
+	oemSnap, err := activeSnapsByType(pkg.TypeGadget)
 	if err != nil {
 		return err
 	}

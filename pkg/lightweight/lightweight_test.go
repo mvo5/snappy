@@ -59,7 +59,7 @@ func (s *lightweightSuite) SetUpTest(c *check.C) {
 
 	s.MkRemoved(c, "fmk2", "4.2.0ubuntu1")
 
-	s.MkInstalled(c, pkg.TypeOem, dirs.SnapOemDir, "an-oem", "", "3", false)
+	s.MkInstalled(c, pkg.TypeGadget, dirs.SnapOemDir, "an-oem", "", "3", false)
 
 	newCoreRepo = func() repo {
 		// you can't ever have a removed systemimagepart, but for testing it'll do
@@ -382,7 +382,7 @@ func (s *lightweightSuite) TestLoadOem(c *check.C) {
 	oem := PartBagByName("an-oem", "whatever")
 	c.Assert(oem, check.NotNil)
 	c.Check(oem.Versions, check.DeepEquals, []string{"3"})
-	c.Check(oem.Type, check.Equals, pkg.TypeOem)
+	c.Check(oem.Type, check.Equals, pkg.TypeGadget)
 
 	c.Check(oem.IsInstalled(0), check.Equals, true)
 	c.Check(oem.ActiveIndex(), check.Equals, -1)
@@ -425,7 +425,7 @@ func (s *lightweightSuite) TestAll(c *check.C) {
 		"foo.baz": {typ: pkg.TypeApp, idx: -1, inst: false},
 		"fmk":     {typ: pkg.TypeFramework, idx: 1, inst: true},
 		"fmk2":    {typ: pkg.TypeFramework, idx: -1, inst: false},
-		"an-oem":  {typ: pkg.TypeOem, idx: -1, inst: true},
+		"an-oem":  {typ: pkg.TypeGadget, idx: -1, inst: true},
 		sysname:   {typ: pkg.TypeCore, idx: 0, inst: true},
 	}
 

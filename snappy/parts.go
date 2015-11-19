@@ -48,7 +48,7 @@ type Configuration interface {
 // QualifiedName of a Part is the Name, in most cases qualified with the
 // Origin
 func QualifiedName(p Part) string {
-	if t := p.Type(); t == pkg.TypeFramework || t == pkg.TypeOem {
+	if t := p.Type(); t == pkg.TypeFramework || t == pkg.TypeGadget {
 		return p.Name()
 	}
 	return p.Name() + "." + p.Origin()

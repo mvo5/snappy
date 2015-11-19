@@ -330,7 +330,7 @@ func parsePackageYamlData(yamlData []byte, hasConfig bool) (*packageYaml, error)
 }
 
 func (m *packageYaml) qualifiedName(origin string) string {
-	if m.Type == pkg.TypeFramework || m.Type == pkg.TypeOem {
+	if m.Type == pkg.TypeFramework || m.Type == pkg.TypeGadget {
 		return m.Name
 	}
 	return m.Name + "." + origin
@@ -523,7 +523,7 @@ func NewSnapPartFromSnapFile(snapFile string, origin string, unauthOk bool) (*Sn
 
 	targetDir := dirs.SnapAppsDir
 	// the "oem" parts are special
-	if m.Type == pkg.TypeOem {
+	if m.Type == pkg.TypeGadget {
 		targetDir = dirs.SnapOemDir
 	}
 
@@ -750,7 +750,7 @@ func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name strin
 	}
 
 	// the "oem" parts are special
-	if s.Type() == pkg.TypeOem {
+	if s.Type() == pkg.TypeGadget {
 		if err := installOemHardwareUdevRules(s.m); err != nil {
 			return "", err
 		}
@@ -1038,7 +1038,7 @@ func (s *SnapPart) Uninstall(pb progress.Meter) (err error) {
 	// OEM snaps should not be removed as they are a key
 	// building block for OEMs. Prunning non active ones
 	// is acceptible.
-	if s.m.Type == pkg.TypeOem && s.IsActive() {
+	if s.m.Type == pkg.TypeGadget && s.IsActive() {
 		return ErrPackageNotRemovable
 	}
 
@@ -1185,7 +1185,7 @@ func (s *SnapPart) CanInstall(allowOEM bool, inter interacter) error {
 		return err
 	}
 
-	if s.Type() == pkg.TypeOem {
+	if s.Type() == pkg.TypeGadget {
 		if !allowOEM {
 			if currentOEM, err := getOem(); err == nil {
 				if currentOEM.Name != s.Name() {
@@ -1837,7 +1837,7 @@ func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
 	// sense in sending it our ubuntu-core snap
 	//
 	// NOTE this *will* send .sideload apps to the store.
-	installed, err := ActiveSnapIterByType(fullNameWithChannel, pkg.TypeApp, pkg.TypeFramework, pkg.TypeOem)
+	installed, err := ActiveSnapIterByType(fullNameWithChannel, pkg.TypeApp, pkg.TypeFramework, pkg.TypeGadget)
 	if err != nil || len(installed) == 0 {
 		return nil, err
 	}

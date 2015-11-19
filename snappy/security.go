@@ -321,7 +321,7 @@ func findWhitespacePrefix(t string, s string) string {
 
 func getSecurityProfile(m *packageYaml, appName, baseDir string) (string, error) {
 	cleanedName := strings.Replace(appName, "/", "-", -1)
-	if m.Type == pkg.TypeFramework || m.Type == pkg.TypeOem {
+	if m.Type == pkg.TypeFramework || m.Type == pkg.TypeGadget {
 		return fmt.Sprintf("%s_%s_%s", m.Name, cleanedName, m.Version), nil
 	}
 
@@ -651,7 +651,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *packageYa
 
 	// add the hw-override parts and merge with the other overrides
 	origin := ""
-	if m.Type != pkg.TypeFramework && m.Type != pkg.TypeOem {
+	if m.Type != pkg.TypeFramework && m.Type != pkg.TypeGadget {
 		origin, err = originFromYamlPath(filepath.Join(baseDir, "meta", "package.yaml"))
 		if err != nil {
 			return nil, err

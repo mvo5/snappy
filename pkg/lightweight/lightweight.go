@@ -204,7 +204,7 @@ func find(name string, origin string) map[string]*PartBag {
 			// as the oem package you deactivated. You get to keep
 			// the parts.
 			if typ == pkg.TypeFramework && helpers.FileExists(filepath.Join(dirs.SnapOemDir, name)) {
-				typ = pkg.TypeOem
+				typ = pkg.TypeGadget
 				inst = dirs.SnapOemDir
 			}
 

@@ -98,7 +98,7 @@ func (s *FirstBootTestSuite) getOem() (*packageYaml, error) {
 }
 
 func (s *FirstBootTestSuite) mockActiveSnapNamesByType() *fakePart {
-	fakeOem := fakePart{oemConfig: s.oemConfig, snapType: pkg.TypeOem}
+	fakeOem := fakePart{oemConfig: s.oemConfig, snapType: pkg.TypeGadget}
 	activeSnapsByType = func(snapsTs ...pkg.Type) ([]Part, error) {
 		return []Part{&fakeOem}, nil
 	}
