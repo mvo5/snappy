@@ -358,7 +358,9 @@ func (p *Partition) markBootSuccessfulAllSnaps() error {
 		return err
 	}
 
-	// FIXME: these vars should be applied all in a single run
+	// FIXME: we should have something more atomic here, i.e. one write
+	//        to the bootloader environment only, need to figure
+	//        if that is possible with grub/uboot
 	for _, k := range []string{"snappy_os", "snappy_kernel"} {
 		value, err := bootloader.GetBootVar(k)
 		if err != nil {
@@ -381,8 +383,8 @@ func (p *Partition) markBootSuccessfulAllSnaps() error {
 
 	}
 
-	// legacy uboot support, does not error if the file is not there
-	return os.RemoveAll(bootloaderUbootStampFile())
+	// note that we do not support legacy uboot, i.e. no stamp files
+	return nil
 }
 
 // IsNextBootOther return true if the next boot will use the other rootfs

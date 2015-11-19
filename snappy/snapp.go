@@ -199,6 +199,8 @@ type SnapIF interface {
 	ServiceYamls() []ServiceYaml
 }
 
+type clickAppHook map[string]string
+
 // TODO split into payloads per package type composing the common
 // elements for all snaps.
 type packageYaml struct {
@@ -976,18 +978,6 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		}
 	}
 
-	// the hooks must run before the snap is (auto)mounted
-	// the reason is that the click hooks use:
-	//   ".click/$name.$origin.manifest"
-	// but because the origin is not known at build time it needs
-	// to be generated at runtime but will be mounted over once
-	// the snap is mounted
-	if err := installClickHooks(s.basedir, s.m, s.origin, inhibitHooks); err != nil {
-		// cleanup the failed hooks
-		removeClickHooks(s.m, s.origin, inhibitHooks)
-		return err
-	}
-
 	// generate the security policy from the package.yaml
 	// Note that this must happen before binaries/services are
 	// generated because serices may get started
@@ -1067,10 +1057,6 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 		}
 	}
 
-	if err := removeClickHooks(s.m, s.origin, inhibitHooks); err != nil {
-		return err
-	}
-
 	// and finally the current symlink
 	if err := os.Remove(currentSymlink); err != nil {
 		logger.Noticef("Failed to remove %q: %v", currentSymlink, err)
@@ -1106,13 +1092,6 @@ func (s *SnapPart) Uninstall(pb progress.Meter) (err error) {
 }
 
 func (s *SnapPart) remove(inter interacter) (err error) {
-	// TODO[JRL]: check the logic here. I'm not sure “remove
-	// everything if active, and the click hooks if not” makes
-	// sense. E.g. are we removing fmk bins on fmk upgrade? Etc.
-	if err := removeClickHooks(s.m, s.origin, false); err != nil {
-		return err
-	}
-
 	if err := s.deactivate(false, inter); err != nil && err != ErrSnapNotActive {
 		return err
 	}

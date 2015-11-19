@@ -108,17 +108,6 @@ NAME="sr0" LABEL="" PKNAME="" MOUNTPOINT=""
 	return strings.Split(dualData, "\n"), err
 }
 
-func mockRunLsblkAllSnap() (output []string, err error) {
-	dualData := `
-NAME="sda" LABEL="" PKNAME="" MOUNTPOINT=""
-NAME="sda1" LABEL="" PKNAME="sda" MOUNTPOINT=""
-NAME="sda2" LABEL="system-boot" PKNAME="sda" MOUNTPOINT="/boot/efi"
-NAME="sda5" LABEL="writable" PKNAME="sda" MOUNTPOINT="/writable"
-NAME="loop0" LABEL="" PKNAME="" MOUNTPOINT="/"
-`
-	return strings.Split(dualData, "\n"), err
-}
-
 func (s *PartitionTestSuite) TestSnappyDualRoot(c *C) {
 	p := New()
 	c.Assert(p.dualRootPartitions(), Equals, true)
@@ -442,6 +431,32 @@ func (s *PartitionTestSuite) TestMarkBootSuccessfulSnappyAB(c *C) {
 	c.Assert(b.MarkCurrentBootSuccessfulCalled, Equals, true)
 }
 
+func (s *PartitionTestSuite) TestSyncBootFiles(c *C) {
+	runCommand = mockRunCommand
+	b := newMockBootloader()
+	bootloader = func(p *Partition) (BootLoader, error) {
+		return b, nil
+	}
+
+	p := New()
+	c.Assert(c, NotNil)
+
+	err := p.SyncBootloaderFiles(nil)
+	c.Assert(err, IsNil)
+	c.Assert(b.SyncBootFilesCalled, Equals, true)
+}
+
+func mockRunLsblkAllSnap() (output []string, err error) {
+	allSnapData := `
+NAME="sda" LABEL="" PKNAME="" MOUNTPOINT=""
+NAME="sda1" LABEL="" PKNAME="sda" MOUNTPOINT=""
+NAME="sda2" LABEL="system-boot" PKNAME="sda" MOUNTPOINT="/boot/efi"
+NAME="sda5" LABEL="writable" PKNAME="sda" MOUNTPOINT="/writable"
+NAME="loop0" LABEL="" PKNAME="" MOUNTPOINT="/"
+`
+	return strings.Split(allSnapData, "\n"), err
+}
+
 func (s *PartitionTestSuite) TestMarkBootSuccessfulAllSnap(c *C) {
 	runCommand = mockRunCommand
 	b := newMockBootloader()
@@ -465,19 +480,4 @@ func (s *PartitionTestSuite) TestMarkBootSuccessfulAllSnap(c *C) {
 		"snappy_os":          "os1",
 		"snappy_good_os":     "os1",
 	})
-}
-
-func (s *PartitionTestSuite) TestSyncBootFiles(c *C) {
-	runCommand = mockRunCommand
-	b := newMockBootloader()
-	bootloader = func(p *Partition) (BootLoader, error) {
-		return b, nil
-	}
-
-	p := New()
-	c.Assert(c, NotNil)
-
-	err := p.SyncBootloaderFiles(nil)
-	c.Assert(err, IsNil)
-	c.Assert(b.SyncBootFilesCalled, Equals, true)
 }
