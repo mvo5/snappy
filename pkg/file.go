@@ -50,7 +50,7 @@ type File interface {
 	// them into the filesystem for verification.
 	ExtractHashes(targetDir string) error
 
-	// NeedsMountUnit determines if it's required to setup
+	// NeedsMountUnit determines whether it's required to setup
 	// a mount unit for the snap when the snap is installed
 	NeedsMountUnit() bool
 }
