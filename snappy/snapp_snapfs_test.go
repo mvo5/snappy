@@ -293,3 +293,26 @@ func (s *SquashfsTestSuite) TestInstallKernelRebootRequired(c *C) {
 	s.bootvars["snappy_good_kernel"] = "ubuntu-kernel." + testOrigin + "_4.0-1.snap"
 	c.Assert(snap.NeedsReboot(), Equals, false)
 }
+
+func (s *SquashfsTestSuite) TestRequiredRebootParts(c *C) {
+	snapYaml, err := makeInstalledMockSnap(dirs.GlobalRootDir, packageKernel)
+	c.Assert(err, IsNil)
+
+	snap, err := NewInstalledSnapPart(snapYaml, testOrigin)
+	c.Assert(err, IsNil)
+	c.Assert(snap.NeedsReboot(), Equals, false)
+
+	snap.isActive = false
+	s.bootvars["snappy_kernel"] = "ubuntu-kernel." + testOrigin + "_4.0-1.snap"
+
+	// now this kernel is in hte reboot required lsit
+	parts, err := requireRebootParts()
+	c.Assert(err, IsNil)
+	c.Assert(parts, HasLen, 1)
+
+	// simulate we booted the kernel successfully
+	s.bootvars["snappy_good_kernel"] = "ubuntu-kernel." + testOrigin + "_4.0-1.snap"
+	parts, err = requireRebootParts()
+	c.Assert(err, IsNil)
+	c.Assert(parts, HasLen, 0)
+}
