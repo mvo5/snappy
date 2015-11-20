@@ -29,11 +29,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
 	"github.com/ubuntu-core/snappy/arch"
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
-	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
 	"github.com/ubuntu-core/snappy/policy"
@@ -42,6 +42,9 @@ import (
 
 	. "gopkg.in/check.v1"
 )
+
+// Hook up check.v1 into the "go test" runner
+func Test(t *testing.T) { TestingT(t) }
 
 type SnapTestSuite struct {
 	tempdir   string
@@ -54,9 +57,6 @@ var _ = Suite(&SnapTestSuite{})
 func (s *SnapTestSuite) SetUpTest(c *C) {
 	s.secbase = policy.SecBase
 	s.tempdir = c.MkDir()
-	newPartition = func() (p partition.Interface) {
-		return new(MockPartition)
-	}
 
 	dirs.SetRootDir(s.tempdir)
 	policy.SecBase = filepath.Join(s.tempdir, "security")

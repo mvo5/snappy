@@ -61,14 +61,6 @@ func (s *lightweightSuite) SetUpTest(c *check.C) {
 
 	s.MkInstalled(c, pkg.TypeOem, dirs.SnapOemDir, "an-oem", "", "3", false)
 
-	newCoreRepo = func() repo {
-		// you can't ever have a removed systemimagepart, but for testing it'll do
-		return mockrepo{removed.New(snappy.SystemImagePartName, snappy.SystemImagePartOrigin, "1", pkg.TypeCore)}
-	}
-}
-
-func (s *lightweightSuite) TearDownTest(c *check.C) {
-	newCoreRepo = newCoreRepoImpl
 }
 
 func (s *lightweightSuite) MkInstalled(c *check.C, _type pkg.Type, appdir, name, origin, version string, active bool) {
@@ -398,20 +390,7 @@ func (r mockrepo) All() ([]snappy.Part, error) {
 	return []snappy.Part{r.p}, nil
 }
 
-func (s *lightweightSuite) TestLoadCore(c *check.C) {
-	core := PartBagByName(snappy.SystemImagePartName, snappy.SystemImagePartOrigin)
-	c.Assert(core, check.NotNil)
-	c.Check(core.Versions, check.DeepEquals, []string{"1"})
-
-	c.Check(core.IsInstalled(0), check.Equals, true)
-	c.Check(core.ActiveIndex(), check.Equals, 0)
-	p, err := core.Load(0)
-	c.Check(err, check.IsNil)
-	c.Check(p.Version(), check.Equals, "1")
-}
-
 func (s *lightweightSuite) TestAll(c *check.C) {
-	sysname := snappy.SystemImagePartName + "." + snappy.SystemImagePartOrigin
 	all := AllPartBags()
 
 	type expectedT struct {
@@ -426,7 +405,6 @@ func (s *lightweightSuite) TestAll(c *check.C) {
 		"fmk":     {typ: pkg.TypeFramework, idx: 1, inst: true},
 		"fmk2":    {typ: pkg.TypeFramework, idx: -1, inst: false},
 		"an-oem":  {typ: pkg.TypeOem, idx: -1, inst: true},
-		sysname:   {typ: pkg.TypeCore, idx: 0, inst: true},
 	}
 
 	for k, x := range expected {
