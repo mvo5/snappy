@@ -59,8 +59,6 @@ var (
 const bootloaderNameUboot bootloaderName = "u-boot"
 
 type uboot struct {
-	bootloaderType
-
 	// set to true if the legacy uboot environemnt text file
 	// needs to be used
 	useLegacy bool
@@ -94,17 +92,12 @@ func bootloaderUbootFwEnvFile() string {
 }
 
 // newUboot create a new Uboot bootloader object
-func newUboot(partition *Partition) bootLoader {
+func newUboot() bootLoader {
 	if !helpers.FileExists(bootloaderUbootConfigFile()) {
 		return nil
 	}
 
-	b := newBootLoader(partition, bootloaderUbootDir())
-	if b == nil {
-		return nil
-	}
-	u := uboot{bootloaderType: *b}
-
+	u := uboot{}
 	if !helpers.FileExists(bootloaderUbootFwEnvFile()) {
 		u.useLegacy = true
 	}
@@ -114,14 +107,6 @@ func newUboot(partition *Partition) bootLoader {
 
 func (u *uboot) Name() bootloaderName {
 	return bootloaderNameUboot
-}
-
-func (u *uboot) ToggleRootFS(otherRootfs string) (err error) {
-	if err := u.SetBootVar(bootloaderRootfsVar, string(otherRootfs)); err != nil {
-		return err
-	}
-
-	return u.SetBootVar(bootloaderBootmodeVar, bootloaderBootmodeTry)
 }
 
 func getBootVarLegacy(name string) (value string, err error) {
@@ -188,36 +173,6 @@ func (u *uboot) SetBootVar(name, value string) error {
 	}
 
 	return setBootVarFwEnv(name, value)
-}
-
-func (u *uboot) GetNextBootRootFSName() (label string, err error) {
-	value, err := u.GetBootVar(bootloaderRootfsVar)
-	if err != nil {
-		// should never happen
-		return "", err
-	}
-
-	return value, nil
-}
-
-// FIXME: this is super similar to grub now, refactor to extract the
-//        common code
-func (u *uboot) MarkCurrentBootSuccessful(currentRootfs string) error {
-	// Clear the variable set on boot to denote a good boot.
-	if err := u.SetBootVar(bootloaderTrialBootVar, "0"); err != nil {
-		return err
-	}
-
-	if err := u.SetBootVar(bootloaderRootfsVar, currentRootfs); err != nil {
-		return err
-	}
-
-	if err := u.SetBootVar(bootloaderBootmodeVar, bootloaderBootmodeSuccess); err != nil {
-		return err
-	}
-
-	// legacy support, does not error if the file is not there
-	return os.RemoveAll(bootloaderUbootStampFile())
 }
 
 func (u *uboot) BootDir() string {

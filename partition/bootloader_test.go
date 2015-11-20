@@ -20,12 +20,64 @@
 package partition
 
 import (
+	"testing"
+
+	"github.com/ubuntu-core/snappy/dirs"
+
 	. "gopkg.in/check.v1"
 )
 
-func (s *PartitionTestSuite) TestNormalizeAssetsName(c *C) {
-	c.Check(normalizeKernelInitrdName("subdir/vmlinuz-3.14"), Equals, "vmlinuz")
-	c.Check(normalizeKernelInitrdName("vmlinuz-3.14"), Equals, "vmlinuz")
-	c.Check(normalizeKernelInitrdName("initrd.img-2.71"), Equals, "initrd.img")
-	c.Check(normalizeKernelInitrdName("x-y-z"), Equals, "x")
+// Hook up check.v1 into the "go test" runner
+func Test(t *testing.T) { TestingT(t) }
+
+type BootloaderTestSuite struct {
+}
+
+var _ = Suite(&BootloaderTestSuite{})
+
+type mockBootloader struct {
+	BootVars map[string]string
+}
+
+func newMockBootloader() *mockBootloader {
+	return &mockBootloader{
+		BootVars: make(map[string]string),
+	}
+}
+func (b *mockBootloader) Name() bootloaderName {
+	return "mocky"
+}
+func (b *mockBootloader) GetBootVar(name string) (string, error) {
+	return b.BootVars[name], nil
+}
+func (b *mockBootloader) SetBootVar(name, value string) error {
+	b.BootVars[name] = value
+	return nil
+}
+func (b *mockBootloader) BootDir() string {
+	return ""
+}
+
+func (s *BootloaderTestSuite) SetUpTest(c *C) {
+	dirs.SetRootDir(c.MkDir())
+}
+
+func (s *BootloaderTestSuite) TestMarkBootSuccessfulAllSnap(c *C) {
+	b := newMockBootloader()
+	bootloader = func() (bootLoader, error) {
+		return b, nil
+	}
+
+	b.BootVars["snappy_os"] = "os1"
+	b.BootVars["snappy_kernel"] = "k1"
+	err := MarkBootSuccessful()
+	c.Assert(err, IsNil)
+	c.Assert(b.BootVars, DeepEquals, map[string]string{
+		"snappy_mode":        "regular",
+		"snappy_trial_boot":  "0",
+		"snappy_kernel":      "k1",
+		"snappy_good_kernel": "k1",
+		"snappy_os":          "os1",
+		"snappy_good_os":     "os1",
+	})
 }

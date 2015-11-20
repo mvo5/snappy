@@ -20,7 +20,7 @@
 package partition
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/ubuntu-core/snappy/helpers"
 )
@@ -46,11 +46,7 @@ func BootloaderDir() string {
 
 // SetBootVar sets the given boot variable.
 func SetBootVar(key, val string) error {
-	p := New()
-	if p == nil {
-		return fmt.Errorf("cannot set %s boot variable: cannot find partition", key)
-	}
-	b, err := bootloader(p)
+	b, err := bootloader()
 	if err != nil {
 		return err
 	}
@@ -60,14 +56,47 @@ func SetBootVar(key, val string) error {
 
 // GetBootVar returns the value of the given boot variable.
 func GetBootVar(key string) (string, error) {
-	p := New()
-	if p == nil {
-		return "", fmt.Errorf("cannot get %s boot variable: cannot find partition", key)
-	}
-	b, err := bootloader(p)
+	b, err := bootloader()
 	if err != nil {
 		return "", err
 	}
 
 	return b.GetBootVar(key)
+}
+
+// MarkBootSuccessful marks the current boot success
+func MarkBootSuccessful() error {
+	bootloader, err := bootloader()
+	if err != nil {
+		return err
+	}
+
+	// FIXME: we should have something better here, i.e. one write
+	//        to the bootloader environment only (instead of three)
+	//        We need to figure out if that is possible with grub/uboot
+	// (if we could also do atomic writes to the boot env, that would
+	//  be even better)
+	for _, k := range []string{"snappy_os", "snappy_kernel"} {
+		value, err := bootloader.GetBootVar(k)
+		if err != nil {
+			return err
+		}
+
+		// FIXME: ugly string replace
+		newKey := strings.Replace(k, "snappy_", "snappy_good_", -1)
+		if err := bootloader.SetBootVar(newKey, value); err != nil {
+			return err
+		}
+
+		if err := bootloader.SetBootVar("snappy_mode", "regular"); err != nil {
+			return err
+		}
+
+		if err := bootloader.SetBootVar("snappy_trial_boot", "0"); err != nil {
+			return err
+		}
+
+	}
+
+	return nil
 }
