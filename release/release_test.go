@@ -21,18 +21,21 @@ package release_test
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
 	. "gopkg.in/check.v1"
 
 	"github.com/ubuntu-core/snappy/release"
+	"github.com/ubuntu-core/snappy/testutil"
 )
 
 // Hook up check.v1 into the "go test" runner
 func Test(t *testing.T) { TestingT(t) }
 
 type ReleaseTestSuite struct {
+	testutil.BaseTest
 }
 
 var _ = Suite(&ReleaseTestSuite{})
@@ -53,9 +56,7 @@ func (s *ReleaseTestSuite) TestOverride(c *C) {
 	c.Check(release.Get(), DeepEquals, rel)
 }
 
-func makeMockLsbRelease(c *C) string {
-	// FIXME: use AddCleanup here once available so that we
-	//        can do release.SetLsbReleasePath() here directly
+func (a *ReleaseTestSuite) makeMockLsbRelease(c *C) {
 	mockLsbRelease := filepath.Join(c.MkDir(), "mock-lsb-release")
 	s := `
 DISTRIB_ID=Ubuntu
@@ -66,14 +67,15 @@ DISTRIB_DESCRIPTION=I'm not real!
 	err := ioutil.WriteFile(mockLsbRelease, []byte(s), 0644)
 	c.Assert(err, IsNil)
 
-	return mockLsbRelease
+	// override lsb-release
+	realLsbRelease := release.LsbReleasePath()
+	a.AddCleanup(func() { release.SetLsbReleasePath(realLsbRelease) })
+
+	release.SetLsbReleasePath(mockLsbRelease)
 }
 
 func (a *ReleaseTestSuite) TestReadLsb(c *C) {
-	realLsbRelease := release.LsbReleasePath()
-	defer func() { release.SetLsbReleasePath(realLsbRelease) }()
-
-	release.SetLsbReleasePath(makeMockLsbRelease(c))
+	a.makeMockLsbRelease(c)
 
 	lsb, err := release.ReadLsb()
 	c.Assert(err, IsNil)
@@ -83,10 +85,8 @@ func (a *ReleaseTestSuite) TestReadLsb(c *C) {
 }
 
 func (a *ReleaseTestSuite) TestReadLsbNotFound(c *C) {
-	realLsbRelease := release.LsbReleasePath()
-	defer func() { release.SetLsbReleasePath(realLsbRelease) }()
-
-	release.SetLsbReleasePath("not-there")
+	a.makeMockLsbRelease(c)
+	os.Remove(release.LsbReleasePath())
 
 	_, err := release.ReadLsb()
 	c.Assert(err, ErrorMatches, "can not read lsb-release:.*")
