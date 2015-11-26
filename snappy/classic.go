@@ -46,9 +46,9 @@ func (s *ClassicPart) Name() string {
 	return "classic"
 }
 
-// Origin returns the origin ("ubuntu")
+// Origin returns the origin ("")
 func (s *ClassicPart) Origin() string {
-	return "ubuntu"
+	return ""
 }
 
 // Version returns the version
@@ -168,7 +168,7 @@ func (s *ClassicRepository) Search(terms string) (versions []Part, err error) {
 
 // Details returns details for the given snap
 func (s *ClassicRepository) Details(name string, origin string) ([]Part, error) {
-	if name == "classic" && origin == "ubuntu" {
+	if name == "classic" && origin == "" {
 		return []Part{&ClassicPart{}}, nil
 	}
 
