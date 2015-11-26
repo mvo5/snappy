@@ -146,6 +146,10 @@ func NewMetaStoreRepository() *MetaRepository {
 	m := new(MetaRepository)
 	m.all = []Repository{}
 
+	if repo := NewClassicRepository(); repo != nil {
+		m.all = append(m.all, repo)
+	}
+
 	if repo := NewUbuntuStoreSnapRepository(); repo != nil {
 		m.all = append(m.all, repo)
 	}
@@ -157,6 +161,10 @@ func NewMetaStoreRepository() *MetaRepository {
 func NewMetaLocalRepository() *MetaRepository {
 	m := new(MetaRepository)
 	m.all = []Repository{}
+
+	if repo := NewClassicRepository(); repo != nil {
+		m.all = append(m.all, repo)
+	}
 
 	if repo := NewSystemImageRepository(); repo != nil {
 		m.all = append(m.all, repo)
