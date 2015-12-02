@@ -36,6 +36,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/lockfile"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg/lightweight"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/release"
@@ -162,9 +163,9 @@ func v1Get(c *Command, r *http.Request) Response {
 }
 
 type metarepo interface {
-	Details(string, string) ([]snappy.Part, error)
-	All() ([]snappy.Part, error)
-	Updates() ([]snappy.Part, error)
+	Details(string, string) ([]part.IF, error)
+	All() ([]part.IF, error)
+	Updates() ([]part.IF, error)
 }
 
 var newRemoteRepo = func() metarepo {
@@ -189,7 +190,7 @@ func getPackageInfo(c *Command, r *http.Request) Response {
 	defer lock.Unlock()
 
 	repo := newRemoteRepo()
-	var part snappy.Part
+	var part part.IF
 	if parts, _ := repo.Details(name, origin); len(parts) > 0 {
 		part = parts[0]
 	}
@@ -245,7 +246,7 @@ func webify(result map[string]string, resource string) map[string]string {
 	return result
 }
 
-type byQN []snappy.Part
+type byQN []part.IF
 
 func (ps byQN) Len() int      { return len(ps) }
 func (ps byQN) Swap(a, b int) { ps[a], ps[b] = ps[b], ps[a] }
@@ -642,7 +643,7 @@ func (inst *packageInstruction) Agreed(intro, license string) bool {
 var snappyInstall = snappy.Install
 
 func (inst *packageInstruction) install() interface{} {
-	flags := snappy.DoInstallGC
+	flags := part.DoInstallGC
 	if inst.LeaveOld {
 		flags = 0
 	}
@@ -660,7 +661,7 @@ func (inst *packageInstruction) install() interface{} {
 }
 
 func (inst *packageInstruction) update() interface{} {
-	flags := snappy.DoInstallGC
+	flags := part.DoInstallGC
 	if inst.LeaveOld {
 		flags = 0
 	}
@@ -755,7 +756,7 @@ func postPackage(c *Command, r *http.Request) Response {
 
 const maxReadBuflen = 1024 * 1024
 
-func newSnapImpl(filename string, origin string, unsignedOk bool) (snappy.Part, error) {
+func newSnapImpl(filename string, origin string, unsignedOk bool) (part.IF, error) {
 	return snappy.NewSnapPartFromSnapFile(filename, origin, unsignedOk)
 }
 

@@ -45,6 +45,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/systemd"
@@ -546,8 +547,8 @@ func writeCompatManifestJSON(clickMetaDir string, manifestData []byte, origin st
 	return nil
 }
 
-func installClick(snapFile string, flags InstallFlags, inter progress.Meter, origin string) (name string, err error) {
-	allowUnauthenticated := (flags & AllowUnauthenticated) != 0
+func installClick(snapFile string, flags part.InstallFlags, inter progress.Meter, origin string) (name string, err error) {
+	allowUnauthenticated := (flags & part.AllowUnauthenticated) != 0
 	part, err := NewSnapPartFromSnapFile(snapFile, origin, allowUnauthenticated)
 	if err != nil {
 		return "", err

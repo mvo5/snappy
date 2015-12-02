@@ -33,6 +33,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/removed"
 	"github.com/ubuntu-core/snappy/snappy"
@@ -119,7 +120,7 @@ func AllPartBags() map[string]*PartBag {
 }
 
 type repo interface {
-	All() ([]snappy.Part, error)
+	All() ([]part.IF, error)
 }
 
 func newCoreRepoImpl() repo {
@@ -241,7 +242,7 @@ type PartBag struct {
 type Concreter interface {
 	IsInstalled(string) bool
 	ActiveIndex() int
-	Load(string) (snappy.Part, error)
+	Load(string) (part.IF, error)
 }
 
 // NewConcrete is meant to be overridden in tests; is called when
@@ -284,7 +285,7 @@ type concreteCore struct{}
 
 func (*concreteCore) IsInstalled(string) bool { return true }
 func (*concreteCore) ActiveIndex() int        { return 0 }
-func (*concreteCore) Load(version string) (snappy.Part, error) {
+func (*concreteCore) Load(version string) (part.IF, error) {
 	if newCoreRepo() == nil {
 		return nil, ErrVersionGone
 	}
@@ -352,7 +353,7 @@ func (c *concreteSnap) ActiveIndex() int {
 	return -1
 }
 
-func (c *concreteSnap) Load(version string) (snappy.Part, error) {
+func (c *concreteSnap) Load(version string) (part.IF, error) {
 	yamlPath := filepath.Join(c.instdir, c.self.QualifiedName(), version, "meta", "package.yaml")
 	if !helpers.FileExists(yamlPath) {
 		return removed.New(c.self.Name, c.self.Origin, version, c.self.Type), nil
@@ -385,7 +386,7 @@ func (bag *PartBag) ActiveIndex() int {
 }
 
 // Load a Part from the PartBag
-func (bag *PartBag) Load(versionIdx int) (snappy.Part, error) {
+func (bag *PartBag) Load(versionIdx int) (part.IF, error) {
 	if bag == nil {
 		return nil, nil
 	}
@@ -401,7 +402,7 @@ func (bag *PartBag) Load(versionIdx int) (snappy.Part, error) {
 
 // LoadActive gets the active index and loads it.
 // If none active, returns a nil Part and ErrBadVersionIndex.
-func (bag *PartBag) LoadActive() (snappy.Part, error) {
+func (bag *PartBag) LoadActive() (part.IF, error) {
 	return bag.Load(bag.ActiveIndex())
 }
 
@@ -414,7 +415,7 @@ func (bag *PartBag) LoadActive() (snappy.Part, error) {
 // If not even a removed part can be loaded, something is wrong. Nil
 // is returned, but you're in trouble (did the filesystem just
 // disappear under us?).
-func (bag *PartBag) LoadBest() snappy.Part {
+func (bag *PartBag) LoadBest() part.IF {
 	if bag == nil {
 		return nil
 	}
@@ -448,7 +449,7 @@ func (bag *PartBag) LoadBest() snappy.Part {
 //
 // Also may panic if the remote part is nil and LoadBest can't load a
 // Part at all.
-func (bag *PartBag) Map(remotePart snappy.Part) map[string]string {
+func (bag *PartBag) Map(remotePart part.IF) map[string]string {
 	var version, update, rollback, icon, name, origin, _type, description string
 
 	if bag == nil && remotePart == nil {

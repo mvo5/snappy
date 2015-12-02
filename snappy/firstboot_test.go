@@ -27,6 +27,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 )
 
@@ -99,8 +100,8 @@ func (s *FirstBootTestSuite) getOem() (*packageYaml, error) {
 
 func (s *FirstBootTestSuite) mockActiveSnapNamesByType() *fakePart {
 	fakeOem := fakePart{oemConfig: s.oemConfig, snapType: pkg.TypeOem}
-	activeSnapsByType = func(snapsTs ...pkg.Type) ([]Part, error) {
-		return []Part{&fakeOem}, nil
+	activeSnapsByType = func(snapsTs ...pkg.Type) ([]part.IF, error) {
+		return []part.IF{&fakeOem}, nil
 	}
 
 	return &fakeOem
@@ -108,7 +109,7 @@ func (s *FirstBootTestSuite) mockActiveSnapNamesByType() *fakePart {
 
 func (s *FirstBootTestSuite) mockActiveSnapByName() *fakePart {
 	fakeMyApp := fakePart{snapType: pkg.TypeApp}
-	activeSnapByName = func(needle string) Part {
+	activeSnapByName = func(needle string) part.IF {
 		return &fakeMyApp
 	}
 
@@ -137,7 +138,7 @@ func (s *FirstBootTestSuite) TestTwoRuns(c *C) {
 }
 
 func (s *FirstBootTestSuite) TestNoErrorWhenNoOEM(c *C) {
-	activeSnapsByType = func(snapsTs ...pkg.Type) ([]Part, error) {
+	activeSnapsByType = func(snapsTs ...pkg.Type) ([]part.IF, error) {
 		return nil, nil
 	}
 

@@ -30,6 +30,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/progress"
@@ -219,7 +220,7 @@ func (s *RemoteSnapPart) saveStoreManifest() error {
 }
 
 // Install installs the snap
-func (s *RemoteSnapPart) Install(pbar progress.Meter, flags InstallFlags) (string, error) {
+func (s *RemoteSnapPart) Install(pbar progress.Meter, flags part.InstallFlags) (string, error) {
 	downloadedSnap, err := s.Download(pbar)
 	if err != nil {
 		return "", err

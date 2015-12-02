@@ -31,6 +31,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 )
@@ -250,13 +251,13 @@ icon: foo.svg
 	}
 
 	snapFile := makeTestSnapPackage(c, packageYaml+"version: 1.0")
-	n, err := installClick(snapFile, AllowUnauthenticated|AllowOEM, inter, testOrigin)
+	n, err := installClick(snapFile, part.AllowUnauthenticated|part.AllowOEM, inter, testOrigin)
 	c.Assert(err, IsNil)
 	c.Assert(n, Equals, "foo")
 	c.Assert(storeMinimalRemoteManifest(qn, "foo", testOrigin, "1.0", "", "remote-channel"), IsNil)
 
 	snapFile = makeTestSnapPackage(c, packageYaml+"version: 2.0")
-	n, err = installClick(snapFile, AllowUnauthenticated|AllowOEM, inter, testOrigin)
+	n, err = installClick(snapFile, part.AllowUnauthenticated|part.AllowOEM, inter, testOrigin)
 	c.Assert(err, IsNil)
 	c.Assert(n, Equals, "foo")
 	c.Assert(storeMinimalRemoteManifest(qn, "foo", testOrigin, "2.0", "", "remote-channel"), IsNil)

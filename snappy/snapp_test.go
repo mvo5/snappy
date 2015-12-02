@@ -34,6 +34,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/partition"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
 	"github.com/ubuntu-core/snappy/policy"
@@ -524,7 +525,7 @@ func (s *SnapTestSuite) TestUbuntuStoreRepositoryAliasSearch(c *C) {
 	c.Assert(alias, DeepEquals, parts[0])
 }
 func mockActiveSnapIterByType(mockSnaps []string) {
-	ActiveSnapIterByType = func(f func(Part) string, snapTs ...pkg.Type) (res []string, err error) {
+	ActiveSnapIterByType = func(f func(part.IF) string, snapTs ...pkg.Type) (res []string, err error) {
 		return mockSnaps, nil
 	}
 }

@@ -22,6 +22,7 @@ package daemon
 import (
 	"time"
 
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snappy"
@@ -71,7 +72,7 @@ func (p *tP) Type() pkg.Type       { return p._type }
 func (p *tP) InstalledSize() int64 { return p.installedSize }
 func (p *tP) DownloadSize() int64  { return p.downloadSize }
 
-func (p *tP) Install(progress.Meter, snappy.InstallFlags) (string, error) {
+func (p *tP) Install(progress.Meter, part.InstallFlags) (string, error) {
 	return p.installName, p.installErr
 }
 func (p *tP) Uninstall(pb progress.Meter) error { return p.uninstallErr }

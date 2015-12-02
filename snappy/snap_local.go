@@ -32,6 +32,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/pkg/squashfs"
@@ -311,9 +312,9 @@ func (s *SnapPart) OemConfig() SystemConfig {
 }
 
 // Install installs the snap
-func (s *SnapPart) Install(inter progress.Meter, flags InstallFlags) (name string, err error) {
-	allowOEM := (flags & AllowOEM) != 0
-	inhibitHooks := (flags & InhibitHooks) != 0
+func (s *SnapPart) Install(inter progress.Meter, flags part.InstallFlags) (name string, err error) {
+	allowOEM := (flags & part.AllowOEM) != 0
+	inhibitHooks := (flags & part.InhibitHooks) != 0
 
 	if s.IsInstalled() {
 		return "", ErrAlreadyInstalled

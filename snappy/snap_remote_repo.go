@@ -31,6 +31,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/arch"
 	"github.com/ubuntu-core/snappy/oauth"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/release"
@@ -46,8 +47,8 @@ const (
 // SharedName is a structure that holds an Alias to the preferred package and
 // the list of all the alternatives.
 type SharedName struct {
-	Alias Part
-	Parts []Part
+	Alias part.IF
+	Parts []part.IF
 }
 
 // SharedNames is a list of all packages and it's SharedName structure.
@@ -185,7 +186,7 @@ func (s *SnapUbuntuStoreRepository) Description() string {
 }
 
 // Details returns details for the given snap in this repository
-func (s *SnapUbuntuStoreRepository) Details(name string, origin string) (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Details(name string, origin string) (parts []part.IF, err error) {
 	snapName := name
 	if origin != "" {
 		snapName = name + "." + origin
@@ -233,7 +234,7 @@ func (s *SnapUbuntuStoreRepository) Details(name string, origin string) (parts [
 }
 
 // All (installable) parts from the store
-func (s *SnapUbuntuStoreRepository) All() ([]Part, error) {
+func (s *SnapUbuntuStoreRepository) All() ([]part.IF, error) {
 	req, err := http.NewRequest("GET", s.searchURI.String(), nil)
 	if err != nil {
 		return nil, err
@@ -256,7 +257,7 @@ func (s *SnapUbuntuStoreRepository) All() ([]Part, error) {
 		return nil, err
 	}
 
-	parts := make([]Part, len(searchData.Payload.Packages))
+	parts := make([]part.IF, len(searchData.Payload.Packages))
 	for i, pkg := range searchData.Payload.Packages {
 		parts[i] = NewRemoteSnapPart(pkg)
 	}
@@ -310,7 +311,7 @@ func (s *SnapUbuntuStoreRepository) Search(searchTerm string) (SharedNames, erro
 }
 
 // Updates returns the available updates
-func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Updates() (parts []part.IF, err error) {
 	// the store only supports apps, oem and frameworks currently, so no
 	// sense in sending it our ubuntu-core snap
 	//
@@ -359,6 +360,6 @@ func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
 }
 
 // Installed returns the installed snaps from this repository
-func (s *SnapUbuntuStoreRepository) Installed() (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Installed() (parts []part.IF, err error) {
 	return nil, err
 }

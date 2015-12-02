@@ -40,6 +40,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/caps"
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/lightweight"
 	"github.com/ubuntu-core/snappy/progress"
@@ -51,22 +52,22 @@ import (
 )
 
 type apiSuite struct {
-	parts []snappy.Part
+	parts []part.IF
 	err   error
 	vars  map[string]string
 }
 
 var _ = check.Suite(&apiSuite{})
 
-func (s *apiSuite) Details(string, string) ([]snappy.Part, error) {
+func (s *apiSuite) Details(string, string) ([]part.IF, error) {
 	return s.parts, s.err
 }
 
-func (s *apiSuite) All() ([]snappy.Part, error) {
+func (s *apiSuite) All() ([]part.IF, error) {
 	return s.parts, s.err
 }
 
-func (s *apiSuite) Updates() ([]snappy.Part, error) {
+func (s *apiSuite) Updates() ([]part.IF, error) {
 	return s.parts, s.err
 }
 
@@ -141,7 +142,7 @@ func (s *apiSuite) TestPackageInfoOneIntegration(c *check.C) {
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
 
 	// the store tells us about v2
-	s.parts = []snappy.Part{&tP{
+	s.parts = []part.IF{&tP{
 		name:         "foo",
 		version:      "v2",
 		description:  "description",
@@ -222,7 +223,7 @@ func (s *apiSuite) TestPackageInfoWeirdRoute(c *check.C) {
 	// use the wrong command to force the issue
 	wrongCmd := &Command{Path: "/{what}", d: d}
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
-	s.parts = []snappy.Part{&tP{name: "foo"}}
+	s.parts = []part.IF{&tP{name: "foo"}}
 	c.Check(getPackageInfo(wrongCmd, nil).Self(nil, nil).(*resp).Status, check.Equals, http.StatusInternalServerError)
 }
 
@@ -236,7 +237,7 @@ func (s *apiSuite) TestPackageInfoBadRoute(c *check.C) {
 	c.Assert(route.Name("foo").GetError(), check.NotNil)
 
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
-	s.parts = []snappy.Part{&tP{name: "foo"}}
+	s.parts = []part.IF{&tP{name: "foo"}}
 
 	rsp := getPackageInfo(packageCmd, nil).Self(nil, nil).(*resp)
 
@@ -603,7 +604,7 @@ type cfgc struct {
 
 func (cfgc) IsInstalled(string) bool { return true }
 func (c cfgc) ActiveIndex() int      { return c.idx }
-func (c cfgc) Load(string) (snappy.Part, error) {
+func (c cfgc) Load(string) (part.IF, error) {
 	return &tP{name: "foo", version: "v1", origin: "bar", isActive: true, config: c.cfg, configErr: c.err}, nil
 }
 
@@ -896,7 +897,7 @@ func (s *apiSuite) sideloadCheck(c *check.C, content string, unsignedExpected bo
 
 	// setup done
 
-	newSnap = func(fn string, origin string, unauthOk bool) (snappy.Part, error) {
+	newSnap = func(fn string, origin string, unauthOk bool) (part.IF, error) {
 		c.Check(origin, check.Equals, snappy.SideloadedOrigin)
 		c.Check(unauthOk, check.Equals, unsignedExpected)
 
@@ -1082,9 +1083,9 @@ func (s *apiSuite) TestInstall(c *check.C) {
 	orig := snappyInstall
 	defer func() { snappyInstall = orig }()
 
-	calledFlags := snappy.InstallFlags(42)
+	calledFlags := part.InstallFlags(42)
 
-	snappyInstall = func(name string, flags snappy.InstallFlags, meter progress.Meter) (string, error) {
+	snappyInstall = func(name string, flags part.InstallFlags, meter progress.Meter) (string, error) {
 		calledFlags = flags
 
 		return "", nil
@@ -1096,7 +1097,7 @@ func (s *apiSuite) TestInstall(c *check.C) {
 
 	err := inst.dispatch()()
 
-	c.Check(calledFlags, check.Equals, snappy.DoInstallGC)
+	c.Check(calledFlags, check.Equals, part.DoInstallGC)
 	c.Check(err, check.IsNil)
 }
 
@@ -1104,9 +1105,9 @@ func (s *apiSuite) TestInstallLeaveOld(c *check.C) {
 	orig := snappyInstall
 	defer func() { snappyInstall = orig }()
 
-	calledFlags := snappy.InstallFlags(42)
+	calledFlags := part.InstallFlags(42)
 
-	snappyInstall = func(name string, flags snappy.InstallFlags, meter progress.Meter) (string, error) {
+	snappyInstall = func(name string, flags part.InstallFlags, meter progress.Meter) (string, error) {
 		calledFlags = flags
 
 		return "", nil
@@ -1119,7 +1120,7 @@ func (s *apiSuite) TestInstallLeaveOld(c *check.C) {
 
 	err := inst.dispatch()()
 
-	c.Check(calledFlags, check.Equals, snappy.InstallFlags(0))
+	c.Check(calledFlags, check.Equals, part.InstallFlags(0))
 	c.Check(err, check.IsNil)
 }
 
@@ -1127,7 +1128,7 @@ func (s *apiSuite) TestInstallLicensed(c *check.C) {
 	orig := snappyInstall
 	defer func() { snappyInstall = orig }()
 
-	snappyInstall = func(name string, flags snappy.InstallFlags, meter progress.Meter) (string, error) {
+	snappyInstall = func(name string, flags part.InstallFlags, meter progress.Meter) (string, error) {
 		if meter.Agreed("hi", "yak yak") {
 			return "", nil
 		}
@@ -1160,7 +1161,7 @@ func (s *apiSuite) TestInstallLicensedIntegration(c *check.C) {
 	orig := snappyInstall
 	defer func() { snappyInstall = orig }()
 
-	snappyInstall = func(name string, flags snappy.InstallFlags, meter progress.Meter) (string, error) {
+	snappyInstall = func(name string, flags part.InstallFlags, meter progress.Meter) (string, error) {
 		if meter.Agreed("hi", "yak yak") {
 			return "", nil
 		}

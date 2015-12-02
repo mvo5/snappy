@@ -30,6 +30,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/pkg/removed"
@@ -392,10 +393,10 @@ func (s *lightweightSuite) TestLoadOem(c *check.C) {
 	c.Check(p.Version(), check.Equals, "3")
 }
 
-type mockrepo struct{ p snappy.Part }
+type mockrepo struct{ p part.IF }
 
-func (r mockrepo) All() ([]snappy.Part, error) {
-	return []snappy.Part{r.p}, nil
+func (r mockrepo) All() ([]part.IF, error) {
+	return []part.IF{r.p}, nil
 }
 
 func (s *lightweightSuite) TestLoadCore(c *check.C) {

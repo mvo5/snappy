@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/ubuntu-core/snappy/partition"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/squashfs"
 	"github.com/ubuntu-core/snappy/progress"
@@ -61,7 +62,7 @@ func removeKernelAssets(s *SnapPart, inter interacter) error {
 // extractKernelAssets extracts kernel/initrd/dtb data from the given
 // SnapPart to a versionized bootloader directory so that the bootloader
 // can use it.
-func extractKernelAssets(s *SnapPart, inter progress.Meter, flags InstallFlags) error {
+func extractKernelAssets(s *SnapPart, inter progress.Meter, flags part.InstallFlags) error {
 	if s.m.Type != pkg.TypeKernel {
 		return fmt.Errorf("can not extract kernel assets from snap type %q", s.Type())
 	}

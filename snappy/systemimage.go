@@ -34,6 +34,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/partition"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/provisioning"
@@ -176,7 +177,7 @@ func (s *SystemImagePart) SetActive(active bool, pb progress.Meter) error {
 }
 
 // Install installs the snap
-func (s *SystemImagePart) Install(pb progress.Meter, flags InstallFlags) (name string, err error) {
+func (s *SystemImagePart) Install(pb progress.Meter, flags part.InstallFlags) (name string, err error) {
 	if provisioning.IsSideLoaded(bootloaderDir()) {
 		return "", ErrSideLoaded
 	}
@@ -322,7 +323,7 @@ func NewSystemImageRepository() *SystemImageRepository {
 	return &SystemImageRepository{partition: newPartition()}
 }
 
-func makePartFromSystemImageConfigFile(p partition.Interface, channelIniPath string, isActive bool) (part Part, err error) {
+func makePartFromSystemImageConfigFile(p partition.Interface, channelIniPath string, isActive bool) (part part.IF, err error) {
 	cfg := goconfigparser.New()
 	f, err := os.Open(channelIniPath)
 	if err != nil {
@@ -354,7 +355,7 @@ func makePartFromSystemImageConfigFile(p partition.Interface, channelIniPath str
 }
 
 // Returns the part associated with the current rootfs
-func makeCurrentPart(p partition.Interface) Part {
+func makeCurrentPart(p partition.Interface) part.IF {
 	configFile := filepath.Join(dirs.GlobalRootDir, systemImageChannelConfig)
 	part, err := makePartFromSystemImageConfigFile(p, configFile, true)
 	if err != nil {
@@ -395,8 +396,8 @@ func otherIsEmpty(root string) bool {
 }
 
 // Returns the part associated with the other rootfs (if any)
-func makeOtherPart(p partition.Interface) Part {
-	var part Part
+func makeOtherPart(p partition.Interface) part.IF {
+	var part part.IF
 	err := p.RunWithOther(partition.RO, func(otherRoot string) (err error) {
 		if otherIsEmpty(otherRoot) {
 			return nil
@@ -421,7 +422,7 @@ func (s *SystemImageRepository) Description() string {
 }
 
 // Search searches the SystemImageRepository for the given terms
-func (s *SystemImageRepository) Search(terms string) (versions []Part, err error) {
+func (s *SystemImageRepository) Search(terms string) (versions []part.IF, err error) {
 	if strings.Contains(terms, SystemImagePartName) {
 		part := makeCurrentPart(s.partition)
 		versions = append(versions, part)
@@ -430,16 +431,16 @@ func (s *SystemImageRepository) Search(terms string) (versions []Part, err error
 }
 
 // Details returns details for the given snap
-func (s *SystemImageRepository) Details(name string, origin string) ([]Part, error) {
+func (s *SystemImageRepository) Details(name string, origin string) ([]part.IF, error) {
 	if name == SystemImagePartName && origin == SystemImagePartOrigin {
-		return []Part{makeCurrentPart(s.partition)}, nil
+		return []part.IF{makeCurrentPart(s.partition)}, nil
 	}
 
 	return nil, ErrPackageNotFound
 }
 
 // Updates returns the available updates
-func (s *SystemImageRepository) Updates() ([]Part, error) {
+func (s *SystemImageRepository) Updates() ([]part.IF, error) {
 	configFile := filepath.Join(dirs.GlobalRootDir, systemImageChannelConfig)
 	updateStatus, err := systemImageClientCheckForUpdates(configFile)
 	if err != nil {
@@ -450,7 +451,7 @@ func (s *SystemImageRepository) Updates() ([]Part, error) {
 	// no VersionCompare here because the channel provides a "order" and
 	// that may go backwards when switching channels(?)
 	if current.Version() != updateStatus.targetVersion {
-		return []Part{&SystemImagePart{
+		return []part.IF{&SystemImagePart{
 			version:        updateStatus.targetVersion,
 			versionDetails: updateStatus.targetVersionDetails,
 			lastUpdate:     updateStatus.lastUpdate,
@@ -463,8 +464,8 @@ func (s *SystemImageRepository) Updates() ([]Part, error) {
 }
 
 // Installed returns the installed snaps from this repository
-func (s *SystemImageRepository) Installed() ([]Part, error) {
-	var parts []Part
+func (s *SystemImageRepository) Installed() ([]part.IF, error) {
+	var parts []part.IF
 
 	// current partition
 	curr := makeCurrentPart(s.partition)
@@ -482,7 +483,7 @@ func (s *SystemImageRepository) Installed() ([]Part, error) {
 }
 
 // All installed parts. SystemImageParts are non-removable.
-func (s *SystemImageRepository) All() ([]Part, error) {
+func (s *SystemImageRepository) All() ([]part.IF, error) {
 	return s.Installed()
 }
 

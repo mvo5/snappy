@@ -29,6 +29,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/pkg/remote"
 	"github.com/ubuntu-core/snappy/progress"
@@ -48,7 +49,7 @@ type Removed struct {
 }
 
 // New removed package.
-func New(name, origin, version string, pkgType pkg.Type) snappy.Part {
+func New(name, origin, version string, pkgType pkg.Type) part.IF {
 	part := &Removed{
 		name:    name,
 		origin:  origin,
@@ -132,7 +133,7 @@ func (r *Removed) DownloadSize() int64 {
 }
 
 // Install from the snappy.Part interface
-func (r *Removed) Install(pb progress.Meter, flags snappy.InstallFlags) (name string, err error) {
+func (r *Removed) Install(pb progress.Meter, flags part.InstallFlags) (name string, err error) {
 	return "", ErrRemoved
 }
 

@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/ubuntu-core/snappy/parts/part"
 )
 
 const (
@@ -50,7 +52,7 @@ func (s *SnapLocalRepository) Description() string {
 }
 
 // Details returns details for the given snap
-func (s *SnapLocalRepository) Details(name string, origin string) (versions []Part, err error) {
+func (s *SnapLocalRepository) Details(name string, origin string) (versions []part.IF, err error) {
 	if origin == "" || origin == SideloadedOrigin {
 		origin = "*"
 	}
@@ -67,12 +69,12 @@ func (s *SnapLocalRepository) Details(name string, origin string) (versions []Pa
 }
 
 // Updates returns the available updates
-func (s *SnapLocalRepository) Updates() (parts []Part, err error) {
+func (s *SnapLocalRepository) Updates() (parts []part.IF, err error) {
 	return nil, err
 }
 
 // Installed returns the installed snaps from this repository
-func (s *SnapLocalRepository) Installed() (parts []Part, err error) {
+func (s *SnapLocalRepository) Installed() (parts []part.IF, err error) {
 	globExpr := filepath.Join(s.path, "*", "*", "meta", "package.yaml")
 	return s.partsForGlobExpr(globExpr)
 }
@@ -80,10 +82,10 @@ func (s *SnapLocalRepository) Installed() (parts []Part, err error) {
 // All the parts (ie all installed + removed-but-not-purged)
 //
 // TODO: that thing about removed
-func (s *SnapLocalRepository) All() ([]Part, error) {
+func (s *SnapLocalRepository) All() ([]part.IF, error) {
 	return s.Installed()
 }
-func (s *SnapLocalRepository) partsForGlobExpr(globExpr string) (parts []Part, err error) {
+func (s *SnapLocalRepository) partsForGlobExpr(globExpr string) (parts []part.IF, err error) {
 	matches, err := filepath.Glob(globExpr)
 	if err != nil {
 		return nil, err

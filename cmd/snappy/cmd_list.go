@@ -28,6 +28,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/snappy"
 )
 
@@ -89,7 +90,7 @@ func formatDate(t time.Time) string {
 	return fmt.Sprintf("%v-%02d-%02d", t.Year(), int(t.Month()), t.Day())
 }
 
-func showInstalledList(installed []snappy.Part, o io.Writer) {
+func showInstalledList(installed []part.IF, o io.Writer) {
 	w := tabwriter.NewWriter(o, 5, 3, 1, ' ', 0)
 
 	fmt.Fprintln(w, "Name\tDate\tVersion\tDeveloper\t")
@@ -103,7 +104,7 @@ func showInstalledList(installed []snappy.Part, o io.Writer) {
 	showRebootMessage(installed, o)
 }
 
-func showVerboseList(installed []snappy.Part, o io.Writer) {
+func showVerboseList(installed []part.IF, o io.Writer) {
 	w := tabwriter.NewWriter(o, 5, 3, 1, ' ', 0)
 
 	fmt.Fprintln(w, i18n.G("Name\tDate\tVersion\tDeveloper\t"))
@@ -125,7 +126,7 @@ func showVerboseList(installed []snappy.Part, o io.Writer) {
 	showRebootMessage(installed, o)
 }
 
-func showRebootMessage(installed []snappy.Part, o io.Writer) {
+func showRebootMessage(installed []part.IF, o io.Writer) {
 	// display all parts that require a reboot
 	for _, part := range installed {
 		if !part.NeedsReboot() {
@@ -137,7 +138,7 @@ func showRebootMessage(installed []snappy.Part, o io.Writer) {
 	}
 }
 
-func showUpdatesList(installed []snappy.Part, updates []snappy.Part, o io.Writer) {
+func showUpdatesList(installed []part.IF, updates []part.IF, o io.Writer) {
 	// TODO tabwriter and output in general to adapt to the spec
 	w := tabwriter.NewWriter(o, 5, 3, 1, ' ', 0)
 	defer w.Flush()

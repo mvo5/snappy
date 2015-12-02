@@ -19,15 +19,19 @@
 
 package snappy
 
+import (
+	"github.com/ubuntu-core/snappy/parts/part"
+)
+
 // ListInstalled returns all installed snaps
-func ListInstalled() ([]Part, error) {
+func ListInstalled() ([]part.IF, error) {
 	m := NewMetaRepository()
 
 	return m.Installed()
 }
 
 // ListUpdates returns all snaps with updates
-func ListUpdates() ([]Part, error) {
+func ListUpdates() ([]part.IF, error) {
 	m := NewMetaRepository()
 
 	return m.Updates()

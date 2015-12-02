@@ -33,6 +33,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/partition"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/progress"
 )
 
@@ -46,7 +47,7 @@ func makeCloudInitMetaData(c *C, content string) string {
 
 func (s *SnapTestSuite) TestInstallInstall(c *C) {
 	snapFile := makeTestSnapPackage(c, "")
-	name, err := Install(snapFile, AllowUnauthenticated|DoInstallGC, &progress.NullProgress{})
+	name, err := Install(snapFile, part.AllowUnauthenticated|part.DoInstallGC, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 }
@@ -60,7 +61,7 @@ vendor: Foo Bar <foo@example.com>
 explicit-license-agreement: Y
 `)
 	ag := &MockProgressMeter{y: true}
-	name, err := Install(snapFile, AllowUnauthenticated|DoInstallGC, ag)
+	name, err := Install(snapFile, part.AllowUnauthenticated|part.DoInstallGC, ag)
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 	c.Check(ag.license, Equals, "WTFPL")
@@ -75,12 +76,12 @@ vendor: Foo Bar <foo@example.com>
 explicit-license-agreement: Y
 `)
 	ag := &MockProgressMeter{y: false}
-	_, err := Install(snapFile, AllowUnauthenticated|DoInstallGC, ag)
+	_, err := Install(snapFile, part.AllowUnauthenticated|part.DoInstallGC, ag)
 	c.Assert(IsLicenseNotAccepted(err), Equals, true)
 	c.Check(ag.license, Equals, "WTFPL")
 }
 
-func (s *SnapTestSuite) installThree(c *C, flags InstallFlags) {
+func (s *SnapTestSuite) installThree(c *C, flags part.InstallFlags) {
 	dirs.SnapDataHomeGlob = filepath.Join(s.tempdir, "home", "*", "apps")
 	homeDir := filepath.Join(s.tempdir, "home", "user1", "apps")
 	homeData := filepath.Join(homeDir, "foo", "1.0")
@@ -105,7 +106,7 @@ icon: foo.svg
 
 // check that on install we remove all but the two newest package versions
 func (s *SnapTestSuite) TestClickInstallGCSimple(c *C) {
-	s.installThree(c, AllowUnauthenticated|DoInstallGC)
+	s.installThree(c, part.AllowUnauthenticated|part.DoInstallGC)
 
 	globs, err := filepath.Glob(filepath.Join(dirs.SnapAppsDir, "foo.sideload", "*"))
 	c.Check(err, IsNil)
@@ -117,9 +118,9 @@ func (s *SnapTestSuite) TestClickInstallGCSimple(c *C) {
 	c.Check(globs, HasLen, 3+1) // +1 for "current"
 }
 
-// check that if flags does not include DoInstallGC, no gc is done
+// check that if flags does not include part.DoInstallGC, no gc is done
 func (s *SnapTestSuite) TestClickInstallGCSuppressed(c *C) {
-	s.installThree(c, AllowUnauthenticated)
+	s.installThree(c, part.AllowUnauthenticated)
 
 	globs, err := filepath.Glob(filepath.Join(dirs.SnapAppsDir, "foo.sideload", "*"))
 	c.Assert(err, IsNil)
@@ -214,7 +215,7 @@ func (s *SnapTestSuite) TestInstallAppPackageNameFails(c *C) {
 
 func (s *SnapTestSuite) TestUpdate(c *C) {
 	snapPackagev1 := makeTestSnapPackage(c, "name: foo\nversion: 1")
-	name, err := Install(snapPackagev1, AllowUnauthenticated|DoInstallGC, &progress.NullProgress{})
+	name, err := Install(snapPackagev1, part.AllowUnauthenticated|part.DoInstallGC, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Assert(name, Equals, "foo")
 

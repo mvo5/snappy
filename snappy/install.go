@@ -27,26 +27,12 @@ import (
 
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/partition"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/provisioning"
 )
 
-// InstallFlags can be used to pass additional flags to the install of a
-// snap
-type InstallFlags uint
-
-const (
-	// AllowUnauthenticated allows to install a snap even if it can not be authenticated
-	AllowUnauthenticated InstallFlags = 1 << iota
-	// InhibitHooks will ensure that the hooks are not run
-	InhibitHooks
-	// DoInstallGC will ensure that garbage collection is done
-	DoInstallGC
-	// AllowOEM allows the installation of OEM packages, this does not affect updates.
-	AllowOEM
-)
-
-func doUpdate(part Part, flags InstallFlags, meter progress.Meter) error {
+func doUpdate(part part.IF, flags part.InstallFlags, meter progress.Meter) error {
 	if _, err := part.Install(meter, flags); err == ErrSideLoaded {
 		logger.Noticef("Skipping sideloaded package: %s", part.Name())
 		return nil
@@ -61,7 +47,7 @@ func doUpdate(part Part, flags InstallFlags, meter progress.Meter) error {
 }
 
 // Update updates the selected name
-func Update(name string, flags InstallFlags, meter progress.Meter) ([]Part, error) {
+func Update(name string, flags part.InstallFlags, meter progress.Meter) ([]part.IF, error) {
 	installed, err := NewMetaLocalRepository().Installed()
 	if err != nil {
 		return nil, err
@@ -82,10 +68,10 @@ func Update(name string, flags InstallFlags, meter progress.Meter) ([]Part, erro
 	return upd, doUpdate(upd[0], flags, meter)
 }
 
-// UpdateAll the installed snappy packages, it returns the updated Parts
+// UpdateAll the installed snappy packages, it returns the updated parts
 // if updates where available and an error and nil if any of the updates
 // fail to apply.
-func UpdateAll(flags InstallFlags, meter progress.Meter) ([]Part, error) {
+func UpdateAll(flags part.InstallFlags, meter progress.Meter) ([]part.IF, error) {
 	updates, err := ListUpdates()
 	if err != nil {
 		return nil, err
@@ -103,7 +89,7 @@ func UpdateAll(flags InstallFlags, meter progress.Meter) ([]Part, error) {
 
 // Install the givens snap names provided via args. This can be local
 // files or snaps that are queried from the store
-func Install(name string, flags InstallFlags, meter progress.Meter) (string, error) {
+func Install(name string, flags part.InstallFlags, meter progress.Meter) (string, error) {
 	name, err := doInstall(name, flags, meter)
 	if err != nil {
 		return "", err
@@ -112,7 +98,7 @@ func Install(name string, flags InstallFlags, meter progress.Meter) (string, err
 	return name, GarbageCollect(name, flags, meter)
 }
 
-func doInstall(name string, flags InstallFlags, meter progress.Meter) (snapName string, err error) {
+func doInstall(name string, flags part.InstallFlags, meter progress.Meter) (snapName string, err error) {
 	defer func() {
 		if err != nil {
 			err = &ErrInstallFailed{Snap: name, OrigErr: err}
@@ -128,7 +114,7 @@ func doInstall(name string, flags InstallFlags, meter progress.Meter) (snapName 
 		//        bootloader dir like /boot or /boot/loader
 		//        instead of having to query the partition code
 		if provisioning.InDeveloperMode(partition.BootloaderDir()) {
-			flags |= AllowUnauthenticated
+			flags |= part.AllowUnauthenticated
 		}
 
 		return installClick(name, flags, meter, SideloadedOrigin)
@@ -173,10 +159,10 @@ func doInstall(name string, flags InstallFlags, meter progress.Meter) (snapName 
 // GarbageCollect removes all versions two older than the current active
 // version, as long as NeedsReboot() is false on all the versions found, and
 // DoInstallGC is set.
-func GarbageCollect(name string, flags InstallFlags, pb progress.Meter) error {
+func GarbageCollect(name string, flags part.InstallFlags, pb progress.Meter) error {
 	var parts BySnapVersion
 
-	if (flags & DoInstallGC) == 0 {
+	if (flags & part.DoInstallGC) == 0 {
 		return nil
 	}
 

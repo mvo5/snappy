@@ -25,9 +25,9 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/parts/part"
 	"github.com/ubuntu-core/snappy/pkg"
 	"github.com/ubuntu-core/snappy/progress"
 )
@@ -45,28 +45,28 @@ type Configuration interface {
 	OemConfig() SystemConfig
 }
 
-// QualifiedName of a Part is the Name, in most cases qualified with the
+// QualifiedName of a part.IF is the Name, in most cases qualified with the
 // Origin
-func QualifiedName(p Part) string {
+func QualifiedName(p part.IF) string {
 	if t := p.Type(); t == pkg.TypeFramework || t == pkg.TypeOem {
 		return p.Name()
 	}
 	return p.Name() + "." + p.Origin()
 }
 
-// BareName of a Part is just its Name
-func BareName(p Part) string {
+// BareName of a part.IF is just its Name
+func BareName(p part.IF) string {
 	return p.Name()
 }
 
-// FullName of a Part is Name.Origin
-func FullName(p Part) string {
+// FullName of a part.IF is Name.Origin
+func FullName(p part.IF) string {
 	return p.Name() + "." + p.Origin()
 }
 
 // FullNameWithChannel returns the FullName, with the channel appended
 // if it has one.
-func fullNameWithChannel(p Part) string {
+func fullNameWithChannel(p part.IF) string {
 	name := FullName(p)
 	ch := p.Channel()
 	if ch == "" {
@@ -76,50 +76,6 @@ func fullNameWithChannel(p Part) string {
 	return fmt.Sprintf("%s/%s", name, ch)
 }
 
-// Part representation of a snappy part
-type Part interface {
-
-	// query
-	Name() string
-	Version() string
-	Description() string
-	Origin() string
-
-	Hash() string
-	IsActive() bool
-	IsInstalled() bool
-	// Will become active on the next reboot
-	NeedsReboot() bool
-
-	// returns the date when the snap was last updated
-	Date() time.Time
-
-	// returns the channel of the part
-	Channel() string
-
-	// returns the path to the icon (local or uri)
-	Icon() string
-
-	// Returns app, framework, core
-	Type() pkg.Type
-
-	InstalledSize() int64
-	DownloadSize() int64
-
-	// Install the snap
-	Install(pb progress.Meter, flags InstallFlags) (name string, err error)
-	// Uninstall the snap
-	Uninstall(pb progress.Meter) error
-	// Config takes a yaml configuration and returns the full snap
-	// config with the changes. Note that "configuration" may be empty.
-	Config(configuration []byte) (newConfig string, err error)
-	// make an inactive part active, or viceversa
-	SetActive(bool, progress.Meter) error
-
-	// get the list of frameworks needed by the part
-	Frameworks() ([]string, error)
-}
-
 // Repository is the interface for a collection of snaps
 type Repository interface {
 
@@ -127,12 +83,12 @@ type Repository interface {
 	Description() string
 
 	// action
-	Details(name string, origin string) ([]Part, error)
+	Details(name string, origin string) ([]part.IF, error)
 
-	Updates() ([]Part, error)
-	Installed() ([]Part, error)
+	Updates() ([]part.IF, error)
+	Installed() ([]part.IF, error)
 
-	All() ([]Part, error)
+	All() ([]part.IF, error)
 }
 
 // MetaRepository contains all available single repositories can can be used
@@ -184,7 +140,7 @@ func NewMetaRepository() *MetaRepository {
 }
 
 // Installed returns all installed parts
-func (m *MetaRepository) Installed() (parts []Part, err error) {
+func (m *MetaRepository) Installed() (parts []part.IF, err error) {
 	for _, r := range m.all {
 		installed, err := r.Installed()
 		if err != nil {
@@ -197,8 +153,8 @@ func (m *MetaRepository) Installed() (parts []Part, err error) {
 }
 
 // All the parts
-func (m *MetaRepository) All() ([]Part, error) {
-	var parts []Part
+func (m *MetaRepository) All() ([]part.IF, error) {
+	var parts []part.IF
 
 	for _, r := range m.all {
 		all, err := r.All()
@@ -212,7 +168,7 @@ func (m *MetaRepository) All() ([]Part, error) {
 }
 
 // Updates returns all updatable parts
-func (m *MetaRepository) Updates() (parts []Part, err error) {
+func (m *MetaRepository) Updates() (parts []part.IF, err error) {
 	for _, r := range m.all {
 		updates, err := r.Updates()
 		if err != nil {
@@ -225,8 +181,8 @@ func (m *MetaRepository) Updates() (parts []Part, err error) {
 }
 
 // Details returns details for the given snap name
-func (m *MetaRepository) Details(name string, origin string) ([]Part, error) {
-	var parts []Part
+func (m *MetaRepository) Details(name string, origin string) ([]part.IF, error) {
+	var parts []part.IF
 
 	for _, r := range m.all {
 		results, err := r.Details(name, origin)
@@ -247,7 +203,7 @@ func (m *MetaRepository) Details(name string, origin string) ([]Part, error) {
 }
 
 // ActiveSnapsByType returns all installed snaps with the given type
-func ActiveSnapsByType(snapTs ...pkg.Type) (res []Part, err error) {
+func ActiveSnapsByType(snapTs ...pkg.Type) (res []part.IF, err error) {
 	m := NewMetaRepository()
 	installed, err := m.Installed()
 	if err != nil {
@@ -272,7 +228,7 @@ func ActiveSnapsByType(snapTs ...pkg.Type) (res []Part, err error) {
 // function to all active snaps with the given type.
 var ActiveSnapIterByType = activeSnapIterByTypeImpl
 
-func activeSnapIterByTypeImpl(f func(Part) string, snapTs ...pkg.Type) ([]string, error) {
+func activeSnapIterByTypeImpl(f func(part.IF) string, snapTs ...pkg.Type) ([]string, error) {
 	installed, err := ActiveSnapsByType(snapTs...)
 	res := make([]string, len(installed))
 
@@ -284,7 +240,7 @@ func activeSnapIterByTypeImpl(f func(Part) string, snapTs ...pkg.Type) ([]string
 }
 
 // ActiveSnapByName returns all active snaps with the given name
-func ActiveSnapByName(needle string) Part {
+func ActiveSnapByName(needle string) part.IF {
 	m := NewMetaRepository()
 	installed, err := m.Installed()
 	if err != nil {
@@ -304,7 +260,7 @@ func ActiveSnapByName(needle string) Part {
 
 // FindSnapsByName returns all snaps with the given name in the "haystack"
 // slice of parts (useful for filtering)
-func FindSnapsByName(needle string, haystack []Part) (res []Part) {
+func FindSnapsByName(needle string, haystack []part.IF) (res []part.IF) {
 	name, origin := SplitOrigin(needle)
 	ignorens := origin == ""
 
@@ -329,10 +285,10 @@ func SplitOrigin(name string) (string, string) {
 
 // FindSnapsByNameAndVersion returns the parts with the name/version in the
 // given slice of parts
-func FindSnapsByNameAndVersion(needle, version string, haystack []Part) []Part {
+func FindSnapsByNameAndVersion(needle, version string, haystack []part.IF) []part.IF {
 	name, origin := SplitOrigin(needle)
 	ignorens := origin == ""
-	var found []Part
+	var found []part.IF
 
 	for _, part := range haystack {
 		if part.Name() == name && part.Version() == version && (ignorens || part.Origin() == origin) {
@@ -369,12 +325,12 @@ func PackageNameActive(name string) bool {
 }
 
 // iconPath returns the would be path for the local icon
-func iconPath(s Part) string {
+func iconPath(s part.IF) string {
 	// TODO: care about extension ever being different than png
 	return filepath.Join(dirs.SnapIconsDir, fmt.Sprintf("%s_%s.png", QualifiedName(s), s.Version()))
 }
 
 // RemoteManifestPath returns the would be path for the store manifest meta data
-func RemoteManifestPath(s Part) string {
+func RemoteManifestPath(s part.IF) string {
 	return filepath.Join(dirs.SnapMetaDir, fmt.Sprintf("%s_%s.manifest", QualifiedName(s), s.Version()))
 }
