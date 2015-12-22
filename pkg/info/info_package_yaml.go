@@ -35,6 +35,8 @@ type packageYaml struct {
 // SnapInfoPackageYaml implements the meta/snap.yaml data
 type SnapInfoPackageYaml struct {
 	m packageYaml
+
+	raw []byte
 }
 
 // NewFromPackageYaml creates a new info based on the given packageYaml
@@ -44,6 +46,7 @@ func NewFromPackageYaml(yamlData []byte) (Info, error) {
 	if err != nil {
 		return nil, fmt.Errorf("info failed to parse: %s", err)
 	}
+	s.raw = yamlData
 
 	// FIXME: validation of the fields
 
@@ -63,4 +66,9 @@ func (s *SnapInfoPackageYaml) Version() string {
 // Type returns the type of the snap
 func (s *SnapInfoPackageYaml) Type() pkg.Type {
 	return s.m.Type
+}
+
+// Bytes returns the raw data
+func (s *SnapInfoPackageYaml) Bytes() []byte {
+	return s.raw
 }

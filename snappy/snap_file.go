@@ -57,15 +57,13 @@ func NewSnapFile(snapFile string, origin string, unsignedOk bool) (*SnapFile, er
 		return nil, err
 	}
 
-	yamlData, err := d.MetaMember("package.yaml")
+	// FIXME: info.Info should eventually kill the need to have
+	//        to packageYaml - we are not there yet
+	info, err := d.Info()
 	if err != nil {
 		return nil, err
 	}
-
-	_, err = d.MetaMember("hooks/config")
-	hasConfig := err == nil
-
-	m, err := parsePackageYamlData(yamlData, hasConfig)
+	m, err := parsePackageYamlDataOnly(info.Bytes())
 	if err != nil {
 		return nil, err
 	}

@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/pkg/info"
 
 	"github.com/blakesmith/ar"
 )
@@ -178,6 +179,16 @@ func (d *ClickDeb) ControlMember(controlMember string) (content []byte, err erro
 // the "package.yaml" file) from the data.tar.gz ar member's meta/ directory.
 func (d *ClickDeb) MetaMember(metaMember string) (content []byte, err error) {
 	return d.member("data.tar", filepath.Join("meta", metaMember))
+}
+
+// Info returns information like name, type etc about the package
+func (d *ClickDeb) Info() (info.Info, error) {
+	packageYaml, err := d.MetaMember("package.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("info failed for %s: %s", d.file.Name(), err)
+	}
+
+	return info.NewFromPackageYaml(packageYaml)
 }
 
 // member(arMember, tarMember) returns the content of the given tar member of

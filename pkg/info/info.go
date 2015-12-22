@@ -26,4 +26,6 @@ type Info interface {
 	Name() string
 	Version() string
 	Type() pkg.Type
+
+	Bytes() []byte
 }

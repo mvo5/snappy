@@ -199,7 +199,7 @@ func validatePackageYamlData(file string, yamlData []byte, m *packageYaml) error
 	return nil
 }
 
-func parsePackageYamlData(yamlData []byte, hasConfig bool) (*packageYaml, error) {
+func parsePackageYamlDataOnly(yamlData []byte) (*packageYaml, error) {
 	var m packageYaml
 	err := yaml.Unmarshal(yamlData, &m)
 	if err != nil {
@@ -245,9 +245,17 @@ func parsePackageYamlData(yamlData []byte, hasConfig bool) (*packageYaml, error)
 		}
 	}
 
+	return &m, nil
+}
+
+func parsePackageYamlData(yamlData []byte, hasConfig bool) (*packageYaml, error) {
+	m, err := parsePackageYamlDataOnly(yamlData)
+	if err != nil {
+		return nil, err
+	}
 	m.legacyIntegration(hasConfig)
 
-	return &m, nil
+	return m, nil
 }
 
 func (m *packageYaml) qualifiedName(origin string) string {

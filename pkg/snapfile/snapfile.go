@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/ubuntu-core/snappy/pkg/clickdeb"
+	"github.com/ubuntu-core/snappy/pkg/info"
 	"github.com/ubuntu-core/snappy/pkg/squashfs"
 )
 
@@ -43,6 +44,9 @@ type File interface {
 	// NeedsMountUnit determines whether it's required to setup
 	// a mount unit for the snap when the snap is installed
 	NeedsMountUnit() bool
+
+	// Info returns the pkg.Info data
+	Info() (info.Info, error)
 }
 
 // Open opens a given snap file with the right backend
