@@ -26,4 +26,12 @@ type Info interface {
 	Name() string
 	Version() string
 	Type() pkg.Type
+
+	License() License
+}
+
+type License interface {
+	ExplicitLicenseAgreement() bool
+	Version() string
+	Text() string
 }

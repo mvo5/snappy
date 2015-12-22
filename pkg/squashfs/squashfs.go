@@ -135,8 +135,15 @@ func (s *Snap) Info() (info.Info, error) {
 	if err != nil {
 		return nil, fmt.Errorf("info failed for %s: %s", s.path, err)
 	}
+	inf, err := info.NewFromPackageYaml(packageYaml)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse info for %s: %s", s.path, err)
+	}
+	if licenseText, err := s.ReadFile("meta/license.txt"); err == nil {
+		inf.AddLicense(string(licenseText))
+	}
 
-	return info.NewFromPackageYaml(packageYaml)
+	return inf, nil
 }
 
 // HashDigest computes a hash digest of the snap file using the given hash.

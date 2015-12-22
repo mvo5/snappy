@@ -35,6 +35,9 @@ type packageYaml struct {
 // SnapInfoPackageYaml implements the meta/snap.yaml data
 type SnapInfoPackageYaml struct {
 	m packageYaml
+	l *licenseYamlData
+
+	raw []byte
 }
 
 // NewFromPackageYaml creates a new info based on the given packageYaml
@@ -44,6 +47,7 @@ func NewFromPackageYaml(yamlData []byte) (Info, error) {
 	if err != nil {
 		return nil, fmt.Errorf("info failed to parse: %s", err)
 	}
+	s.raw = yamlData
 
 	// FIXME: validation of the fields
 
@@ -63,4 +67,52 @@ func (s *SnapInfoPackageYaml) Version() string {
 // Type returns the type of the snap
 func (s *SnapInfoPackageYaml) Type() pkg.Type {
 	return s.m.Type
+}
+
+// License returns the relevant data for license agreements
+func (s *SnapInfoPackageYaml) License() License {
+	return s.l
+}
+
+// AddLicense adds a license to the info
+func (s *SnapInfoPackageYaml) AddLicense(licenseText string) error {
+	l, err := newLicenseFromPackageYaml(s.raw, licenseText)
+	if err != nil {
+		return fmt.Errorf("failed to add license: %s", err)
+	}
+	s.l = l
+
+	return nil
+}
+
+// licenseYamlData deals with license agreements in snaps
+type licenseYamlData struct {
+	ExplicitLicenseAgreementYaml bool   `yaml:"explicit-license-agreement,omitempty"`
+	LicenseVersion               string `yaml:"license-version,omitempty"`
+
+	LicenseText string
+}
+
+// newLicenseFromPackageYaml creates a new license interface
+func newLicenseFromPackageYaml(yamlData []byte, licenseText string) (*licenseYamlData, error) {
+	var l licenseYamlData
+	err := yaml.Unmarshal(yamlData, l)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse license data: %s", err)
+	}
+	l.LicenseText = licenseText
+
+	return &l, nil
+}
+
+func (l *licenseYamlData) ExplicitLicenseAgreement() bool {
+	return l.ExplicitLicenseAgreementYaml
+}
+
+func (l *licenseYamlData) Version() string {
+	return l.LicenseVersion
+}
+
+func (l *licenseYamlData) Text() string {
+	return l.LicenseText
 }
