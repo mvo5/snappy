@@ -17,7 +17,7 @@
  *
  */
 
-package pkg
+package snapfile
 
 import (
 	"bytes"
@@ -35,7 +35,6 @@ type File interface {
 	Close() error
 
 	UnpackWithDropPrivs(targetDir, rootDir string) error
-	ControlMember(name string) ([]byte, error)
 	MetaMember(name string) ([]byte, error)
 	ExtractHashes(targetDir string) error
 	//Unpack unpacks the src parts to the dst directory

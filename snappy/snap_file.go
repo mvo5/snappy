@@ -30,6 +30,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/pkg"
+	"github.com/ubuntu-core/snappy/pkg/snapfile"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/systemd"
 )
@@ -37,7 +38,7 @@ import (
 // SnapFile is a local snap file that can get installed
 type SnapFile struct {
 	m   *packageYaml
-	deb pkg.File
+	deb snapfile.File
 
 	origin  string
 	instdir string
@@ -45,7 +46,7 @@ type SnapFile struct {
 
 // NewSnapFile loads a snap from the given snapFile
 func NewSnapFile(snapFile string, origin string, unsignedOk bool) (*SnapFile, error) {
-	d, err := pkg.Open(snapFile)
+	d, err := snapfile.Open(snapFile)
 	if err != nil {
 		return nil, err
 	}
