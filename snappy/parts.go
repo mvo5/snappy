@@ -100,10 +100,6 @@ type Part interface {
 
 	InstalledSize() int64
 	DownloadSize() int64
-
-	// Config takes a yaml configuration and returns the full snap
-	// config with the changes. Note that "configuration" may be empty.
-	Config(configuration []byte) (newConfig string, err error)
 }
 
 // ActiveSnapsByType returns all installed snaps with the given type

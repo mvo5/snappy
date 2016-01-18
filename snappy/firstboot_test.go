@@ -59,9 +59,24 @@ type FirstBootTestSuite struct {
 	ifup         string
 	m            *packageYaml
 	e            error
-	partMap      map[string]Part
+	partMap      map[string]*SnapPart
 	partMapErr   error
 	verifyCmd    string
+	cfengine     *mockConfigManager
+}
+type mockConfigManager struct {
+	configs map[string]string
+}
+
+func newMockConfigManager() *mockConfigManager {
+	return &mockConfigManager{
+		configs: make(map[string]string),
+	}
+}
+
+func (mfc *mockConfigManager) Configure(s *SnapPart, configuration []byte) (new string, err error) {
+	mfc.configs[s.Name()] = string(configuration)
+	return mfc.configs[s.Name()], nil
 }
 
 var _ = Suite(&FirstBootTestSuite{})
@@ -86,6 +101,7 @@ func (s *FirstBootTestSuite) SetUpTest(c *C) {
 
 	s.gadgetConfig = make(SystemConfig)
 	s.gadgetConfig["myapp"] = configMyApp
+	s.cfengine = newMockConfigManager()
 
 	s.globs = globs
 	globs = nil
@@ -95,6 +111,9 @@ func (s *FirstBootTestSuite) SetUpTest(c *C) {
 	ifup = "/bin/true"
 	getGadget = s.getGadget
 	newPartMap = s.newPartMap
+	newConfigManager = func() configManager {
+		return s.cfengine
+	}
 
 	s.m = nil
 	s.e = nil
@@ -108,33 +127,29 @@ func (s *FirstBootTestSuite) TearDownTest(c *C) {
 	ifup = s.ifup
 	getGadget = getGadgetImpl
 	newPartMap = newPartMapImpl
+	newConfigManager = newConfigManagerImpl
 }
 
 func (s *FirstBootTestSuite) getGadget() (*packageYaml, error) {
 	return s.m, s.e
 }
 
-func (s *FirstBootTestSuite) newPartMap() (map[string]Part, error) {
+func (s *FirstBootTestSuite) newPartMap() (map[string]*SnapPart, error) {
 	return s.partMap, s.partMapErr
-}
-
-func (s *FirstBootTestSuite) newFakeApp() *fakePart {
-	fakeMyApp := fakePart{snapType: snap.TypeApp}
-	s.partMap = make(map[string]Part)
-	s.partMap["myapp"] = &fakeMyApp
-
-	return &fakeMyApp
 }
 
 func (s *FirstBootTestSuite) TestFirstBootConfigure(c *C) {
 	s.m = &packageYaml{Config: s.gadgetConfig}
-	fakeMyApp := s.newFakeApp()
 
+	_, err := makeInstalledMockSnap(dirs.GlobalRootDir, "name: myapp\nversion: 1.0\n")
+	c.Assert(err, IsNil)
+
+	newPartMap = newPartMapImpl
 	c.Assert(FirstBoot(), IsNil)
 	myAppConfig := fmt.Sprintf("config:\n  myapp:\n    hostname: myhostname\n")
-	c.Assert(string(fakeMyApp.config), Equals, myAppConfig)
+	c.Assert(string(s.cfengine.configs["myapp"]), Equals, myAppConfig)
 
-	_, err := os.Stat(stampFile)
+	_, err = os.Stat(stampFile)
 	c.Assert(err, IsNil)
 }
 
@@ -155,7 +170,7 @@ func (s *FirstBootTestSuite) TestSoftwareActivate(c *C) {
 	c.Check(all[0].IsInstalled(), Equals, true)
 	c.Check(all[0].IsActive(), Equals, false)
 
-	s.partMap = map[string]Part{name: all[0]}
+	s.partMap = map[string]*SnapPart{name: all[0]}
 	c.Assert(FirstBoot(), IsNil)
 
 	all = (&Overlord{}).Installed()

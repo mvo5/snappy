@@ -83,8 +83,10 @@ func (s *SnapTestSuite) TestConfigSimple(c *C) {
 	mockConfig := fmt.Sprintf(configPassthroughScript, s.tempdir)
 	snapDir, err := s.makeInstalledMockSnapWithConfig(c, mockConfig)
 	c.Assert(err, IsNil)
+	snap, err := NewInstalledSnapPart(filepath.Join(snapDir, "meta", "package.yaml"), testOrigin)
+	c.Assert(err, IsNil)
 
-	newConfig, err := snapConfig(snapDir, "sergiusens", configYaml)
+	newConfig, err := snapConfig(snap, "sergiusens", configYaml)
 	c.Assert(err, IsNil)
 	content, err := ioutil.ReadFile(filepath.Join(s.tempdir, "config.out"))
 	c.Assert(err, IsNil)
@@ -106,7 +108,8 @@ func (s *SnapTestSuite) TestConfigOS(c *C) {
 	}
 	defer func() { coreConfig = coreConfigImpl }()
 
-	_, err = snap.Config(inCfg)
+	overlord := &Overlord{}
+	_, err = overlord.Configure(snap, inCfg)
 	c.Assert(err, IsNil)
 	c.Assert(cfg, DeepEquals, inCfg)
 }
@@ -125,14 +128,19 @@ func (s *SnapTestSuite) TestConfigGeneratesRightAA(c *C) {
 type: framework
 version: 42`)
 	c.Assert(err, IsNil)
-	_, err = snapConfig(snapDir, testOrigin, configYaml)
+
+	snap, err := NewInstalledSnapPart(filepath.Join(snapDir, "meta", "package.yaml"), testOrigin)
+	c.Assert(err, IsNil)
+	_, err = snapConfig(snap, testOrigin, configYaml)
 	c.Assert(err, IsNil)
 
 	snapDir, err = s.makeInstalledMockSnapWithConfig(c, mockConfig, `name: potato
 type: potato
 version: 42`)
 	c.Assert(err, IsNil)
-	_, err = snapConfig(snapDir, testOrigin, configYaml)
+	snap, err = NewInstalledSnapPart(filepath.Join(snapDir, "meta", "package.yaml"), testOrigin)
+	c.Assert(err, IsNil)
+	_, err = snapConfig(snap, testOrigin, configYaml)
 	c.Assert(err, IsNil)
 
 	c.Check(aas, DeepEquals, []string{
@@ -144,8 +152,10 @@ version: 42`)
 func (s *SnapTestSuite) TestConfigError(c *C) {
 	snapDir, err := s.makeInstalledMockSnapWithConfig(c, configErrorScript)
 	c.Assert(err, IsNil)
+	snap, err := NewInstalledSnapPart(filepath.Join(snapDir, "meta", "package.yaml"), testOrigin)
+	c.Assert(err, IsNil)
 
-	newConfig, err := snapConfig(snapDir, "sergiusens", configYaml)
+	newConfig, err := snapConfig(snap, "sergiusens", configYaml)
 	c.Assert(err, NotNil)
 	c.Assert(newConfig, Equals, "")
 	c.Assert(err, ErrorMatches, ".*failed with: 'error: some error'.*")

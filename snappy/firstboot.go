@@ -51,17 +51,28 @@ func wrapConfig(pkgName string, conf interface{}) ([]byte, error) {
 
 var newPartMap = newPartMapImpl
 
-func newPartMapImpl() (map[string]Part, error) {
+func newPartMapImpl() (map[string]*SnapPart, error) {
 	overlord := &Overlord{}
 	installed := overlord.Installed()
 
-	m := make(map[string]Part, 2*len(installed))
+	m := make(map[string]*SnapPart, 2*len(installed))
 	for _, part := range installed {
 		m[FullName(part)] = part
 		m[BareName(part)] = part
 	}
 
 	return m, nil
+}
+
+// makes testing easier
+type configManager interface {
+	Configure(s *SnapPart, configuration []byte) (new string, err error)
+}
+
+var newConfigManager = newConfigManagerImpl
+
+func newConfigManagerImpl() configManager {
+	return &Overlord{}
 }
 
 // GadgetConfig checks for a gadget snap and if found applies the configuration
@@ -79,19 +90,16 @@ func gadgetConfig() error {
 
 	pb := progress.MakeProgressBar()
 	for _, pkgName := range gadget.Gadget.Software.BuiltIn {
-		part, ok := partMap[pkgName]
-		if !ok {
-			return errNoSnapToActivate
-		}
-		snap, ok := part.(*SnapPart)
+		snap, ok := partMap[pkgName]
 		if !ok {
 			return errNoSnapToActivate
 		}
 		if err := snap.activate(false, pb); err != nil {
-			logger.Noticef("failed to acitvate %s: %s", FullName(part), err)
+			logger.Noticef("failed to acitvate %s: %s", FullName(snap), err)
 		}
 	}
 
+	cfengine := newConfigManager()
 	for pkgName, conf := range gadget.Config {
 		snap, ok := partMap[pkgName]
 		if !ok {
@@ -105,7 +113,7 @@ func gadgetConfig() error {
 			return err
 		}
 
-		if _, err := snap.Config(configData); err != nil {
+		if _, err := cfengine.Configure(snap, configData); err != nil {
 			return err
 		}
 	}

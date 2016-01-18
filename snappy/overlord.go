@@ -366,3 +366,13 @@ func (o *Overlord) partsForGlobExpr(globExpr string) (parts []*SnapPart, err err
 
 	return parts, nil
 }
+
+// Configure configures the given snap part with the given configuration
+// and returns the new configuration or an error
+func (o *Overlord) Configure(s *SnapPart, configuration []byte) (new string, err error) {
+	if s.m.Type == snap.TypeOS {
+		return coreConfig(configuration)
+	}
+
+	return snapConfig(s, s.origin, string(configuration))
+}

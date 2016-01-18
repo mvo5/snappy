@@ -50,21 +50,15 @@ func coreConfigImpl(configuration []byte) (newConfig string, err error) {
 // This string can be empty.
 //
 // It returns the newConfig or an error
-func snapConfig(snapDir, origin, rawConfig string) (newConfig string, err error) {
-	configScript := filepath.Join(snapDir, "meta", "hooks", "config")
+func snapConfig(snap *SnapPart, origin, rawConfig string) (newConfig string, err error) {
+	configScript := filepath.Join(snap.basedir, "meta", "hooks", "config")
 	if _, err := os.Stat(configScript); err != nil {
 		return "", ErrConfigNotFound
 	}
+	name := QualifiedName(snap)
+	appArmorProfile := fmt.Sprintf("%s_%s_%s", name, "snappy-config", snap.Version())
 
-	part, err := NewInstalledSnapPart(filepath.Join(snapDir, "meta", "package.yaml"), origin)
-	if err != nil {
-		return "", ErrPackageNotFound
-	}
-
-	name := QualifiedName(part)
-	appArmorProfile := fmt.Sprintf("%s_%s_%s", name, "snappy-config", part.Version())
-
-	return runConfigScript(configScript, appArmorProfile, rawConfig, makeSnapHookEnv(part))
+	return runConfigScript(configScript, appArmorProfile, rawConfig, makeSnapHookEnv(snap))
 }
 
 var runConfigScript = runConfigScriptImpl
