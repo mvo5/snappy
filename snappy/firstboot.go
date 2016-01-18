@@ -64,14 +64,9 @@ func newPartMapImpl() (map[string]*SnapPart, error) {
 	return m, nil
 }
 
-// makes testing easier
-type configManager interface {
-	Configure(s *SnapPart, configuration []byte) (new string, err error)
-}
-
 var newConfigManager = newConfigManagerImpl
 
-func newConfigManagerImpl() configManager {
+func newConfigManagerImpl() ConfigManager {
 	return &Overlord{}
 }
 

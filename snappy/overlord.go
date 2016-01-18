@@ -38,6 +38,11 @@ import (
 type Overlord struct {
 }
 
+// ConfigManager is implemented by the Overlord
+type ConfigManager interface {
+	Configure(s *SnapPart, configuration []byte) (new string, err error)
+}
+
 // Install installs the given snap file name
 func (o *Overlord) Install(snapFileName string, origin string, inter progress.Meter, flags InstallFlags) (sn *SnapPart, err error) {
 	allowGadget := (flags & AllowGadget) != 0

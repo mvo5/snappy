@@ -111,7 +111,7 @@ func (s *FirstBootTestSuite) SetUpTest(c *C) {
 	ifup = "/bin/true"
 	getGadget = s.getGadget
 	newPartMap = s.newPartMap
-	newConfigManager = func() configManager {
+	newConfigManager = func() ConfigManager {
 		return s.cfengine
 	}
 

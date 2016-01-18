@@ -175,6 +175,10 @@ var newRemoteRepo = func() metarepo {
 
 var muxVars = mux.Vars
 
+var newConfigManager = func() snappy.ConfigManager {
+	return &snappy.Overlord{}
+}
+
 func getPackageInfo(c *Command, r *http.Request) Response {
 	vars := muxVars(r)
 	name := vars["name"]
@@ -486,7 +490,8 @@ func packageConfig(c *Command, r *http.Request) Response {
 		return BadRequest(err, "reading config request body gave %v", err)
 	}
 
-	config, err := part.Config(bs)
+	overlord := newConfigManager()
+	config, err := overlord.Configure(part.(*snappy.SnapPart), bs)
 	if err != nil {
 		return InternalError(err, "unable to retrieve config for %s: %v", pkgName, err)
 	}
@@ -538,7 +543,8 @@ func configMulti(c *Command, r *http.Request) Response {
 				continue
 			}
 
-			config, err := part.Config([]byte(cfg))
+			overlord := newConfigManager()
+			config, err := overlord.Configure(part.(*snappy.SnapPart), []byte(cfg))
 			if err != nil {
 				out.Msg = "Config failed"
 				out.Str = err.Error()
