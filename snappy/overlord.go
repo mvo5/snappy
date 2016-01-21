@@ -53,7 +53,7 @@ func (o *Overlord) SetActive(sp *SnapPart, active bool, pb progress.Meter) error
 
 // Installed returns the installed snaps from this repository
 func (o *Overlord) Installed() (parts []*SnapPart) {
-	globExpr := filepath.Join(dirs.SnapSnapsDir, "*", "*", "meta", "package.yaml")
+	globExpr := filepath.Join(dirs.SnapSnapsDir, "*", "*", "meta", "snap.yaml")
 	if newParts, err := o.partsForGlobExpr(globExpr); err == nil {
 		parts = append(parts, newParts...)
 	}
