@@ -840,7 +840,10 @@ func (s *apiSuite) TestPackageServiceGet(c *check.C) {
 	req, err := http.NewRequest("GET", "/1.0/packages/foo.bar/services", nil)
 	c.Assert(err, check.IsNil)
 
-	s.mkInstalled(c, "foo", "bar", "v1", true, "services: [{name: svc}]")
+	s.mkInstalled(c, "foo", "bar", "v1", true, `apps:
+ svc:
+  daemon: forking
+`)
 	s.vars = map[string]string{"name": "foo", "origin": "bar"} // NB: no service specified
 
 	rsp := packageService(packageSvcsCmd, req).(*resp)
@@ -851,7 +854,7 @@ func (s *apiSuite) TestPackageServiceGet(c *check.C) {
 	m := rsp.Result.(map[string]*svcDesc)
 	c.Assert(m["svc"], check.FitsTypeOf, new(svcDesc))
 	c.Check(m["svc"].Op, check.Equals, "status")
-	c.Check(m["svc"].Spec, check.DeepEquals, &snappy.ServiceYaml{Name: "svc", StopTimeout: timeout.DefaultTimeout})
+	c.Check(m["svc"].Spec, check.DeepEquals, &snappy.AppYaml{Name: "svc", Daemon: "forking", StopTimeout: timeout.DefaultTimeout})
 	c.Check(m["svc"].Status, check.DeepEquals, &snappy.PackageServiceStatus{ServiceName: "svc"})
 }
 
@@ -864,7 +867,11 @@ func (s *apiSuite) TestPackageServicePut(c *check.C) {
 	req, err := http.NewRequest("PUT", "/1.0/packages/foo.bar/services", buf)
 	c.Assert(err, check.IsNil)
 
-	s.mkInstalled(c, "foo", "bar", "v1", true, "services: [{name: svc}]")
+	s.mkInstalled(c, "foo", "bar", "v1", true, `apps:
+ svc:
+  command: svc
+  daemon: forking
+`)
 	s.vars = map[string]string{"name": "foo", "origin": "bar"} // NB: no service specified
 
 	rsp := packageService(packageSvcsCmd, req).(*resp)
@@ -944,10 +951,10 @@ func (s *apiSuite) TestServiceLogs(c *check.C) {
 
 func (s *apiSuite) TestAppIconGet(c *check.C) {
 	// have an active foo.bar in the system
-	s.mkInstalled(c, "foo", "bar", "v1", true, "icon: icon.ick")
+	s.mkInstalled(c, "foo", "bar", "v1", true, "")
 
 	// have an icon for it in the package itself
-	iconfile := filepath.Join(dirs.SnapSnapsDir, "foo.bar", "v1", "icon.ick")
+	iconfile := filepath.Join(dirs.SnapSnapsDir, "foo.bar", "v1", "meta", "icon.ick")
 	c.Check(ioutil.WriteFile(iconfile, []byte("ick"), 0644), check.IsNil)
 
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
@@ -963,10 +970,10 @@ func (s *apiSuite) TestAppIconGet(c *check.C) {
 
 func (s *apiSuite) TestAppIconGetInactive(c *check.C) {
 	// have an *in*active foo.bar in the system
-	s.mkInstalled(c, "foo", "bar", "v1", false, "icon: icon.ick")
+	s.mkInstalled(c, "foo", "bar", "v1", false, "")
 
 	// have an icon for it in the package itself
-	iconfile := filepath.Join(dirs.SnapSnapsDir, "foo.bar", "v1", "icon.ick")
+	iconfile := filepath.Join(dirs.SnapSnapsDir, "foo.bar", "v1", "meta", "icon.ick")
 	c.Check(ioutil.WriteFile(iconfile, []byte("ick"), 0644), check.IsNil)
 
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
@@ -982,7 +989,11 @@ func (s *apiSuite) TestAppIconGetInactive(c *check.C) {
 
 func (s *apiSuite) TestAppIconGetNoIcon(c *check.C) {
 	// have an *in*active foo.bar in the system
-	s.mkInstalled(c, "foo", "bar", "v1", true, "") // NOTE: no icon in the yaml
+	s.mkInstalled(c, "foo", "bar", "v1", true, "")
+
+	// NO ICON!
+	err := os.RemoveAll(filepath.Join(dirs.SnapSnapsDir, "foo.bar", "v1", "meta", "icon.svg"))
+	c.Assert(err, check.IsNil)
 
 	s.vars = map[string]string{"name": "foo", "origin": "bar"}
 	req, err := http.NewRequest("GET", "/1.0/icons/foo.bar/icon", nil)
