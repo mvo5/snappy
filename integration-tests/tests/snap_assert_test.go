@@ -1,7 +1,8 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
+// +build !excludeintegration
 
 /*
- * Copyright (C) 2014-2015 Canonical Ltd
+ * Copyright (C) 2016 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -17,25 +18,22 @@
  *
  */
 
-package partition
+package tests
 
 import (
-	"path/filepath"
+	"gopkg.in/check.v1"
+
+	"github.com/ubuntu-core/snappy/integration-tests/testutils/cli"
 )
 
-// The full path to the cache directory, which is used as a
-// scratch pad, for downloading new images to and bind mounting the
-// rootfs.
-const cacheDirReal = "/writable/cache"
+var _ = check.Suite(&snapAssertSuite{})
 
-var (
-	// useful for overwriting in the tests
-	cacheDir = cacheDirReal
+type snapAssertSuite struct {
+	// FIXME: use snapdTestSuite until all tests are moved to
+	// assume the snapd/snap command pairing
+	snapdTestSuite
+}
 
-	// Directory to mount writable root filesystem below the cache
-	// diretory.
-	mountTargetReal = filepath.Join(cacheDir, "system")
-
-	// useful to override in tests
-	mountTarget = mountTargetReal
-)
+func (s *snapAssertSuite) TestOK(c *check.C) {
+	cli.ExecCommand(c, "sudo", "snap", "assert", "integration-tests/data/dev1.acckey")
+}
