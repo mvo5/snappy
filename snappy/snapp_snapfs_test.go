@@ -107,7 +107,7 @@ func (s *SquashfsTestSuite) TestInstallViaSquashfsWorks(c *C) {
 }
 
 func (s *SquashfsTestSuite) TestAddSquashfsMount(c *C) {
-	m := packageYaml{
+	m := snapYaml{
 		Name:          "foo.origin",
 		Version:       "1.0",
 		Architectures: []string{"all"},
@@ -130,7 +130,7 @@ Where=/snaps/foo.origin/1.0
 }
 
 func (s *SquashfsTestSuite) TestRemoveSquashfsMountUnit(c *C) {
-	m := packageYaml{}
+	m := snapYaml{}
 	inter := &MockProgressMeter{}
 	err := m.addSquashfsMount(filepath.Join(dirs.SnapSnapsDir, "foo.origin/1.0"), true, inter)
 	c.Assert(err, IsNil)
@@ -337,8 +337,8 @@ func (s *SquashfsTestSuite) TestInstallKernelRebootRequired(c *C) {
 	c.Assert(snap.NeedsReboot(), Equals, false)
 }
 
-func getFakeGrubGadget() (*packageYaml, error) {
-	return &packageYaml{
+func getFakeGrubGadget() (*snapYaml, error) {
+	return &snapYaml{
 		Gadget: Gadget{
 			Hardware: Hardware{
 				Bootloader: "grub",
