@@ -21,6 +21,7 @@ package snappy
 
 import (
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/progress"
 
 	. "gopkg.in/check.v1"
 )
@@ -46,4 +47,13 @@ func (o *overlordTestSuite) TestInstalled(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(installed, HasLen, 1)
 	c.Assert(installed[0].Name(), Equals, "hello-app")
+}
+
+func (o *overlordTestSuite) TestNewOverlordWithFunc(c *C) {
+	cb := func() progress.Meter {
+		return &progress.NullProgress{}
+	}
+
+	ol := NewOverlord(cb)
+	c.Assert(ol.findMeterCB(), FitsTypeOf, &progress.NullProgress{})
 }

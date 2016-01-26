@@ -29,15 +29,15 @@ import (
 
 // Overlord is responsible for the overall system state.
 type Overlord struct {
-	findMeterCB func() *progress.Meter
+	findMeterCB func() progress.Meter
 }
 
 // NewOverlord creates a new overlord instance. The findMeterCB
 // will get called by the overlord if needs to use a progress.Meter
 // to display progress.
-func NewOverlord(findMeterCB func() *progress.Meter) *Overlord {
+func NewOverlord(cb func() progress.Meter) *Overlord {
 	return &Overlord{
-		findMeterCB: findMeterCB,
+		findMeterCB: cb,
 	}
 }
 
