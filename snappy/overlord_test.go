@@ -41,7 +41,7 @@ version: 1.0
 func (o *overlordTestSuite) TestInstalled(c *C) {
 	makeInstalledMockSnap(dirs.GlobalRootDir, helloAppYaml)
 
-	overlord := &Overlord{}
+	overlord := NewOverlord(nil)
 	installed, err := overlord.Installed()
 	c.Assert(err, IsNil)
 	c.Assert(installed, HasLen, 1)

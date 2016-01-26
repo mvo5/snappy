@@ -29,26 +29,36 @@ import (
 
 // Overlord is responsible for the overall system state.
 type Overlord struct {
+	findMeterCB func() *progress.Meter
+}
+
+// NewOverlord creates a new overlord instance. The findMeterCB
+// will get called by the overlord if needs to use a progress.Meter
+// to display progress.
+func NewOverlord(findMeterCB func() *progress.Meter) *Overlord {
+	return &Overlord{
+		findMeterCB: findMeterCB,
+	}
 }
 
 // Install installs the given snap file to the system.
 //
 // It returns the local snap file or an error
-func (o *Overlord) Install(snapFilePath string, origin string, flags InstallFlags, meter progress.Meter) (*SnapPart, error) {
+func (o *Overlord) Install(snapFilePath string, origin string, flags InstallFlags) (*SnapPart, error) {
 	return nil, ErrNotImplemented
 }
 
 // Uninstall removes the given local snap from the system.
 //
 // It returns an error on failure
-func (o *Overlord) Uninstall(sp *SnapPart, meter progress.Meter) error {
+func (o *Overlord) Uninstall(sp *SnapPart) error {
 	return ErrNotImplemented
 }
 
 // SetActive sets the active state of the given snap
 //
 // It returns an error on failure
-func (o *Overlord) SetActive(sp *SnapPart, active bool, meter progress.Meter) error {
+func (o *Overlord) SetActive(sp *SnapPart, active bool) error {
 	return ErrNotImplemented
 }
 
