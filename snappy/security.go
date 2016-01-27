@@ -20,7 +20,6 @@
 package snappy
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -33,30 +32,12 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
-	"github.com/ubuntu-core/snappy/policy"
-	"github.com/ubuntu-core/snappy/release"
 	"github.com/ubuntu-core/snappy/security"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/app"
 )
 
-type errPolicyNotFound struct {
-	// type of policy, e.g. template or cap
-	PolType string
-	// apparmor or seccomp
-	PolKind *securityPolicyType
-	// name of the policy
-	PolName string
-}
-
-func (e *errPolicyNotFound) Error() string {
-	return fmt.Sprintf("could not find specified %s: %s (%s)", e.PolType, e.PolName, e.PolKind)
-}
-
 var (
-	// Note: these are true for ubuntu-core but perhaps not other flavors
-	defaultTemplateName = "default"
-	defaultPolicyGroups = []string{"network-client"}
 
 	// AppArmor cache dir
 	aaCacheDir = "/var/cache/apparmor"
@@ -115,160 +96,6 @@ func (sd *SecurityDefinitions) NeedsAppArmorUpdate(policies, templates map[strin
 	}
 
 	return false
-}
-
-// securityPolicyType is a kind of securityPolicy, we currently
-// have "apparmor" and "seccomp"
-type securityPolicyType struct {
-	name          string
-	basePolicyDir string
-}
-
-var securityPolicyTypeAppArmor = securityPolicyType{
-	name:          "apparmor",
-	basePolicyDir: "/usr/share/apparmor/easyprof",
-}
-
-var securityPolicyTypeSeccomp = securityPolicyType{
-	name:          "seccomp",
-	basePolicyDir: "/usr/share/seccomp",
-}
-
-func (sp *securityPolicyType) policyDir() string {
-	return filepath.Join(dirs.GlobalRootDir, sp.basePolicyDir)
-}
-
-func (sp *securityPolicyType) frameworkPolicyDir() string {
-	frameworkPolicyDir := filepath.Join(policy.SecBase, sp.name)
-	return filepath.Join(dirs.GlobalRootDir, frameworkPolicyDir)
-}
-
-// findTemplate returns the security template content from the template name.
-func (sp *securityPolicyType) findTemplate(templateName string) (string, error) {
-	if templateName == "" {
-		templateName = defaultTemplateName
-	}
-
-	subdir := filepath.Join("templates", defaultPolicyVendor(), defaultPolicyVersion())
-	systemTemplateDir := filepath.Join(sp.policyDir(), subdir, templateName)
-	fwTemplateDir := filepath.Join(sp.frameworkPolicyDir(), "templates", templateName)
-
-	// Read system and framwork policy, but always prefer system policy
-	fns := []string{systemTemplateDir, fwTemplateDir}
-	for _, fn := range fns {
-		content, err := ioutil.ReadFile(fn)
-		// it is ok if the file does not exists
-		if os.IsNotExist(err) {
-			continue
-		}
-		// but any other error is a failure
-		if err != nil {
-			return "", err
-		}
-
-		return string(content), nil
-	}
-
-	return "", &errPolicyNotFound{"template", sp, templateName}
-}
-
-// helper for findSingleCap that implements readlines().
-func readSingleCapFile(fn string) ([]string, error) {
-	p := []string{}
-
-	r, err := os.Open(fn)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	s := bufio.NewScanner(r)
-	for s.Scan() {
-		p = append(p, s.Text())
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
-	}
-
-	return p, nil
-}
-
-// findSingleCap returns the security template content for a single
-// security-cap.
-func (sp *securityPolicyType) findSingleCap(capName, systemPolicyDir, fwPolicyDir string) ([]string, error) {
-	found := false
-	p := []string{}
-
-	policyDirs := []string{systemPolicyDir, fwPolicyDir}
-	for _, dir := range policyDirs {
-		fn := filepath.Join(dir, capName)
-		newCaps, err := readSingleCapFile(fn)
-		// its ok if the file does not exist
-		if os.IsNotExist(err) {
-			continue
-		}
-		// but any other error is not ok
-		if err != nil {
-			return nil, err
-		}
-		p = append(p, newCaps...)
-		found = true
-		break
-	}
-
-	if found == false {
-		return nil, &errPolicyNotFound{"cap", sp, capName}
-	}
-
-	return p, nil
-}
-
-// findCaps returns the security template content for the given list
-// of security-caps.
-func (sp *securityPolicyType) findCaps(caps []string, templateName string) ([]string, error) {
-	// XXX: this is snappy specific, on other systems like the phone we may
-	// want different defaults.
-	if templateName == "" && caps == nil {
-		caps = defaultPolicyGroups
-	}
-
-	// Nothing to find if caps is empty
-	if len(caps) == 0 {
-		return nil, nil
-	}
-
-	subdir := filepath.Join("policygroups", defaultPolicyVendor(), defaultPolicyVersion())
-	parentDir := filepath.Join(sp.policyDir(), subdir)
-	fwParentDir := filepath.Join(sp.frameworkPolicyDir(), "policygroups")
-
-	var p []string
-	for _, c := range caps {
-		newCap, err := sp.findSingleCap(c, parentDir, fwParentDir)
-		if err != nil {
-			return nil, err
-		}
-		p = append(p, newCap...)
-	}
-
-	return p, nil
-}
-
-func defaultPolicyVendor() string {
-	// FIXME: slightly ugly that we have to give a prefix here
-	return fmt.Sprintf("ubuntu-%s", release.Get().Flavor)
-}
-
-func defaultPolicyVersion() string {
-	// note that we can not use release.Get().Series here
-	// because that will return "rolling" for the development
-	// version but apparmor stores its templates under the
-	// version number (e.g. 16.04) instead
-	ver, err := release.ReadLsb()
-	if err != nil {
-		// when this happens we are in trouble
-		panic(err)
-	}
-	return ver.Release
 }
 
 // Calculate whitespace prefix based on occurrence of s in t
@@ -363,11 +190,11 @@ func mergeAppArmorTemplateAdditionalContent(appArmorTemplate, aaPolicy string, o
 }
 
 func getAppArmorTemplatedPolicy(m *snap.Info, appID *security.AppID, template string, caps []string, overrides *security.OverrideDefinition) (string, error) {
-	t, err := securityPolicyTypeAppArmor.findTemplate(template)
+	t, err := security.PolicyTypeAppArmor.FindTemplate(template)
 	if err != nil {
 		return "", err
 	}
-	p, err := securityPolicyTypeAppArmor.findCaps(caps, template)
+	p, err := security.PolicyTypeAppArmor.FindCaps(caps, template)
 	if err != nil {
 		return "", err
 	}
@@ -395,11 +222,11 @@ func getAppArmorTemplatedPolicy(m *snap.Info, appID *security.AppID, template st
 }
 
 func getSeccompTemplatedPolicy(m *snap.Info, appID *security.AppID, templateName string, caps []string, overrides *security.OverrideDefinition) (string, error) {
-	t, err := securityPolicyTypeSeccomp.findTemplate(templateName)
+	t, err := security.PolicyTypeSeccomp.FindTemplate(templateName)
 	if err != nil {
 		return "", err
 	}
-	p, err := securityPolicyTypeSeccomp.findCaps(caps, templateName)
+	p, err := security.PolicyTypeSeccomp.FindCaps(caps, templateName)
 	if err != nil {
 		return "", err
 	}
