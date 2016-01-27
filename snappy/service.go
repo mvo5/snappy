@@ -28,6 +28,7 @@ import (
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -47,7 +48,7 @@ type ServiceActor interface {
 
 type svcT struct {
 	m   *snap.Info
-	svc *AppYaml
+	svc *app.Yaml
 }
 
 type serviceActor struct {

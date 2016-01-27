@@ -32,6 +32,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 )
 
 type SecurityTestSuite struct {
@@ -126,7 +127,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfile(c *C) {
 		Name:    "foo",
 		Version: "1.0",
 	}
-	b := AppYaml{Name: "bin/app"}
+	b := app.Yaml{Name: "bin/app"}
 	ap, err := getSecurityProfile(&m, b.Name, "/snaps/foo.mvo/1.0/")
 	c.Assert(err, IsNil)
 	c.Check(ap, Equals, "foo.mvo_bin-app_1.0")
@@ -137,7 +138,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfileInvalid(c *C) {
 		Name:    "foo",
 		Version: "1.0",
 	}
-	b := AppYaml{Name: "bin/app"}
+	b := app.Yaml{Name: "bin/app"}
 	_, err := getSecurityProfile(&m, b.Name, "/snaps/foo/1.0/")
 	c.Assert(err, Equals, ErrInvalidPart)
 }
@@ -148,7 +149,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfileFramework(c *C) {
 		Version: "1.0",
 		Type:    snap.TypeFramework,
 	}
-	b := AppYaml{Name: "bin/app"}
+	b := app.Yaml{Name: "bin/app"}
 	ap, err := getSecurityProfile(&m, b.Name, "/snaps/foo.mvo/1.0/")
 	c.Assert(err, IsNil)
 	c.Check(ap, Equals, "foo_bin-app_1.0")
@@ -1035,7 +1036,7 @@ version: 123456789
 }
 
 func (a *SecurityTestSuite) TestFindSkillForAppEmpty(c *C) {
-	app := &AppYaml{}
+	app := &app.Yaml{}
 	m := &snapYaml{}
 	skill, err := findSkillForApp(m, app)
 	c.Check(err, IsNil)
@@ -1043,7 +1044,7 @@ func (a *SecurityTestSuite) TestFindSkillForAppEmpty(c *C) {
 }
 
 func (a *SecurityTestSuite) TestFindSkillForAppTooMany(c *C) {
-	app := &AppYaml{
+	app := &app.Yaml{
 		UsesRef: []string{"one", "two"},
 	}
 	m := &snapYaml{}
@@ -1053,7 +1054,7 @@ func (a *SecurityTestSuite) TestFindSkillForAppTooMany(c *C) {
 }
 
 func (a *SecurityTestSuite) TestFindSkillForAppNotFound(c *C) {
-	app := &AppYaml{
+	app := &app.Yaml{
 		UsesRef: []string{"not-there"},
 	}
 	m := &snapYaml{}
@@ -1063,7 +1064,7 @@ func (a *SecurityTestSuite) TestFindSkillForAppNotFound(c *C) {
 }
 
 func (a *SecurityTestSuite) TestFindSkillFinds(c *C) {
-	app := &AppYaml{
+	app := &app.Yaml{
 		UsesRef: []string{"skill"},
 	}
 	m := &snapYaml{

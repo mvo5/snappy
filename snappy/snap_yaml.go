@@ -36,6 +36,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/snap/squashfs"
 	"github.com/ubuntu-core/snappy/systemd"
 	"github.com/ubuntu-core/snappy/timeout"
@@ -52,39 +53,6 @@ type Port struct {
 type Ports struct {
 	Internal map[string]Port `yaml:"internal,omitempty" json:"internal,omitempty"`
 	External map[string]Port `yaml:"external,omitempty" json:"external,omitempty"`
-}
-
-// AppYaml represents an application (binary or service)
-type AppYaml struct {
-	// name is partent key
-	Name string
-	// part of the yaml
-	Version string `yaml:"version"`
-	Command string `yaml:"command"`
-	Daemon  string `yaml:"daemon"`
-
-	Description string          `yaml:"description,omitempty" json:"description,omitempty"`
-	Stop        string          `yaml:"stop,omitempty"`
-	PostStop    string          `yaml:"poststop,omitempty"`
-	StopTimeout timeout.Timeout `yaml:"stop-timeout,omitempty"`
-	BusName     string          `yaml:"bus-name,omitempty"`
-	Forking     bool            `yaml:"forking,omitempty"`
-
-	// set to yes if we need to create a systemd socket for this service
-	Socket       bool   `yaml:"socket,omitempty" json:"socket,omitempty"`
-	ListenStream string `yaml:"listen-stream,omitempty" json:"listen-stream,omitempty"`
-	SocketMode   string `yaml:"socket-mode,omitempty" json:"socket-mode,omitempty"`
-	SocketUser   string `yaml:"socket-user,omitempty" json:"socket-user,omitempty"`
-	SocketGroup  string `yaml:"socket-group,omitempty" json:"socket-group,omitempty"`
-
-	// systemd "restart" thing
-	RestartCond systemd.RestartCondition `yaml:"restart-condition,omitempty" json:"restart-condition,omitempty"`
-
-	// must be a pointer so that it can be "nil" and omitempty works
-	Ports *Ports `yaml:"ports,omitempty" json:"ports,omitempty"`
-
-	OffersRef []string `yaml:"offers"`
-	UsesRef   []string `yaml:"uses"`
 }
 
 type usesYaml struct {
@@ -110,7 +78,7 @@ type snapYaml struct {
 	Frameworks []string `yaml:"frameworks,omitempty"`
 
 	// Apps can be both binary or service
-	Apps map[string]*AppYaml `yaml:"apps,omitempty"`
+	Apps map[string]*app.Yaml `yaml:"apps,omitempty"`
 
 	// Uses maps the used "skills" to the apps
 	Uses map[string]*usesYaml `yaml:"uses,omitempty"`

@@ -34,6 +34,7 @@ import (
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/snap/remote"
 	"github.com/ubuntu-core/snappy/snap/squashfs"
 )
@@ -218,7 +219,7 @@ func (s *SnapPart) Date() time.Time {
 }
 
 // Apps return a list of AppsYamls the package declares
-func (s *SnapPart) Apps() map[string]*AppYaml {
+func (s *SnapPart) Apps() map[string]*app.Yaml {
 	return s.m.Apps
 }
 

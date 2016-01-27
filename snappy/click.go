@@ -37,6 +37,7 @@ import (
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -48,7 +49,7 @@ var killWait = 5 * time.Second
 var servicesBinariesStringsWhitelist = regexp.MustCompile(`^[A-Za-z0-9/. _#:-]*$`)
 
 // generate the name
-func generateBinaryName(m *snap.Info, app *AppYaml) string {
+func generateBinaryName(m *snap.Info, app *app.Yaml) string {
 	var binName string
 	if m.Type == snap.TypeFramework {
 		binName = filepath.Base(app.Name)
@@ -59,11 +60,11 @@ func generateBinaryName(m *snap.Info, app *AppYaml) string {
 	return filepath.Join(dirs.SnapBinariesDir, binName)
 }
 
-func binPathForBinary(pkgPath string, app *AppYaml) string {
+func binPathForBinary(pkgPath string, app *app.Yaml) string {
 	return filepath.Join(pkgPath, app.Command)
 }
 
-func verifyAppYaml(app *AppYaml) error {
+func verifyAppYaml(app *app.Yaml) error {
 	return verifyStructStringsAgainstWhitelist(*app, servicesBinariesStringsWhitelist)
 }
 
@@ -85,7 +86,7 @@ func quoteEnvVar(envVar string) string {
 	return "export " + strings.Replace(envVar, "=", "=\"", 1) + "\""
 }
 
-func generateSnapBinaryWrapper(app *AppYaml, pkgPath, aaProfile string, m *snap.Info) (string, error) {
+func generateSnapBinaryWrapper(app *app.Yaml, pkgPath, aaProfile string, m *snap.Info) (string, error) {
 	wrapperTemplate := `#!/bin/sh
 set -e
 
@@ -203,7 +204,7 @@ func verifyStructStringsAgainstWhitelist(s interface{}, whitelist *regexp.Regexp
 	return nil
 }
 
-func generateSnapServicesFile(app *AppYaml, baseDir string, aaProfile string, m *snap.Info) (string, error) {
+func generateSnapServicesFile(app *app.Yaml, baseDir string, aaProfile string, m *snap.Info) (string, error) {
 	if err := verifyAppYaml(app); err != nil {
 		return "", err
 	}
@@ -242,7 +243,7 @@ func generateSnapServicesFile(app *AppYaml, baseDir string, aaProfile string, m 
 			Restart:        app.RestartCond,
 		}), nil
 }
-func generateSnapSocketFile(app *AppYaml, baseDir string, aaProfile string, m *snap.Info) (string, error) {
+func generateSnapSocketFile(app *app.Yaml, baseDir string, aaProfile string, m *snap.Info) (string, error) {
 	if err := verifyAppYaml(app); err != nil {
 		return "", err
 	}
@@ -265,15 +266,15 @@ func generateSnapSocketFile(app *AppYaml, baseDir string, aaProfile string, m *s
 		}), nil
 }
 
-func generateServiceFileName(m *snap.Info, app *AppYaml) string {
+func generateServiceFileName(m *snap.Info, app *app.Yaml) string {
 	return filepath.Join(dirs.SnapServicesDir, fmt.Sprintf("%s_%s_%s.service", m.Name, app.Name, m.Version))
 }
 
-func generateSocketFileName(m *snap.Info, app *AppYaml) string {
+func generateSocketFileName(m *snap.Info, app *app.Yaml) string {
 	return filepath.Join(dirs.SnapServicesDir, fmt.Sprintf("%s_%s_%s.socket", m.Name, app.Name, m.Version))
 }
 
-func generateBusPolicyFileName(m *snap.Info, app *AppYaml) string {
+func generateBusPolicyFileName(m *snap.Info, app *app.Yaml) string {
 	return filepath.Join(dirs.SnapBusPolicyDir, fmt.Sprintf("%s_%s_%s.conf", m.Name, app.Name, m.Version))
 }
 
@@ -290,7 +291,7 @@ func stripGlobalRootDirImpl(dir string) string {
 	return dir[len(dirs.GlobalRootDir):]
 }
 
-func addPackageServices(m *snap.Info, apps map[string]*AppYaml, baseDir string, inhibitHooks bool, inter interacter) error {
+func addPackageServices(m *snap.Info, apps map[string]*app.Yaml, baseDir string, inhibitHooks bool, inter interacter) error {
 	for _, app := range apps {
 		if app.Daemon == "" {
 			continue
@@ -381,7 +382,7 @@ func addPackageServices(m *snap.Info, apps map[string]*AppYaml, baseDir string, 
 	return nil
 }
 
-func removePackageServices(m *snap.Info, apps map[string]*AppYaml, baseDir string, inter interacter) error {
+func removePackageServices(m *snap.Info, apps map[string]*app.Yaml, baseDir string, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
 	for _, app := range apps {
 		if app.Daemon == "" {
@@ -428,7 +429,7 @@ func removePackageServices(m *snap.Info, apps map[string]*AppYaml, baseDir strin
 	return nil
 }
 
-func addPackageBinaries(m *snap.Info, apps map[string]*AppYaml, baseDir string) error {
+func addPackageBinaries(m *snap.Info, apps map[string]*app.Yaml, baseDir string) error {
 	if err := os.MkdirAll(dirs.SnapBinariesDir, 0755); err != nil {
 		return err
 	}
@@ -460,7 +461,7 @@ func addPackageBinaries(m *snap.Info, apps map[string]*AppYaml, baseDir string) 
 	return nil
 }
 
-func removePackageBinaries(m *snap.Info, apps map[string]*AppYaml, baseDir string) error {
+func removePackageBinaries(m *snap.Info, apps map[string]*app.Yaml, baseDir string) error {
 	for _, app := range apps {
 		os.Remove(generateBinaryName(m, app))
 	}

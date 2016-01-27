@@ -41,6 +41,7 @@ import (
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/release"
+	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/snap/lightweight"
 	"github.com/ubuntu-core/snappy/snappy"
 )
@@ -342,7 +343,7 @@ var findServices = snappy.FindServices
 
 type appDesc struct {
 	Op     string                       `json:"op"`
-	Spec   *snappy.AppYaml              `json:"spec"`
+	Spec   *app.Yaml                    `json:"spec"`
 	Status *snappy.PackageServiceStatus `json:"status"`
 }
 

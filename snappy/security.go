@@ -37,6 +37,7 @@ import (
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 )
 
 type errPolicyNotFound struct {
@@ -575,7 +576,7 @@ func removeOneSecurityPolicy(m *snap.Info, name, baseDir string) error {
 	return nil
 }
 
-func removePolicy(m *snap.Info, apps map[string]*AppYaml, baseDir string) error {
+func removePolicy(m *snap.Info, apps map[string]*app.Yaml, baseDir string) error {
 	for _, app := range apps {
 		if err := removeOneSecurityPolicy(m, app.Name, baseDir); err != nil {
 			return err
@@ -719,7 +720,7 @@ func hasConfig(baseDir string) bool {
 	return helpers.FileExists(filepath.Join(baseDir, "meta", "hooks", "config"))
 }
 
-func findSkillForApp(m *snapYaml, app *AppYaml) (*usesYaml, error) {
+func findSkillForApp(m *snapYaml, app *app.Yaml) (*usesYaml, error) {
 	if len(app.UsesRef) == 0 {
 		return nil, nil
 	}

@@ -36,6 +36,7 @@ import (
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
 	"github.com/ubuntu-core/snappy/snap"
+	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/systemd"
 
 	. "gopkg.in/check.v1"
@@ -1254,14 +1255,14 @@ func (s *SnapTestSuite) TestNeedsAppArmorUpdatePolicyAbsent(c *C) {
 
 func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateService(c *C) {
 	// if one of the services needs updating, it's updated and returned
-	svc := &AppYaml{
+	svc := &app.Yaml{
 		Name:    "svc",
 		UsesRef: []string{"svc"},
 	}
 	part := &SnapPart{
 		m: &snapYaml{
 			Name:    "part",
-			Apps:    map[string]*AppYaml{"svc": svc},
+			Apps:    map[string]*app.Yaml{"svc": svc},
 			Version: "42",
 			Uses: map[string]*usesYaml{
 				"svc": &usesYaml{
@@ -1278,14 +1279,14 @@ func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateService(c *C) {
 
 func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateBinary(c *C) {
 	// if one of the binaries needs updating, the part needs updating
-	bin := &AppYaml{
+	bin := &app.Yaml{
 		Name:    "echo",
 		UsesRef: []string{"echo"},
 	}
 	part := &SnapPart{
 		m: &snapYaml{
 			Name:    "part",
-			Apps:    map[string]*AppYaml{"echo": bin},
+			Apps:    map[string]*app.Yaml{"echo": bin},
 			Version: "42",
 			Uses: map[string]*usesYaml{
 				"echo": &usesYaml{
@@ -1301,17 +1302,17 @@ func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateBinary(c *C) {
 }
 
 func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateNothing(c *C) {
-	svc := &AppYaml{
+	svc := &app.Yaml{
 		Name:    "svc",
 		UsesRef: []string{"svc"},
 	}
-	bin := &AppYaml{
+	bin := &app.Yaml{
 		Name:    "echo",
 		UsesRef: []string{"echo"},
 	}
 	part := &SnapPart{
 		m: &snapYaml{
-			Apps: map[string]*AppYaml{
+			Apps: map[string]*app.Yaml{
 				"svc":  svc,
 				"echo": bin,
 			},
