@@ -35,6 +35,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/security"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/snap/squashfs"
@@ -56,8 +57,8 @@ type Ports struct {
 }
 
 type usesYaml struct {
-	Type                string `yaml:"type"`
-	SecurityDefinitions `yaml:",inline"`
+	Type                 string `yaml:"type"`
+	security.Definitions `yaml:",inline"`
 }
 
 var commasplitter = regexp.MustCompile(`\s*,\s*`).Split

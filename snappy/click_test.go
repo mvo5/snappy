@@ -1003,12 +1003,12 @@ func (s *SnapTestSuite) TestBinariesWhitelistSimple(c *C) {
 func (s *SnapTestSuite) TestUsesWhitelistSimple(c *C) {
 	c.Check(verifyUsesYaml(&usesYaml{
 		Type: "migration-skill",
-		SecurityDefinitions: SecurityDefinitions{
+		Definitions: security.Definitions{
 			SecurityTemplate: "foo"},
 	}), IsNil)
 	c.Check(verifyUsesYaml(&usesYaml{
 		Type: "migration-skill",
-		SecurityDefinitions: SecurityDefinitions{
+		Definitions: security.Definitions{
 			SecurityPolicy: &security.PolicyDefinition{
 				AppArmor: "foo"},
 		},
@@ -1030,12 +1030,12 @@ func (s *SnapTestSuite) TestWrongType(c *C) {
 func (s *SnapTestSuite) TestUsesWhitelistIllegal(c *C) {
 	c.Check(verifyUsesYaml(&usesYaml{
 		Type: "migration-skill",
-		SecurityDefinitions: SecurityDefinitions{
+		Definitions: security.Definitions{
 			SecurityTemplate: "x\n"},
 	}), ErrorMatches, ".*contains illegal.*")
 	c.Check(verifyUsesYaml(&usesYaml{
 		Type: "migration-skill",
-		SecurityDefinitions: SecurityDefinitions{
+		Definitions: security.Definitions{
 			SecurityPolicy: &security.PolicyDefinition{
 				AppArmor: "x\n"},
 		},

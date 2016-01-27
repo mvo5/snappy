@@ -1220,37 +1220,37 @@ frameworks:
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateSecurityPolicy(c *C) {
 	// if a security policy is defined, never flag for update
-	sd := &SecurityDefinitions{SecurityPolicy: &security.PolicyDefinition{}}
+	sd := &security.Definitions{SecurityPolicy: &security.PolicyDefinition{}}
 	c.Check(sd.NeedsAppArmorUpdate(nil, nil), Equals, false)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateSecurityOverride(c *C) {
 	// if a security override is defined, always flag for update
-	sd := &SecurityDefinitions{SecurityOverride: &security.OverrideDefinition{}}
+	sd := &security.Definitions{SecurityOverride: &security.OverrideDefinition{}}
 	c.Check(sd.NeedsAppArmorUpdate(nil, nil), Equals, true)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateTemplatePresent(c *C) {
 	// if the template is in the map, it needs updating
-	sd := &SecurityDefinitions{SecurityTemplate: "foo_bar"}
+	sd := &security.Definitions{SecurityTemplate: "foo_bar"}
 	c.Check(sd.NeedsAppArmorUpdate(nil, map[string]bool{"foo_bar": true}), Equals, true)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateTemplateAbsent(c *C) {
 	// if the template is not in the map, it does not
-	sd := &SecurityDefinitions{SecurityTemplate: "foo_bar"}
+	sd := &security.Definitions{SecurityTemplate: "foo_bar"}
 	c.Check(sd.NeedsAppArmorUpdate(nil, nil), Equals, false)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdatePolicyPresent(c *C) {
 	// if the cap is in the map, it needs updating
-	sd := &SecurityDefinitions{SecurityCaps: []string{"foo_bar"}}
+	sd := &security.Definitions{SecurityCaps: []string{"foo_bar"}}
 	c.Check(sd.NeedsAppArmorUpdate(map[string]bool{"foo_bar": true}, nil), Equals, true)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdatePolicyAbsent(c *C) {
 	// if the cap is not in the map, it does not
-	sd := &SecurityDefinitions{SecurityCaps: []string{"foo_quux"}}
+	sd := &security.Definitions{SecurityCaps: []string{"foo_quux"}}
 	c.Check(sd.NeedsAppArmorUpdate(map[string]bool{"foo_bar": true}, nil), Equals, false)
 }
 
@@ -1267,7 +1267,7 @@ func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateService(c *C) {
 			Version: "42",
 			Uses: map[string]*usesYaml{
 				"svc": &usesYaml{
-					SecurityDefinitions: SecurityDefinitions{SecurityTemplate: "foo"},
+					Definitions: security.Definitions{SecurityTemplate: "foo"},
 				},
 			},
 		},
@@ -1291,7 +1291,7 @@ func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateBinary(c *C) {
 			Version: "42",
 			Uses: map[string]*usesYaml{
 				"echo": &usesYaml{
-					SecurityDefinitions: SecurityDefinitions{SecurityTemplate: "foo"},
+					Definitions: security.Definitions{SecurityTemplate: "foo"},
 				},
 			},
 		},
@@ -1320,10 +1320,10 @@ func (s *SnapTestSuite) TestRequestSecurityPolicyUpdateNothing(c *C) {
 			Version: "42",
 			Uses: map[string]*usesYaml{
 				"svc": &usesYaml{
-					SecurityDefinitions: SecurityDefinitions{SecurityTemplate: "foo"},
+					Definitions: security.Definitions{SecurityTemplate: "foo"},
 				},
 				"echo": &usesYaml{
-					SecurityDefinitions: SecurityDefinitions{SecurityTemplate: "foo"},
+					Definitions: security.Definitions{SecurityTemplate: "foo"},
 				},
 			},
 		},

@@ -523,7 +523,7 @@ func (s *SnapPart) RequestSecurityPolicyUpdate(policies, templates map[string]bo
 		}
 
 		if skill.NeedsAppArmorUpdate(policies, templates) {
-			err := skill.generatePolicyForServiceBinary(s.m.info(), name, s.basedir)
+			err := generatePolicyForServiceBinary(&skill.Definitions, s.m.info(), name, s.basedir)
 			if err != nil {
 				logger.Noticef("Failed to regenerate policy for %s: %v", name, err)
 				foundError = err

@@ -447,36 +447,36 @@ func (a *SecurityTestSuite) TestSecurityGetSeccompCustomPolicy(c *C) {
 }
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesNilDoesNotCrash(c *C) {
-	sd := &SecurityDefinitions{}
-	sd.mergeAppArmorSecurityOverrides(nil)
-	c.Assert(sd, DeepEquals, &SecurityDefinitions{})
+	sd := &security.Definitions{}
+	sd.MergeAppArmorSecurityOverrides(nil)
+	c.Assert(sd, DeepEquals, &security.Definitions{})
 }
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesTrivial(c *C) {
-	sd := &SecurityDefinitions{}
+	sd := &security.Definitions{}
 	hwaccessOverrides := &security.OverrideDefinition{}
-	sd.mergeAppArmorSecurityOverrides(hwaccessOverrides)
+	sd.MergeAppArmorSecurityOverrides(hwaccessOverrides)
 
-	c.Assert(sd, DeepEquals, &SecurityDefinitions{
+	c.Assert(sd, DeepEquals, &security.Definitions{
 		SecurityOverride: hwaccessOverrides,
 	})
 }
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesOverrides(c *C) {
-	sd := &SecurityDefinitions{}
+	sd := &security.Definitions{}
 	hwaccessOverrides := &security.OverrideDefinition{
 		ReadPaths:  []string{"read1"},
 		WritePaths: []string{"write1"},
 	}
-	sd.mergeAppArmorSecurityOverrides(hwaccessOverrides)
+	sd.MergeAppArmorSecurityOverrides(hwaccessOverrides)
 
-	c.Assert(sd, DeepEquals, &SecurityDefinitions{
+	c.Assert(sd, DeepEquals, &security.Definitions{
 		SecurityOverride: hwaccessOverrides,
 	})
 }
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesMerges(c *C) {
-	sd := &SecurityDefinitions{
+	sd := &security.Definitions{
 		SecurityOverride: &security.OverrideDefinition{
 			ReadPaths: []string{"orig1"},
 		},
@@ -485,9 +485,9 @@ func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesMerges(c *
 		ReadPaths:  []string{"read1"},
 		WritePaths: []string{"write1"},
 	}
-	sd.mergeAppArmorSecurityOverrides(hwaccessOverrides)
+	sd.MergeAppArmorSecurityOverrides(hwaccessOverrides)
 
-	c.Assert(sd, DeepEquals, &SecurityDefinitions{
+	c.Assert(sd, DeepEquals, &security.Definitions{
 		SecurityOverride: &security.OverrideDefinition{
 			ReadPaths:  []string{"orig1", "read1"},
 			WritePaths: []string{"write1"},
@@ -507,14 +507,14 @@ sc-network-client
 `))
 
 	// empty SecurityDefinition means "network-client" cap
-	sd := &SecurityDefinitions{}
+	sd := &security.Definitions{}
 	m := &snap.Info{
 		Name:    "pkg",
 		Version: "1.0",
 	}
 
 	// generate the apparmor profile
-	err := sd.generatePolicyForServiceBinary(m, "binary", "/snaps/app.origin/1.0")
+	err := generatePolicyForServiceBinary(sd, m, "binary", "/snaps/app.origin/1.0")
 	c.Assert(err, IsNil)
 
 	// ensure the apparmor policy got loaded
@@ -906,7 +906,7 @@ func (a *SecurityTestSuite) TestSecurityCompareGeneratePolicyFromFileSideload(c 
 func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryFramework(c *C) {
 	makeMockSecurityEnv(c)
 
-	sd := &SecurityDefinitions{}
+	sd := &security.Definitions{}
 	m := &snap.Info{
 		Name:    "framework-name",
 		Type:    "framework",
@@ -914,7 +914,7 @@ func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryFramework(
 	}
 
 	// generate the apparmor profile
-	err := sd.generatePolicyForServiceBinary(m, "binary", "/snaps/framework-anem/1.0")
+	err := generatePolicyForServiceBinary(sd, m, "binary", "/snaps/framework-anem/1.0")
 	c.Assert(err, IsNil)
 
 	// ensure its available with the right names
@@ -928,14 +928,14 @@ func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryFramework(
 func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryErrors(c *C) {
 	makeMockSecurityEnv(c)
 
-	sd := &SecurityDefinitions{}
+	sd := &security.Definitions{}
 	m := &snap.Info{
 		Name:    "app",
 		Version: "1.0",
 	}
 
 	// ensure invalid packages generate an error
-	err := sd.generatePolicyForServiceBinary(m, "binary", "/snaps/app-no-origin/1.0")
+	err := generatePolicyForServiceBinary(sd, m, "binary", "/snaps/app-no-origin/1.0")
 	c.Assert(err, ErrorMatches, "can not get origin from path.*")
 }
 

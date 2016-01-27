@@ -48,7 +48,7 @@ var (
 
 	// snappyConfig is the default securityDefinition for a snappy
 	// config fragment
-	snappyConfig = &SecurityDefinitions{
+	snappyConfig = &security.Definitions{
 		SecurityCaps: []string{},
 	}
 
@@ -58,44 +58,6 @@ var (
 func runAppArmorParserImpl(argv ...string) ([]byte, error) {
 	cmd := exec.Command(argv[0], argv[1:]...)
 	return cmd.CombinedOutput()
-}
-
-// SecurityDefinitions contains the common apparmor/seccomp definitions
-type SecurityDefinitions struct {
-	// SecurityTemplate is a template name like "default"
-	SecurityTemplate string `yaml:"security-template,omitempty" json:"security-template,omitempty"`
-	// SecurityOverride is a override for the high level security json
-	SecurityOverride *security.OverrideDefinition `yaml:"security-override,omitempty" json:"security-override,omitempty"`
-	// SecurityPolicy is a hand-crafted low-level policy
-	SecurityPolicy *security.PolicyDefinition `yaml:"security-policy,omitempty" json:"security-policy,omitempty"`
-
-	// SecurityCaps is are the apparmor/seccomp capabilities for an app
-	SecurityCaps []string `yaml:"caps,omitempty" json:"caps,omitempty"`
-}
-
-// NeedsAppArmorUpdate checks whether the security definitions are impacted by
-// changes to policies or templates.
-func (sd *SecurityDefinitions) NeedsAppArmorUpdate(policies, templates map[string]bool) bool {
-	if sd.SecurityPolicy != nil {
-		return false
-	}
-
-	if sd.SecurityOverride != nil {
-		// XXX: actually inspect the override to figure out in more detail
-		return true
-	}
-
-	if templates[sd.SecurityTemplate] {
-		return true
-	}
-
-	for _, cap := range sd.SecurityCaps {
-		if policies[cap] {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Calculate whitespace prefix based on occurrence of s in t
@@ -333,121 +295,6 @@ func removePolicy(m *snap.Info, apps map[string]*app.Yaml, baseDir string) error
 	return nil
 }
 
-func (sd *SecurityDefinitions) mergeAppArmorSecurityOverrides(new *security.OverrideDefinition) {
-	// nothing to do
-	if new == nil {
-		return
-	}
-
-	// ensure we have valid structs to work with
-	if sd.SecurityOverride == nil {
-		sd.SecurityOverride = &security.OverrideDefinition{}
-	}
-
-	sd.SecurityOverride.ReadPaths = append(sd.SecurityOverride.ReadPaths, new.ReadPaths...)
-	sd.SecurityOverride.WritePaths = append(sd.SecurityOverride.WritePaths, new.WritePaths...)
-	sd.SecurityOverride.Abstractions = append(sd.SecurityOverride.Abstractions, new.Abstractions...)
-}
-
-func (sd *SecurityDefinitions) warnDeprecatedKeys() {
-	if sd.SecurityOverride != nil && sd.SecurityOverride.DeprecatedAppArmor != nil {
-		logger.Noticef("The security-override.apparmor key is no longer supported, please use use security-override directly")
-	}
-	if sd.SecurityOverride != nil && sd.SecurityOverride.DeprecatedSeccomp != nil {
-		logger.Noticef("The security-override.seccomp key is no longer supported, please use use security-override directly")
-	}
-}
-
-func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *snap.Info, name string, baseDir string) (*security.PolicyResult, error) {
-	res := &security.PolicyResult{}
-	appID, err := security.Profile(m, name, baseDir)
-	if err != nil {
-		logger.Noticef("Failed to obtain security profile for %s: %v", name, err)
-		return nil, err
-	}
-
-	res.ID, err = security.NewAppID(appID)
-	if err != nil {
-		logger.Noticef("Failed to obtain APP_ID for %s: %v", name, err)
-		return nil, err
-	}
-
-	// warn about deprecated
-	sd.warnDeprecatedKeys()
-
-	// add the hw-override parts and merge with the other overrides
-	origin := ""
-	if m.Type != snap.TypeFramework && m.Type != snap.TypeGadget {
-		origin, err = originFromYamlPath(filepath.Join(baseDir, "meta", "snap.yaml"))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	hwaccessOverrides, err := readHWAccessYamlFile(qualifiedName(m, origin))
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	sd.mergeAppArmorSecurityOverrides(&hwaccessOverrides)
-	if sd.SecurityPolicy != nil {
-		res.AaPolicy, err = getAppArmorCustomPolicy(m, res.ID, filepath.Join(baseDir, sd.SecurityPolicy.AppArmor), sd.SecurityOverride)
-		if err != nil {
-			logger.Noticef("Failed to generate custom AppArmor policy for %s: %v", name, err)
-			return nil, err
-		}
-		res.ScPolicy, err = getSeccompCustomPolicy(m, res.ID, filepath.Join(baseDir, sd.SecurityPolicy.Seccomp))
-		if err != nil {
-			logger.Noticef("Failed to generate custom seccomp policy for %s: %v", name, err)
-			return nil, err
-		}
-	} else {
-		res.AaPolicy, err = getAppArmorTemplatedPolicy(m, res.ID, sd.SecurityTemplate, sd.SecurityCaps, sd.SecurityOverride)
-		if err != nil {
-			logger.Noticef("Failed to generate AppArmor policy for %s: %v", name, err)
-			return nil, err
-		}
-
-		res.ScPolicy, err = getSeccompTemplatedPolicy(m, res.ID, sd.SecurityTemplate, sd.SecurityCaps, sd.SecurityOverride)
-		if err != nil {
-			logger.Noticef("Failed to generate seccomp policy for %s: %v", name, err)
-			return nil, err
-		}
-	}
-	res.ScFn = filepath.Join(dirs.SnapSeccompDir, res.ID.AppID)
-	res.AaFn = filepath.Join(dirs.SnapAppArmorDir, res.ID.AppID)
-
-	return res, nil
-}
-
-func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *snap.Info, name string, baseDir string) error {
-	p, err := sd.generatePolicyForServiceBinaryResult(m, name, baseDir)
-	if err != nil {
-		return err
-	}
-
-	os.MkdirAll(filepath.Dir(p.ScFn), 0755)
-	err = helpers.AtomicWriteFile(p.ScFn, []byte(p.ScPolicy), 0644, 0)
-	if err != nil {
-		logger.Noticef("Failed to write seccomp policy for %s: %v", name, err)
-		return err
-	}
-
-	os.MkdirAll(filepath.Dir(p.AaFn), 0755)
-	err = helpers.AtomicWriteFile(p.AaFn, []byte(p.AaPolicy), 0644, 0)
-	if err != nil {
-		logger.Noticef("Failed to write AppArmor policy for %s: %v", name, err)
-		return err
-	}
-	out, err := loadAppArmorPolicy(p.AaFn)
-	if err != nil {
-		logger.Noticef("Failed to load AppArmor policy for %s: %v\n:%s", name, err, out)
-		return err
-	}
-
-	return nil
-}
-
 // FIXME: move into something more generic - SnapPart.HasConfig?
 func hasConfig(baseDir string) bool {
 	return helpers.FileExists(filepath.Join(baseDir, "meta", "hooks", "config"))
@@ -473,7 +320,7 @@ func generatePolicy(m *snapYaml, baseDir string) error {
 
 	// generate default security config for snappy-config
 	if hasConfig(baseDir) {
-		if err := snappyConfig.generatePolicyForServiceBinary(m.info(), "snappy-config", baseDir); err != nil {
+		if err := generatePolicyForServiceBinary(snappyConfig, m.info(), "snappy-config", baseDir); err != nil {
 			foundError = err
 			logger.Noticef("Failed to obtain APP_ID for %s: %v", "snappy-config", err)
 		}
@@ -488,7 +335,7 @@ func generatePolicy(m *snapYaml, baseDir string) error {
 			continue
 		}
 
-		err = skill.generatePolicyForServiceBinary(m.info(), app.Name, baseDir)
+		err = generatePolicyForServiceBinary(&skill.Definitions, m.info(), app.Name, baseDir)
 		if err != nil {
 			foundError = err
 			logger.Noticef("Failed to generate policy for service %s: %v", app.Name, err)
@@ -586,7 +433,7 @@ func CompareGeneratePolicyFromFile(fn string) error {
 			continue
 		}
 
-		p, err := skill.generatePolicyForServiceBinaryResult(m.info(), app.Name, baseDir)
+		p, err := generatePolicyForServiceBinaryResult(&skill.Definitions, m.info(), app.Name, baseDir)
 		// FIXME: use apparmor_profile -p on both AppArmor profiles
 		if err != nil {
 			// FIXME: what to do here?
@@ -599,7 +446,7 @@ func CompareGeneratePolicyFromFile(fn string) error {
 
 	// now compare the snappy-config profile
 	if hasConfig(baseDir) {
-		p, err := snappyConfig.generatePolicyForServiceBinaryResult(m.info(), "snappy-config", baseDir)
+		p, err := generatePolicyForServiceBinaryResult(snappyConfig, m.info(), "snappy-config", baseDir)
 		if err != nil {
 			return nil
 		}
@@ -687,4 +534,94 @@ func RegenerateAllPolicy(force bool) error {
 	}
 
 	return nil
+}
+
+func generatePolicyForServiceBinary(sd *security.Definitions, m *snap.Info, name string, baseDir string) error {
+	p, err := generatePolicyForServiceBinaryResult(sd, m, name, baseDir)
+	if err != nil {
+		return err
+	}
+
+	os.MkdirAll(filepath.Dir(p.ScFn), 0755)
+	err = helpers.AtomicWriteFile(p.ScFn, []byte(p.ScPolicy), 0644, 0)
+	if err != nil {
+		logger.Noticef("Failed to write seccomp policy for %s: %v", name, err)
+		return err
+	}
+
+	os.MkdirAll(filepath.Dir(p.AaFn), 0755)
+	err = helpers.AtomicWriteFile(p.AaFn, []byte(p.AaPolicy), 0644, 0)
+	if err != nil {
+		logger.Noticef("Failed to write AppArmor policy for %s: %v", name, err)
+		return err
+	}
+	out, err := loadAppArmorPolicy(p.AaFn)
+	if err != nil {
+		logger.Noticef("Failed to load AppArmor policy for %s: %v\n:%s", name, err, out)
+		return err
+	}
+
+	return nil
+}
+
+func generatePolicyForServiceBinaryResult(sd *security.Definitions, m *snap.Info, name string, baseDir string) (*security.PolicyResult, error) {
+	res := &security.PolicyResult{}
+	appID, err := security.Profile(m, name, baseDir)
+	if err != nil {
+		logger.Noticef("Failed to obtain security profile for %s: %v", name, err)
+		return nil, err
+	}
+
+	res.ID, err = security.NewAppID(appID)
+	if err != nil {
+		logger.Noticef("Failed to obtain APP_ID for %s: %v", name, err)
+		return nil, err
+	}
+
+	// warn about deprecated
+	sd.WarnDeprecatedKeys()
+
+	// add the hw-override parts and merge with the other overrides
+	origin := ""
+	if m.Type != snap.TypeFramework && m.Type != snap.TypeGadget {
+		origin, err = originFromYamlPath(filepath.Join(baseDir, "meta", "snap.yaml"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	hwaccessOverrides, err := readHWAccessYamlFile(qualifiedName(m, origin))
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	sd.MergeAppArmorSecurityOverrides(&hwaccessOverrides)
+	if sd.SecurityPolicy != nil {
+		res.AaPolicy, err = getAppArmorCustomPolicy(m, res.ID, filepath.Join(baseDir, sd.SecurityPolicy.AppArmor), sd.SecurityOverride)
+		if err != nil {
+			logger.Noticef("Failed to generate custom AppArmor policy for %s: %v", name, err)
+			return nil, err
+		}
+		res.ScPolicy, err = getSeccompCustomPolicy(m, res.ID, filepath.Join(baseDir, sd.SecurityPolicy.Seccomp))
+		if err != nil {
+			logger.Noticef("Failed to generate custom seccomp policy for %s: %v", name, err)
+			return nil, err
+		}
+	} else {
+		res.AaPolicy, err = getAppArmorTemplatedPolicy(m, res.ID, sd.SecurityTemplate, sd.SecurityCaps, sd.SecurityOverride)
+		if err != nil {
+			logger.Noticef("Failed to generate AppArmor policy for %s: %v", name, err)
+			return nil, err
+		}
+
+		res.ScPolicy, err = getSeccompTemplatedPolicy(m, res.ID, sd.SecurityTemplate, sd.SecurityCaps, sd.SecurityOverride)
+		if err != nil {
+			logger.Noticef("Failed to generate seccomp policy for %s: %v", name, err)
+			return nil, err
+		}
+	}
+	res.ScFn = filepath.Join(dirs.SnapSeccompDir, res.ID.AppID)
+	res.AaFn = filepath.Join(dirs.SnapAppArmorDir, res.ID.AppID)
+
+	return res, nil
 }
