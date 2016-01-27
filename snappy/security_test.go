@@ -122,7 +122,7 @@ func makeMockSeccompCap(c *C, capname string, content []byte) {
 }
 
 func (a *SecurityTestSuite) TestSnappyGetSecurityProfile(c *C) {
-	m := snapYaml{
+	m := snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 	}
@@ -133,7 +133,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfile(c *C) {
 }
 
 func (a *SecurityTestSuite) TestSnappyGetSecurityProfileInvalid(c *C) {
-	m := snapYaml{
+	m := snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 	}
@@ -143,7 +143,7 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfileInvalid(c *C) {
 }
 
 func (a *SecurityTestSuite) TestSnappyGetSecurityProfileFramework(c *C) {
-	m := snapYaml{
+	m := snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 		Type:    snap.TypeFramework,
@@ -350,7 +350,7 @@ func (a *SecurityTestSuite) TestSecurityGenAppArmorTemplatePolicy(c *C) {
 	makeMockApparmorTemplate(c, "mock-template", mockApparmorTemplate)
 	makeMockApparmorCap(c, "cap1", []byte(`capito`))
 
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 	}
@@ -400,7 +400,7 @@ func (a *SecurityTestSuite) TestSecurityGenSeccompTemplatedPolicy(c *C) {
 	makeMockSeccompTemplate(c, "mock-template", mockSeccompTemplate)
 	makeMockSeccompCap(c, "cap1", []byte("#cap1\ncapino\n"))
 
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 	}
@@ -462,7 +462,7 @@ profile "foo_bar_1.0" (attach_disconnected) {
 `
 
 func (a *SecurityTestSuite) TestSecurityGetApparmorCustomPolicy(c *C) {
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 	}
@@ -482,7 +482,7 @@ func (a *SecurityTestSuite) TestSecurityGetApparmorCustomPolicy(c *C) {
 
 func (a *SecurityTestSuite) TestSecurityGetSeccompCustomPolicy(c *C) {
 	// yes, getSeccompCustomPolicy does not care for snapYaml or appid
-	m := &snapYaml{}
+	m := &snap.Info{}
 	appid := &securityAppID{}
 
 	customPolicy := filepath.Join(c.MkDir(), "foo")
@@ -572,7 +572,7 @@ sc-network-client
 
 	// empty SecurityDefinition means "network-client" cap
 	sd := &SecurityDefinitions{}
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "pkg",
 		Version: "1.0",
 	}
@@ -799,7 +799,7 @@ func makeCustomAppArmorPolicy(c *C) string {
 }
 
 func (a *SecurityTestSuite) TestSecurityGenerateCustomPolicyAdditionalIsConsidered(c *C) {
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "foo",
 		Version: "1.0",
 	}
@@ -971,7 +971,7 @@ func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryFramework(
 	makeMockSecurityEnv(c)
 
 	sd := &SecurityDefinitions{}
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "framework-name",
 		Type:    "framework",
 		Version: "1.0",
@@ -993,7 +993,7 @@ func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryErrors(c *
 	makeMockSecurityEnv(c)
 
 	sd := &SecurityDefinitions{}
-	m := &snapYaml{
+	m := &snap.Info{
 		Name:    "app",
 		Version: "1.0",
 	}

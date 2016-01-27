@@ -27,6 +27,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/progress"
+	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -45,7 +46,7 @@ type ServiceActor interface {
 }
 
 type svcT struct {
-	m   *snapYaml
+	m   *snap.Info
 	svc *AppYaml
 }
 
@@ -92,7 +93,7 @@ func FindServices(snapName string, serviceName string, pb progress.Meter) (Servi
 				continue
 			}
 			s := &svcT{
-				m:   snap.m,
+				m:   snap.m.info(),
 				svc: app,
 			}
 			svcs = append(svcs, s)

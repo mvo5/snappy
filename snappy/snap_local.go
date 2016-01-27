@@ -279,11 +279,11 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 	}
 
 	// add the "binaries:" from the snap.yaml
-	if err := addPackageBinaries(s.m, s.basedir); err != nil {
+	if err := addPackageBinaries(s.m.info(), s.m.Apps, s.basedir); err != nil {
 		return err
 	}
 	// add the "services:" from the snap.yaml
-	if err := addPackageServices(s.m, s.basedir, inhibitHooks, inter); err != nil {
+	if err := addPackageServices(s.m.info(), s.m.Apps, s.basedir, inhibitHooks, inter); err != nil {
 		return err
 	}
 
@@ -331,15 +331,15 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 	}
 
 	// remove generated services, binaries, security policy
-	if err := removePackageBinaries(s.m, s.basedir); err != nil {
+	if err := removePackageBinaries(s.m.info(), s.m.Apps, s.basedir); err != nil {
 		return err
 	}
 
-	if err := removePackageServices(s.m, s.basedir, inter); err != nil {
+	if err := removePackageServices(s.m.info(), s.m.Apps, s.basedir, inter); err != nil {
 		return err
 	}
 
-	if err := removePolicy(s.m, s.basedir); err != nil {
+	if err := removePolicy(s.m.info(), s.m.Apps, s.basedir); err != nil {
 		return err
 	}
 
@@ -522,7 +522,7 @@ func (s *SnapPart) RequestSecurityPolicyUpdate(policies, templates map[string]bo
 		}
 
 		if skill.NeedsAppArmorUpdate(policies, templates) {
-			err := skill.generatePolicyForServiceBinary(s.m, name, s.basedir)
+			err := skill.generatePolicyForServiceBinary(s.m.info(), name, s.basedir)
 			if err != nil {
 				logger.Noticef("Failed to regenerate policy for %s: %v", name, err)
 				foundError = err

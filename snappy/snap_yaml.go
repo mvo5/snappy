@@ -211,7 +211,22 @@ func parseSnapYamlData(yamlData []byte, hasConfig bool) (*snapYaml, error) {
 	return &m, nil
 }
 
+func (m *snapYaml) info() *snap.Info {
+	return &snap.Info{
+		Name:    m.Name,
+		Version: m.Version,
+		Type:    m.Type,
+	}
+}
+
 func (m *snapYaml) qualifiedName(origin string) string {
+	if m.Type == snap.TypeFramework || m.Type == snap.TypeGadget {
+		return m.Name
+	}
+	return m.Name + "." + origin
+}
+
+func qualifiedName(m *snap.Info, origin string) string {
 	if m.Type == snap.TypeFramework || m.Type == snap.TypeGadget {
 		return m.Name
 	}

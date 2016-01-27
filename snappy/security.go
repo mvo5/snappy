@@ -317,7 +317,7 @@ func findWhitespacePrefix(t string, s string) string {
 	return subs[1]
 }
 
-func getSecurityProfile(m *snapYaml, appName, baseDir string) (string, error) {
+func getSecurityProfile(m *snap.Info, appName, baseDir string) (string, error) {
 	cleanedName := strings.Replace(appName, "/", "-", -1)
 	if m.Type == snap.TypeFramework || m.Type == snap.TypeGadget {
 		return fmt.Sprintf("%s_%s_%s", m.Name, cleanedName, m.Version), nil
@@ -445,7 +445,7 @@ func mergeAppArmorTemplateAdditionalContent(appArmorTemplate, aaPolicy string, o
 	return aaPolicy, nil
 }
 
-func getAppArmorTemplatedPolicy(m *snapYaml, appID *securityAppID, template string, caps []string, overrides *SecurityOverrideDefinition) (string, error) {
+func getAppArmorTemplatedPolicy(m *snap.Info, appID *securityAppID, template string, caps []string, overrides *SecurityOverrideDefinition) (string, error) {
 	t, err := securityPolicyTypeAppArmor.findTemplate(template)
 	if err != nil {
 		return "", err
@@ -477,7 +477,7 @@ func getAppArmorTemplatedPolicy(m *snapYaml, appID *securityAppID, template stri
 	return mergeAppArmorTemplateAdditionalContent(t, aaPolicy, overrides)
 }
 
-func getSeccompTemplatedPolicy(m *snapYaml, appID *securityAppID, templateName string, caps []string, overrides *SecurityOverrideDefinition) (string, error) {
+func getSeccompTemplatedPolicy(m *snap.Info, appID *securityAppID, templateName string, caps []string, overrides *SecurityOverrideDefinition) (string, error) {
 	t, err := securityPolicyTypeSeccomp.findTemplate(templateName)
 	if err != nil {
 		return "", err
@@ -503,7 +503,7 @@ func getSeccompTemplatedPolicy(m *snapYaml, appID *securityAppID, templateName s
 
 var finalCurtain = regexp.MustCompile(`}\s*$`)
 
-func getAppArmorCustomPolicy(m *snapYaml, appID *securityAppID, fn string, overrides *SecurityOverrideDefinition) (string, error) {
+func getAppArmorCustomPolicy(m *snap.Info, appID *securityAppID, fn string, overrides *SecurityOverrideDefinition) (string, error) {
 	custom, err := ioutil.ReadFile(fn)
 	if err != nil {
 		return "", err
@@ -524,7 +524,7 @@ func getAppArmorCustomPolicy(m *snapYaml, appID *securityAppID, fn string, overr
 	return mergeAppArmorTemplateAdditionalContent("", aaPolicy, overrides)
 }
 
-func getSeccompCustomPolicy(m *snapYaml, appID *securityAppID, fn string) (string, error) {
+func getSeccompCustomPolicy(m *snap.Info, appID *securityAppID, fn string) (string, error) {
 	custom, err := ioutil.ReadFile(fn)
 	if err != nil {
 		return "", err
@@ -548,7 +548,7 @@ var loadAppArmorPolicy = func(fn string) ([]byte, error) {
 	return content, err
 }
 
-func removeOneSecurityPolicy(m *snapYaml, name, baseDir string) error {
+func removeOneSecurityPolicy(m *snap.Info, name, baseDir string) error {
 	profileName, err := getSecurityProfile(m, filepath.Base(name), baseDir)
 	if err != nil {
 		return err
@@ -575,20 +575,8 @@ func removeOneSecurityPolicy(m *snapYaml, name, baseDir string) error {
 	return nil
 }
 
-func removePolicy(m *snapYaml, baseDir string) error {
-	for _, app := range m.Apps {
-		if app.Daemon == "" {
-			continue
-		}
-		if err := removeOneSecurityPolicy(m, app.Name, baseDir); err != nil {
-			return err
-		}
-	}
-
-	for _, app := range m.Apps {
-		if app.Daemon != "" {
-			continue
-		}
+func removePolicy(m *snap.Info, apps map[string]*AppYaml, baseDir string) error {
+	for _, app := range apps {
 		if err := removeOneSecurityPolicy(m, app.Name, baseDir); err != nil {
 			return err
 		}
@@ -636,7 +624,7 @@ func (sd *SecurityDefinitions) warnDeprecatedKeys() {
 	}
 }
 
-func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *snapYaml, name string, baseDir string) (*securityPolicyResult, error) {
+func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *snap.Info, name string, baseDir string) (*securityPolicyResult, error) {
 	res := &securityPolicyResult{}
 	appID, err := getSecurityProfile(m, name, baseDir)
 	if err != nil {
@@ -662,7 +650,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *snapYaml,
 		}
 	}
 
-	hwaccessOverrides, err := readHWAccessYamlFile(m.qualifiedName(origin))
+	hwaccessOverrides, err := readHWAccessYamlFile(qualifiedName(m, origin))
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
@@ -698,7 +686,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *snapYaml,
 	return res, nil
 }
 
-func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *snapYaml, name string, baseDir string) error {
+func (sd *SecurityDefinitions) generatePolicyForServiceBinary(m *snap.Info, name string, baseDir string) error {
 	p, err := sd.generatePolicyForServiceBinaryResult(m, name, baseDir)
 	if err != nil {
 		return err
@@ -751,7 +739,7 @@ func generatePolicy(m *snapYaml, baseDir string) error {
 
 	// generate default security config for snappy-config
 	if hasConfig(baseDir) {
-		if err := snappyConfig.generatePolicyForServiceBinary(m, "snappy-config", baseDir); err != nil {
+		if err := snappyConfig.generatePolicyForServiceBinary(m.info(), "snappy-config", baseDir); err != nil {
 			foundError = err
 			logger.Noticef("Failed to obtain APP_ID for %s: %v", "snappy-config", err)
 		}
@@ -766,7 +754,7 @@ func generatePolicy(m *snapYaml, baseDir string) error {
 			continue
 		}
 
-		err = skill.generatePolicyForServiceBinary(m, app.Name, baseDir)
+		err = skill.generatePolicyForServiceBinary(m.info(), app.Name, baseDir)
 		if err != nil {
 			foundError = err
 			logger.Noticef("Failed to generate policy for service %s: %v", app.Name, err)
@@ -864,7 +852,7 @@ func CompareGeneratePolicyFromFile(fn string) error {
 			continue
 		}
 
-		p, err := skill.generatePolicyForServiceBinaryResult(m, app.Name, baseDir)
+		p, err := skill.generatePolicyForServiceBinaryResult(m.info(), app.Name, baseDir)
 		// FIXME: use apparmor_profile -p on both AppArmor profiles
 		if err != nil {
 			// FIXME: what to do here?
@@ -877,7 +865,7 @@ func CompareGeneratePolicyFromFile(fn string) error {
 
 	// now compare the snappy-config profile
 	if hasConfig(baseDir) {
-		p, err := snappyConfig.generatePolicyForServiceBinaryResult(m, "snappy-config", baseDir)
+		p, err := snappyConfig.generatePolicyForServiceBinaryResult(m.info(), "snappy-config", baseDir)
 		if err != nil {
 			return nil
 		}

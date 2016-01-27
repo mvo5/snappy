@@ -325,7 +325,7 @@ func (s *SnapFile) Install(inter progress.Meter, flags InstallFlags) (name strin
 				continue
 			}
 			for _, svc := range dep.Apps() {
-				serviceName := filepath.Base(generateServiceFileName(dep.m, svc))
+				serviceName := filepath.Base(generateServiceFileName(dep.m.info(), svc))
 				timeout := time.Duration(svc.StopTimeout)
 				if err = sysd.Stop(serviceName, timeout); err != nil {
 					inter.Notify(fmt.Sprintf("unable to stop %s; aborting install: %s", serviceName, err))
