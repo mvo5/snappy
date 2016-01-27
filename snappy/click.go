@@ -36,6 +36,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/progress"
+	"github.com/ubuntu-core/snappy/security"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/systemd"
@@ -296,7 +297,7 @@ func addPackageServices(m *snap.Info, apps map[string]*app.Yaml, baseDir string,
 		if app.Daemon == "" {
 			continue
 		}
-		aaProfile, err := getSecurityProfile(m, app.Name, baseDir)
+		aaProfile, err := security.Profile(m, app.Name, baseDir)
 		if err != nil {
 			return err
 		}
@@ -439,7 +440,7 @@ func addPackageBinaries(m *snap.Info, apps map[string]*app.Yaml, baseDir string)
 			continue
 		}
 
-		aaProfile, err := getSecurityProfile(m, app.Name, baseDir)
+		aaProfile, err := security.Profile(m, app.Name, baseDir)
 		if err != nil {
 			return err
 		}

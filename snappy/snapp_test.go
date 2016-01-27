@@ -35,6 +35,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
+	"github.com/ubuntu-core/snappy/security"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/systemd"
@@ -1219,13 +1220,13 @@ frameworks:
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateSecurityPolicy(c *C) {
 	// if a security policy is defined, never flag for update
-	sd := &SecurityDefinitions{SecurityPolicy: &SecurityPolicyDefinition{}}
+	sd := &SecurityDefinitions{SecurityPolicy: &security.PolicyDefinition{}}
 	c.Check(sd.NeedsAppArmorUpdate(nil, nil), Equals, false)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateSecurityOverride(c *C) {
 	// if a security override is defined, always flag for update
-	sd := &SecurityDefinitions{SecurityOverride: &SecurityOverrideDefinition{}}
+	sd := &SecurityDefinitions{SecurityOverride: &security.OverrideDefinition{}}
 	c.Check(sd.NeedsAppArmorUpdate(nil, nil), Equals, true)
 }
 

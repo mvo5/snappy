@@ -35,6 +35,7 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
+	"github.com/ubuntu-core/snappy/security"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/app"
 	"github.com/ubuntu-core/snappy/snap/squashfs"
@@ -1008,7 +1009,7 @@ func (s *SnapTestSuite) TestUsesWhitelistSimple(c *C) {
 	c.Check(verifyUsesYaml(&usesYaml{
 		Type: "migration-skill",
 		SecurityDefinitions: SecurityDefinitions{
-			SecurityPolicy: &SecurityPolicyDefinition{
+			SecurityPolicy: &security.PolicyDefinition{
 				AppArmor: "foo"},
 		},
 	}), IsNil)
@@ -1035,7 +1036,7 @@ func (s *SnapTestSuite) TestUsesWhitelistIllegal(c *C) {
 	c.Check(verifyUsesYaml(&usesYaml{
 		Type: "migration-skill",
 		SecurityDefinitions: SecurityDefinitions{
-			SecurityPolicy: &SecurityPolicyDefinition{
+			SecurityPolicy: &security.PolicyDefinition{
 				AppArmor: "x\n"},
 		},
 	}), ErrorMatches, ".*contains illegal.*")

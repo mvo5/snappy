@@ -31,6 +31,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
+	"github.com/ubuntu-core/snappy/security"
 )
 
 const udevDataGlob = "/run/udev/data/*"
@@ -65,8 +66,8 @@ func validDeviceForUdev(device string) bool {
 	return false
 }
 
-func readHWAccessYamlFile(snapname string) (SecurityOverrideDefinition, error) {
-	var appArmorAdditional SecurityOverrideDefinition
+func readHWAccessYamlFile(snapname string) (security.OverrideDefinition, error) {
+	var appArmorAdditional security.OverrideDefinition
 
 	additionalFile := getHWAccessYamlFile(snapname)
 	f, err := os.Open(additionalFile)
@@ -85,7 +86,7 @@ func readHWAccessYamlFile(snapname string) (SecurityOverrideDefinition, error) {
 	return appArmorAdditional, nil
 }
 
-func writeHWAccessYamlFile(snapname string, appArmorAdditional SecurityOverrideDefinition) error {
+func writeHWAccessYamlFile(snapname string, appArmorAdditional security.OverrideDefinition) error {
 	if len(appArmorAdditional.WritePaths) == 0 {
 		appArmorAdditional.ReadPaths = nil
 	} else {

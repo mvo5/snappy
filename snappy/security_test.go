@@ -31,6 +31,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/security"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/app"
 )
@@ -122,45 +123,6 @@ func makeMockSeccompCap(c *C, capname string, content []byte) {
 	c.Assert(err, IsNil)
 }
 
-func (a *SecurityTestSuite) TestSnappyGetSecurityProfile(c *C) {
-	m := snap.Info{
-		Name:    "foo",
-		Version: "1.0",
-	}
-	b := app.Yaml{Name: "bin/app"}
-	ap, err := getSecurityProfile(&m, b.Name, "/snaps/foo.mvo/1.0/")
-	c.Assert(err, IsNil)
-	c.Check(ap, Equals, "foo.mvo_bin-app_1.0")
-}
-
-func (a *SecurityTestSuite) TestSnappyGetSecurityProfileInvalid(c *C) {
-	m := snap.Info{
-		Name:    "foo",
-		Version: "1.0",
-	}
-	b := app.Yaml{Name: "bin/app"}
-	_, err := getSecurityProfile(&m, b.Name, "/snaps/foo/1.0/")
-	c.Assert(err, Equals, ErrInvalidPart)
-}
-
-func (a *SecurityTestSuite) TestSnappyGetSecurityProfileFramework(c *C) {
-	m := snap.Info{
-		Name:    "foo",
-		Version: "1.0",
-		Type:    snap.TypeFramework,
-	}
-	b := app.Yaml{Name: "bin/app"}
-	ap, err := getSecurityProfile(&m, b.Name, "/snaps/foo.mvo/1.0/")
-	c.Assert(err, IsNil)
-	c.Check(ap, Equals, "foo_bin-app_1.0")
-}
-
-func (a *SecurityTestSuite) TestSecurityGenDbusPath(c *C) {
-	c.Assert(dbusPath("foo"), Equals, "foo")
-	c.Assert(dbusPath("foo bar"), Equals, "foo_20bar")
-	c.Assert(dbusPath("foo/bar"), Equals, "foo_2fbar")
-}
-
 func (a *SecurityTestSuite) TestSecurityFindWhitespacePrefix(c *C) {
 	t := `  ###POLICYGROUPS###`
 	c.Assert(findWhitespacePrefix(t, "###POLICYGROUPS###"), Equals, "  ")
@@ -214,25 +176,6 @@ func (a *SecurityTestSuite) TestSecurityFindCapsMultipleErrorHandling(c *C) {
 
 	_, err = securityPolicyTypeAppArmor.findCaps([]string{"existing-cap"}, "mock-template")
 	c.Check(err, IsNil)
-}
-
-func (a *SecurityTestSuite) TestSecurityGetAppArmorVars(c *C) {
-	appID := &securityAppID{
-		Appname: "foo",
-		Version: "1.0",
-		AppID:   "id",
-		Pkgname: "pkgname",
-	}
-	c.Assert(appID.appArmorVars(), Equals, `
-# Specified profile variables
-@{APP_APPNAME}="foo"
-@{APP_ID_DBUS}="id"
-@{APP_PKGNAME_DBUS}="pkgname"
-@{APP_PKGNAME}="pkgname"
-@{APP_VERSION}="1.0"
-@{INSTALL_DIR}="{/snaps,/gadget}"
-# Deprecated:
-@{CLICK_DIR}="{/snaps,/gadget}"`)
 }
 
 func (a *SecurityTestSuite) TestSecurityGenAppArmorPathRuleSimple(c *C) {
@@ -355,13 +298,13 @@ func (a *SecurityTestSuite) TestSecurityGenAppArmorTemplatePolicy(c *C) {
 		Name:    "foo",
 		Version: "1.0",
 	}
-	appid := &securityAppID{
+	appid := &security.AppID{
 		Pkgname: "foo",
 		Version: "1.0",
 	}
 	template := "mock-template"
 	caps := []string{"cap1"}
-	overrides := &SecurityOverrideDefinition{}
+	overrides := &security.OverrideDefinition{}
 	p, err := getAppArmorTemplatedPolicy(m, appid, template, caps, overrides)
 	c.Check(err, IsNil)
 	c.Check(p, Equals, expectedGeneratedAaProfile)
@@ -405,13 +348,13 @@ func (a *SecurityTestSuite) TestSecurityGenSeccompTemplatedPolicy(c *C) {
 		Name:    "foo",
 		Version: "1.0",
 	}
-	appid := &securityAppID{
+	appid := &security.AppID{
 		Pkgname: "foo",
 		Version: "1.0",
 	}
 	template := "mock-template"
 	caps := []string{"cap1"}
-	overrides := &SecurityOverrideDefinition{}
+	overrides := &security.OverrideDefinition{}
 	p, err := getSeccompTemplatedPolicy(m, appid, template, caps, overrides)
 	c.Check(err, IsNil)
 	c.Check(p, Equals, expectedGeneratedSeccompProfile)
@@ -467,7 +410,7 @@ func (a *SecurityTestSuite) TestSecurityGetApparmorCustomPolicy(c *C) {
 		Name:    "foo",
 		Version: "1.0",
 	}
-	appid := &securityAppID{
+	appid := &security.AppID{
 		AppID:   "foo_bar_1.0",
 		Pkgname: "foo",
 		Version: "1.0",
@@ -484,7 +427,7 @@ func (a *SecurityTestSuite) TestSecurityGetApparmorCustomPolicy(c *C) {
 func (a *SecurityTestSuite) TestSecurityGetSeccompCustomPolicy(c *C) {
 	// yes, getSeccompCustomPolicy does not care for snapYaml or appid
 	m := &snap.Info{}
-	appid := &securityAppID{}
+	appid := &security.AppID{}
 
 	customPolicy := filepath.Join(c.MkDir(), "foo")
 	err := ioutil.WriteFile(customPolicy, []byte(`canary`), 0644)
@@ -495,22 +438,6 @@ func (a *SecurityTestSuite) TestSecurityGetSeccompCustomPolicy(c *C) {
 	c.Check(p, Equals, `canary`)
 }
 
-func (a *SecurityTestSuite) TestSecurityGetAppID(c *C) {
-	id, err := newAppID("pkg_app_1.0")
-	c.Assert(err, IsNil)
-	c.Assert(id, DeepEquals, &securityAppID{
-		AppID:   "pkg_app_1.0",
-		Pkgname: "pkg",
-		Appname: "app",
-		Version: "1.0",
-	})
-}
-
-func (a *SecurityTestSuite) TestSecurityGetAppIDInvalid(c *C) {
-	_, err := newAppID("invalid")
-	c.Assert(err, Equals, errInvalidAppID)
-}
-
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesNilDoesNotCrash(c *C) {
 	sd := &SecurityDefinitions{}
 	sd.mergeAppArmorSecurityOverrides(nil)
@@ -519,7 +446,7 @@ func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesNilDoesNot
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesTrivial(c *C) {
 	sd := &SecurityDefinitions{}
-	hwaccessOverrides := &SecurityOverrideDefinition{}
+	hwaccessOverrides := &security.OverrideDefinition{}
 	sd.mergeAppArmorSecurityOverrides(hwaccessOverrides)
 
 	c.Assert(sd, DeepEquals, &SecurityDefinitions{
@@ -529,7 +456,7 @@ func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesTrivial(c 
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesOverrides(c *C) {
 	sd := &SecurityDefinitions{}
-	hwaccessOverrides := &SecurityOverrideDefinition{
+	hwaccessOverrides := &security.OverrideDefinition{
 		ReadPaths:  []string{"read1"},
 		WritePaths: []string{"write1"},
 	}
@@ -542,18 +469,18 @@ func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesOverrides(
 
 func (a *SecurityTestSuite) TestSecurityMergeApparmorSecurityOverridesMerges(c *C) {
 	sd := &SecurityDefinitions{
-		SecurityOverride: &SecurityOverrideDefinition{
+		SecurityOverride: &security.OverrideDefinition{
 			ReadPaths: []string{"orig1"},
 		},
 	}
-	hwaccessOverrides := &SecurityOverrideDefinition{
+	hwaccessOverrides := &security.OverrideDefinition{
 		ReadPaths:  []string{"read1"},
 		WritePaths: []string{"write1"},
 	}
 	sd.mergeAppArmorSecurityOverrides(hwaccessOverrides)
 
 	c.Assert(sd, DeepEquals, &SecurityDefinitions{
-		SecurityOverride: &SecurityOverrideDefinition{
+		SecurityOverride: &security.OverrideDefinition{
 			ReadPaths:  []string{"orig1", "read1"},
 			WritePaths: []string{"write1"},
 		},
@@ -804,7 +731,7 @@ func (a *SecurityTestSuite) TestSecurityGenerateCustomPolicyAdditionalIsConsider
 		Name:    "foo",
 		Version: "1.0",
 	}
-	appid := &securityAppID{
+	appid := &security.AppID{
 		Pkgname: "foo",
 		Version: "1.0",
 	}
@@ -1001,7 +928,7 @@ func (a *SecurityTestSuite) TestSecurityGeneratePolicyForServiceBinaryErrors(c *
 
 	// ensure invalid packages generate an error
 	err := sd.generatePolicyForServiceBinary(m, "binary", "/snaps/app-no-origin/1.0")
-	c.Assert(err, ErrorMatches, "invalid package on system")
+	c.Assert(err, ErrorMatches, "can not get origin from path.*")
 }
 
 func (a *SecurityTestSuite) TestParseSnapYamlWithVersion(c *C) {
