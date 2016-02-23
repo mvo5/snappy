@@ -36,7 +36,6 @@ import (
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/progress"
-	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/systemd"
 )
 
@@ -50,11 +49,7 @@ var servicesBinariesStringsWhitelist = regexp.MustCompile(`^[A-Za-z0-9/. _#:-]*$
 // generate the name
 func generateBinaryName(m *snapYaml, app *AppYaml) string {
 	var binName string
-	if m.Type == snap.TypeFramework {
-		binName = filepath.Base(app.Name)
-	} else {
-		binName = fmt.Sprintf("%s.%s", m.Name, filepath.Base(app.Name))
-	}
+	binName = fmt.Sprintf("%s.%s", m.Name, filepath.Base(app.Name))
 
 	return filepath.Join(dirs.SnapBinariesDir, binName)
 }
@@ -245,7 +240,6 @@ func generateSnapServicesFile(app *AppYaml, baseDir string, aaProfile string, m 
 			PostStop:       app.PostStop,
 			StopTimeout:    time.Duration(app.StopTimeout),
 			AaProfile:      aaProfile,
-			IsFramework:    m.Type == snap.TypeFramework,
 			IsNetworked:    app.Ports != nil && len(app.Ports.External) > 0,
 			BusName:        app.BusName,
 			Type:           app.Daemon,
@@ -341,7 +335,7 @@ func addPackageServices(m *snapYaml, baseDir string, inhibitHooks bool, inter in
 		}
 		// If necessary, generate the DBus policy file so the framework
 		// service is allowed to start
-		if m.Type == snap.TypeFramework && app.BusName != "" {
+		if app.BusName != "" {
 			content, err := genBusPolicyFile(app.BusName)
 			if err != nil {
 				return err

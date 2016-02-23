@@ -53,11 +53,10 @@ const (
 	StatusActive       = "active"
 	StatusRemoved      = "removed"
 
-	TypeApp       = "app"
-	TypeFramework = "framework"
-	TypeKernel    = "kernel"
-	TypeGadget    = "gadget"
-	TypeOS        = "os"
+	TypeApp    = "app"
+	TypeKernel = "kernel"
+	TypeGadget = "gadget"
+	TypeOS     = "os"
 )
 
 // Snaps returns the list of all snaps installed on the system and

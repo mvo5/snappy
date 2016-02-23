@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: snappy\n"
         "Report-Msgid-Bugs-To: snappy-devel@lists.ubuntu.com\n"
-        "POT-Creation-Date: 2016-02-11 12:20+0100\n"
+        "POT-Creation-Date: 2016-02-23 16:20+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,7 +53,7 @@ msgid   "A concise summary of key attributes of the snappy system, such as the r
         "\n"
         "Providing a package name will display information about a specific installed package.\n"
         "\n"
-        "The verbose version of the info command for a package will also tell you the available channels for that package, when it was installed for the first time, disk space utilization, and in the case of frameworks, which apps are able to use the framework."
+        "The verbose version of the info command for a package will also tell you the available channels for that package, when it was installed for the first time, disk space utilization."
 msgstr  ""
 
 msgid   "Activate a package"
@@ -600,11 +600,6 @@ msgstr  ""
 #. TRANSLATORS: the %s is a size
 #, c-format
 msgid   "data-size: %s\n"
-msgstr  ""
-
-#. TRANSLATORS: the %s is a comma separated list of framework names
-#, c-format
-msgid   "frameworks: %s\n"
 msgstr  ""
 
 #. TRANSLATORS: the %s is a date

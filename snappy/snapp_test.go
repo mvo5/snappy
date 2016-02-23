@@ -33,7 +33,6 @@ import (
 	"github.com/ubuntu-core/snappy/arch"
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
-	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/systemd"
@@ -50,11 +49,9 @@ type SnapTestSuite struct {
 var _ = Suite(&SnapTestSuite{})
 
 func (s *SnapTestSuite) SetUpTest(c *C) {
-	s.secbase = policy.SecBase
 	s.tempdir = c.MkDir()
 	dirs.SetRootDir(s.tempdir)
 
-	policy.SecBase = filepath.Join(s.tempdir, "security")
 	os.MkdirAll(dirs.SnapServicesDir, 0755)
 	os.MkdirAll(dirs.SnapSeccompDir, 0755)
 	os.MkdirAll(dirs.SnapSnapsDir, 0755)
@@ -89,7 +86,6 @@ func (s *SnapTestSuite) SetUpTest(c *C) {
 
 func (s *SnapTestSuite) TearDownTest(c *C) {
 	// ensure all functions are back to their original state
-	policy.SecBase = s.secbase
 	regenerateAppArmorRules = regenerateAppArmorRulesImpl
 	ActiveSnapIterByType = activeSnapIterByTypeImpl
 	duCmd = "du"
@@ -153,22 +149,6 @@ func (s *SnapTestSuite) TestLocalSnapActive(c *C) {
 	snap, err := NewInstalledSnapPart(snapYaml, testOrigin)
 	c.Assert(err, IsNil)
 	c.Assert(snap.IsActive(), Equals, true)
-}
-
-func (s *SnapTestSuite) TestLocalSnapFrameworks(c *C) {
-	snapYaml, err := makeInstalledMockSnap(s.tempdir, `name: foo
-version: 1.0
-frameworks:
- - one
- - two
-`)
-	c.Assert(err, IsNil)
-
-	snap, err := NewInstalledSnapPart(snapYaml, testOrigin)
-	c.Assert(err, IsNil)
-	fmk, err := snap.Frameworks()
-	c.Assert(err, IsNil)
-	c.Check(fmk, DeepEquals, []string{"one", "two"})
 }
 
 func (s *SnapTestSuite) TestLocalSnapRepositoryInvalidIsStillOk(c *C) {
@@ -1092,30 +1072,8 @@ func (s *SnapTestSuite) TestIgnoresAlreadyInstalledSameOrigin(c *C) {
 	c.Check(checkForPackageInstalled(yaml, testOrigin), IsNil)
 }
 
-func (s *SnapTestSuite) TestIgnoresAlreadyInstalledFrameworkSameOrigin(c *C) {
-	data := "name: afoo\nversion: 1\ntype: framework"
-	yamlPath, err := makeInstalledMockSnap(s.tempdir, data)
-	c.Assert(err, IsNil)
-	c.Assert(makeSnapActive(yamlPath), IsNil)
-
-	yaml, err := parseSnapYamlData([]byte(data), false)
-	c.Assert(err, IsNil)
-	c.Check(checkForPackageInstalled(yaml, testOrigin), IsNil)
-}
-
-func (s *SnapTestSuite) TestDetectsAlreadyInstalledFramework(c *C) {
-	data := "name: afoo\nversion: 1\ntype: framework"
-	yamlPath, err := makeInstalledMockSnap(s.tempdir, data)
-	c.Assert(err, IsNil)
-	c.Assert(makeSnapActive(yamlPath), IsNil)
-
-	yaml, err := parseSnapYamlData([]byte(data), false)
-	c.Assert(err, IsNil)
-	c.Check(checkForPackageInstalled(yaml, "otherns"), ErrorMatches, ".*is already installed with origin.*")
-}
-
 func (s *SnapTestSuite) TestUsesStoreMetaData(c *C) {
-	data := "name: afoo\nversion: 1\ntype: framework"
+	data := "name: afoo\nversion: 1\ntype: kernel"
 	yamlPath, err := makeInstalledMockSnap(s.tempdir, data)
 	c.Assert(err, IsNil)
 	c.Assert(makeSnapActive(yamlPath), IsNil)
@@ -1130,108 +1088,10 @@ func (s *SnapTestSuite) TestUsesStoreMetaData(c *C) {
 
 	c.Check(snaps[0].Name(), Equals, "afoo")
 	c.Check(snaps[0].Version(), Equals, "1")
-	c.Check(snaps[0].Type(), Equals, snap.TypeFramework)
+	c.Check(snaps[0].Type(), Equals, snap.TypeKernel)
 	c.Check(snaps[0].Origin(), Equals, "someplace")
 	c.Check(snaps[0].Description(), Equals, "something nice")
 	c.Check(snaps[0].DownloadSize(), Equals, int64(10))
-}
-
-func (s *SnapTestSuite) TestDetectsMissingFrameworks(c *C) {
-	data := []byte(`name: afoo
-version: 1.0
-frameworks:
- - missing
- - also-missing
-`)
-	yaml, err := parseSnapYamlData(data, false)
-	c.Assert(err, IsNil)
-	err = checkForFrameworks(yaml)
-	c.Assert(err, ErrorMatches, `missing frameworks: missing, also-missing`)
-}
-
-func (s *SnapTestSuite) TestDetectsFrameworksInUse(c *C) {
-	_, err := makeInstalledMockSnap(s.tempdir, `name: foo
-version: 1.0
-frameworks:
- - fmk
-`)
-	c.Assert(err, IsNil)
-
-	yaml, err := parseSnapYamlData([]byte(`name: fmk
-version: 1.0
-type: framework`), false)
-	c.Assert(err, IsNil)
-	part := &SnapPart{m: yaml}
-	deps, err := part.Dependents()
-	c.Assert(err, IsNil)
-	c.Check(deps, HasLen, 1)
-	c.Check(deps[0].Name(), Equals, "foo")
-
-	names, err := part.DependentNames()
-	c.Assert(err, IsNil)
-	c.Check(names, DeepEquals, []string{"foo"})
-}
-
-func (s *SnapTestSuite) TestRefreshDependentsSecurity(c *C) {
-	oldDir := dirs.SnapAppArmorDir
-	defer func() {
-		dirs.SnapAppArmorDir = oldDir
-	}()
-	dirs.SnapAppArmorDir = c.MkDir()
-	fn := filepath.Join(dirs.SnapAppArmorDir, "foo."+testOrigin+"_hello_1.0")
-	c.Assert(os.Symlink(fn, fn), IsNil)
-
-	_, err := makeInstalledMockSnap(s.tempdir, `name: foo
-version: 1.0
-frameworks:
- - fmk
-apps:
- hello:
-   command: hello
-   caps:
-    - fmk_foo
-`)
-	c.Assert(err, IsNil)
-
-	d1 := c.MkDir()
-	d2 := c.MkDir()
-	dp := filepath.Join("meta", "framework-policy", "apparmor", "policygroups")
-
-	yaml := "name: fmk\ntype: framework\nversion: 1"
-	_, err = makeInstalledMockSnap(d1, yaml)
-	c.Assert(err, IsNil)
-	c.Assert(os.MkdirAll(filepath.Join(d1, dp), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(filepath.Join(d1, dp, "foo"), []byte(""), 0644), IsNil)
-
-	_, err = makeInstalledMockSnap(d2, "name: fmk\ntype: framework\nversion: 2")
-	c.Assert(err, IsNil)
-	c.Assert(os.MkdirAll(filepath.Join(d2, dp), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(filepath.Join(d2, dp, "fmk_foo"), []byte("x"), 0644), IsNil)
-
-	pb := &MockProgressMeter{}
-	m, err := parseSnapYamlData([]byte(yaml), false)
-	part := &SnapPart{m: m, origin: testOrigin, basedir: d1}
-	c.Assert(part.RefreshDependentsSecurity(&SnapPart{basedir: d2}, pb), IsNil)
-	// TODO: verify it was updated
-}
-
-func (s *SnapTestSuite) TestRemoveChecksFrameworks(c *C) {
-	yamlFile, err := makeInstalledMockSnap(s.tempdir, `name: fmk
-version: 1.0
-type: framework`)
-	c.Assert(err, IsNil)
-	yaml, err := parseSnapYamlFile(yamlFile)
-
-	_, err = makeInstalledMockSnap(s.tempdir, `name: foo
-version: 1.0
-frameworks:
- - fmk
-`)
-	c.Assert(err, IsNil)
-
-	part := &SnapPart{m: yaml, origin: testOrigin}
-	err = s.overlord.Uninstall(part, new(MockProgressMeter))
-	c.Check(err, ErrorMatches, `framework still in use by: foo`)
 }
 
 func (s *SnapTestSuite) TestNeedsAppArmorUpdateSecurityPolicy(c *C) {

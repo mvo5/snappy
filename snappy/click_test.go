@@ -33,8 +33,6 @@ import (
 	"github.com/ubuntu-core/snappy/arch"
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
-	"github.com/ubuntu-core/snappy/policy"
-	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/squashfs"
 	"github.com/ubuntu-core/snappy/systemd"
 	"github.com/ubuntu-core/snappy/timeout"
@@ -259,40 +257,6 @@ type: framework
 	c.Assert(err, IsNil)
 
 	return snapName
-}
-
-func (s *SnapTestSuite) TestSnapInstallPackagePolicyDelta(c *C) {
-	secbase := policy.SecBase
-	defer func() { policy.SecBase = secbase }()
-	policy.SecBase = c.MkDir()
-
-	s.buildFramework(c)
-
-	// ...?
-
-	// rename the policy
-	//poldir := filepath.Join(tmpdir, "meta", "framework-policy", "apparmor", "policygroups")
-
-	// _, err := installClick(snapName, 0, nil, testOrigin)
-	// c.Assert(err, IsNil)
-	// appdir := filepath.Join(s.tempdir, "snaps", "hello.testspacethename", "1.0.1")
-	// c.Assert(removeClick(appdir, nil), IsNil)
-}
-
-func (s *SnapTestSuite) TestSnapRemovePackagePolicy(c *C) {
-	c.Skip("need porting to the new squashfs based tests")
-
-	secbase := policy.SecBase
-	defer func() { policy.SecBase = secbase }()
-	policy.SecBase = c.MkDir()
-
-	s.buildFramework(c)
-	appdir := filepath.Join(s.tempdir, "snaps", "hello", "1.0.1")
-	yamlPath := filepath.Join(appdir, "meta", "snap.yaml")
-	part, err := NewInstalledSnapPart(yamlPath, testOrigin)
-	c.Assert(err, IsNil)
-	err = (&Overlord{}).Uninstall(part, &MockProgressMeter{})
-	c.Assert(err, IsNil)
 }
 
 func (s *SnapTestSuite) TestLocalGadgetSnapInstall(c *C) {
@@ -932,7 +896,6 @@ func (s *SnapTestSuite) TestSnappyGenerateSnapServiceFmkWrapper(c *C) {
 	m := snapYaml{
 		Name:    "xkcd-webserver",
 		Version: "0.3.4",
-		Type:    snap.TypeFramework,
 	}
 
 	generatedWrapper, err := generateSnapServicesFile(service, pkgPath, aaProfile, &m)

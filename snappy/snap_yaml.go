@@ -26,7 +26,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -211,7 +210,7 @@ func parseSnapYamlData(yamlData []byte, hasConfig bool) (*snapYaml, error) {
 }
 
 func (m *snapYaml) qualifiedName(origin string) string {
-	if m.Type == snap.TypeFramework || m.Type == snap.TypeGadget {
+	if m.Type == snap.TypeGadget {
 		return m.Name
 	}
 	return m.Name + "." + origin
@@ -225,29 +224,6 @@ func checkForPackageInstalled(m *snapYaml, origin string) error {
 
 	if part.Origin() != origin {
 		return fmt.Errorf("package %q is already installed with origin %q your origin is %q", m.Name, part.Origin(), origin)
-	}
-
-	return nil
-}
-
-func checkForFrameworks(m *snapYaml) error {
-	installed, err := ActiveSnapIterByType(BareName, snap.TypeFramework)
-	if err != nil {
-		return err
-	}
-	sort.Strings(installed)
-
-	missing := make([]string, 0, len(m.Frameworks))
-
-	for _, f := range m.Frameworks {
-		i := sort.SearchStrings(installed, f)
-		if i >= len(installed) || installed[i] != f {
-			missing = append(missing, f)
-		}
-	}
-
-	if len(missing) > 0 {
-		return ErrMissingFrameworks(missing)
 	}
 
 	return nil

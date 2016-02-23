@@ -34,7 +34,6 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
-	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/release"
 	"github.com/ubuntu-core/snappy/snap"
 )
@@ -168,11 +167,6 @@ func (sp *securityPolicyType) policyDir() string {
 	return filepath.Join(dirs.GlobalRootDir, sp.basePolicyDir)
 }
 
-func (sp *securityPolicyType) frameworkPolicyDir() string {
-	frameworkPolicyDir := filepath.Join(policy.SecBase, sp.name)
-	return filepath.Join(dirs.GlobalRootDir, frameworkPolicyDir)
-}
-
 // findTemplate returns the security template content from the template name.
 func (sp *securityPolicyType) findTemplate(templateName string) (string, error) {
 	if templateName == "" {
@@ -181,25 +175,19 @@ func (sp *securityPolicyType) findTemplate(templateName string) (string, error) 
 
 	subdir := filepath.Join("templates", defaultPolicyVendor(), defaultPolicyVersion())
 	systemTemplateDir := filepath.Join(sp.policyDir(), subdir, templateName)
-	fwTemplateDir := filepath.Join(sp.frameworkPolicyDir(), "templates", templateName)
 
-	// Read system and framwork policy, but always prefer system policy
-	fns := []string{systemTemplateDir, fwTemplateDir}
-	for _, fn := range fns {
-		content, err := ioutil.ReadFile(fn)
-		// it is ok if the file does not exists
-		if os.IsNotExist(err) {
-			continue
-		}
-		// but any other error is a failure
-		if err != nil {
-			return "", err
-		}
-
-		return string(content), nil
+	// Read system policy, but always prefer system policy
+	content, err := ioutil.ReadFile(systemTemplateDir)
+	// not found
+	if os.IsNotExist(err) {
+		return "", &errPolicyNotFound{"template", sp, templateName}
+	}
+	// some other error
+	if err != nil {
+		return "", err
 	}
 
-	return "", &errPolicyNotFound{"template", sp, templateName}
+	return string(content), nil
 }
 
 // helper for findSingleCap that implements readlines().
@@ -225,30 +213,19 @@ func readSingleCapFile(fn string) ([]string, error) {
 
 // findSingleCap returns the security template content for a single
 // security-cap.
-func (sp *securityPolicyType) findSingleCap(capName, systemPolicyDir, fwPolicyDir string) ([]string, error) {
-	found := false
+func (sp *securityPolicyType) findSingleCap(capName, systemPolicyDir string) ([]string, error) {
 	p := []string{}
 
-	policyDirs := []string{systemPolicyDir, fwPolicyDir}
-	for _, dir := range policyDirs {
-		fn := filepath.Join(dir, capName)
-		newCaps, err := readSingleCapFile(fn)
-		// its ok if the file does not exist
-		if os.IsNotExist(err) {
-			continue
-		}
-		// but any other error is not ok
-		if err != nil {
-			return nil, err
-		}
-		p = append(p, newCaps...)
-		found = true
-		break
-	}
-
-	if found == false {
+	fn := filepath.Join(systemPolicyDir, capName)
+	newCaps, err := readSingleCapFile(fn)
+	if os.IsNotExist(err) {
 		return nil, &errPolicyNotFound{"cap", sp, capName}
 	}
+	// another error
+	if err != nil {
+		return nil, err
+	}
+	p = append(p, newCaps...)
 
 	return p, nil
 }
@@ -269,11 +246,10 @@ func (sp *securityPolicyType) findCaps(caps []string, templateName string) ([]st
 
 	subdir := filepath.Join("policygroups", defaultPolicyVendor(), defaultPolicyVersion())
 	parentDir := filepath.Join(sp.policyDir(), subdir)
-	fwParentDir := filepath.Join(sp.frameworkPolicyDir(), "policygroups")
 
 	var p []string
 	for _, c := range caps {
-		newCap, err := sp.findSingleCap(c, parentDir, fwParentDir)
+		newCap, err := sp.findSingleCap(c, parentDir)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +306,7 @@ func findWhitespacePrefix(t string, s string) string {
 
 func getSecurityProfile(m *snapYaml, appName, baseDir string) (string, error) {
 	cleanedName := strings.Replace(appName, "/", "-", -1)
-	if m.Type == snap.TypeFramework || m.Type == snap.TypeGadget {
+	if m.Type == snap.TypeGadget {
 		return fmt.Sprintf("%s_%s_%s", m.Name, cleanedName, m.Version), nil
 	}
 
@@ -666,7 +642,7 @@ func (sd *SecurityDefinitions) generatePolicyForServiceBinaryResult(m *snapYaml,
 
 	// add the hw-override parts and merge with the other overrides
 	origin := ""
-	if m.Type != snap.TypeFramework && m.Type != snap.TypeGadget {
+	if m.Type != snap.TypeGadget {
 		origin, err = originFromYamlPath(filepath.Join(baseDir, "meta", "snap.yaml"))
 		if err != nil {
 			return nil, err

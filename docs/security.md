@@ -140,7 +140,6 @@ Eg, consider the following:
         type: migration-skill
         caps:
           - network-client
-          - norf-framework_client
       qux-security:
         type: migration-skill
         security-template: nondefault
@@ -164,7 +163,7 @@ If this package is uploaded to the store in the `myorigin` origin, then:
 * `APP_ID` for `bar` is `foo.myorigin_bar_1.0`. It uses the `default` template
   and `network-client` (default) cap
 * `APP_ID` for `baz` is `foo.myorigin_baz_1.0`. It uses the `default` template
-  and the `network-client` and `norf-framework_client` caps
+  and the `network-client` caps
 * `APP_ID` for `qux` is `foo.myorigin_qux_1.0`. It uses the `nondefault`
   template and `network-client` (default) cap
 * `APP_ID` for `quux` is `foo.myorigin_quux_1.0`. It does not use a
@@ -192,10 +191,6 @@ default):
 
 Apps should typically only use common groups with `caps` and common templates
 with `security-template` and avoid `security-policy` and `security-override`.
-
-Snaps that are of `type: framework` (see frameworks.md) will use any of the
-above (since framework snaps' purpose is to extend the system and require
-additional privilege).
 
 The available templates and policy groups of the target system can be seen by
 running `snappy-security list` on the target system.

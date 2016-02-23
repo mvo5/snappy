@@ -41,7 +41,7 @@ type Configuration interface {
 // QualifiedName of a Part is the Name, in most cases qualified with the
 // Origin
 func QualifiedName(p Part) string {
-	if t := p.Type(); t == snap.TypeFramework || t == snap.TypeGadget {
+	if t := p.Type(); t == snap.TypeGadget {
 		return p.Name()
 	}
 	return p.Name() + "." + p.Origin()
@@ -98,9 +98,6 @@ type Part interface {
 
 	InstalledSize() int64
 	DownloadSize() int64
-
-	// get the list of frameworks needed by the part
-	Frameworks() ([]string, error)
 }
 
 // ActiveSnapsByType returns all installed snaps with the given type

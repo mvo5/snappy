@@ -31,7 +31,6 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
-	"github.com/ubuntu-core/snappy/snap"
 )
 
 type SecurityTestSuite struct {
@@ -140,18 +139,6 @@ func (a *SecurityTestSuite) TestSnappyGetSecurityProfileInvalid(c *C) {
 	b := AppYaml{Name: "bin/app"}
 	_, err := getSecurityProfile(&m, b.Name, "/snaps/foo/1.0/")
 	c.Assert(err, Equals, ErrInvalidPart)
-}
-
-func (a *SecurityTestSuite) TestSnappyGetSecurityProfileFramework(c *C) {
-	m := snapYaml{
-		Name:    "foo",
-		Version: "1.0",
-		Type:    snap.TypeFramework,
-	}
-	b := AppYaml{Name: "bin/app"}
-	ap, err := getSecurityProfile(&m, b.Name, "/snaps/foo.mvo/1.0/")
-	c.Assert(err, IsNil)
-	c.Check(ap, Equals, "foo_bin-app_1.0")
 }
 
 func (a *SecurityTestSuite) TestSecurityGenDbusPath(c *C) {

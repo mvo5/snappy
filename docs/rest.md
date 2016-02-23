@@ -225,8 +225,7 @@ Sample result:
     * `name`: the snap name.
     * `version`: a string representing the version.
     * `icon`: a url to the snap icon, possibly relative to this server.
-    * `type`: the type of snap; one of `app`, `framework`, `kernel`,
-      `gadget`, or `os`.
+    * `type`: the type of snap; one of `app`, `kernel`, `gadget`, or `os`.
     * `description`: snap description
     * `installed_size`: for installed snaps, how much space the snap
       itself (not its data) uses.

@@ -44,14 +44,12 @@ type tP struct {
 	installedSize int64
 	downloadSize  int64
 
-	installName   string
-	installErr    error
-	uninstallErr  error
-	config        string
-	configErr     error
-	setActiveErr  error
-	frameworks    []string
-	frameworksErr error
+	installName  string
+	installErr   error
+	uninstallErr error
+	config       string
+	configErr    error
+	setActiveErr error
 
 	appYamls map[string]*snappy.AppYaml
 }
@@ -81,7 +79,6 @@ func (p *tP) Config(cfg []byte) (string, error) {
 	return p.config, p.configErr
 }
 func (p *tP) SetActive(bool, progress.Meter) error { return p.setActiveErr }
-func (p *tP) Frameworks() ([]string, error)        { return p.frameworks, p.frameworksErr }
 
 // for ServiceYamler interface:
 func (p *tP) Apps() map[string]*snappy.AppYaml { return p.appYamls }

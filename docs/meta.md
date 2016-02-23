@@ -26,12 +26,11 @@ The following keys are optional:
     * `app` - the default if empty
     * `gadget` - a special snap that Gadgets can use to customize snappy for
             their hardware
-    * `framework` - a specialized snap that extends the system that other
-                  snaps may use
+    * `kernel` - a special snap that provides the kernel
+    * `os` - a special snap that provides the OS
 
 * `architectures`: (optional) a yaml list of supported architectures
                    `["all"]` if empty
-* `frameworks`: a list of the frameworks the snap needs as dependencies
 
 * `apps`: the map of apps (binaries and services) that a snap provides
     * `command`: (required) the command to start the service
@@ -55,8 +54,6 @@ The following keys are optional:
                 * `port`: (optional) see above
                 * `negotiable`: (optional) see above
     * `bus-name`: (optional) message bus connection name for the service.
-      May only be specified for snaps of 'type: framework' (see above). See
-      frameworks.md for details.
     * `socket`: (optional) Set to "true" if the service is socket activated.
                 Must be specified with `listen-stream`.
     * `listen-stream`: (optional) The full path of the stream socket or an

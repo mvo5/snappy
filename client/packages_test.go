@@ -101,7 +101,7 @@ func (cs *clientSuite) TestClientFilterSnaps(c *check.C) {
 		{client.SnapFilter{Sources: []string{"store"}}, "/2.0/snaps", "sources=store"},
 		{client.SnapFilter{Sources: []string{"local", "store"}}, "/2.0/snaps", "sources=local%2Cstore"},
 		{client.SnapFilter{Types: []string{"app"}}, "/2.0/snaps", "types=app"},
-		{client.SnapFilter{Types: []string{"app", "framework"}}, "/2.0/snaps", "types=app%2Cframework"},
+		{client.SnapFilter{Types: []string{"app", "kernel"}}, "/2.0/snaps", "types=app%2Ckernel"},
 		{client.SnapFilter{Sources: []string{"local"}, Types: []string{"app"}}, "/2.0/snaps", "sources=local&types=app"},
 		{client.SnapFilter{Query: "foo"}, "/2.0/snaps", "q=foo"},
 		{client.SnapFilter{Query: "foo", Sources: []string{"local"}, Types: []string{"app"}}, "/2.0/snaps", "q=foo&sources=local&types=app"},

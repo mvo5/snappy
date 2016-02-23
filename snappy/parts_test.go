@@ -37,9 +37,9 @@ version: 1.10
 	c.Assert(err, IsNil)
 	makeSnapActive(yamlPath)
 
-	yamlPath, err = makeInstalledMockSnap(s.tempdir, `name: framework1
+	yamlPath, err = makeInstalledMockSnap(s.tempdir, `name: kernel1
 version: 1.0
-type: framework
+type: kernel
 `)
 	c.Assert(err, IsNil)
 	makeSnapActive(yamlPath)
@@ -49,10 +49,10 @@ type: framework
 	c.Assert(parts, HasLen, 1)
 	c.Assert(parts[0].Name(), Equals, "app1")
 
-	parts, err = ActiveSnapsByType(snap.TypeFramework)
+	parts, err = ActiveSnapsByType(snap.TypeKernel)
 	c.Assert(err, IsNil)
 	c.Assert(parts, HasLen, 1)
-	c.Assert(parts[0].Name(), Equals, "framework1")
+	c.Assert(parts[0].Name(), Equals, "kernel1")
 }
 
 func (s *SnapTestSuite) TestActiveSnapIterByType(c *C) {
@@ -75,13 +75,9 @@ type: framework`)
 
 	for _, t := range []T{
 		{BareName, snap.TypeApp, "app"},
-		{BareName, snap.TypeFramework, "fwk"},
 		{QualifiedName, snap.TypeApp, "app." + testOrigin},
-		{QualifiedName, snap.TypeFramework, "fwk"},
 		{FullName, snap.TypeApp, "app." + testOrigin},
-		{FullName, snap.TypeFramework, "fwk." + testOrigin},
 		{fullNameWithChannel, snap.TypeApp, "app." + testOrigin + "/remote-channel"},
-		{fullNameWithChannel, snap.TypeFramework, "fwk." + testOrigin + "/remote-channel"},
 	} {
 		names, err := ActiveSnapIterByType(t.f, t.t)
 		c.Check(err, IsNil)
@@ -93,22 +89,12 @@ type: framework`)
 	storeMinimalRemoteManifest("fwk", "fwk", testOrigin, "1.0", "Hello.", "")
 	for _, t := range []T{
 		{fullNameWithChannel, snap.TypeApp, "app." + testOrigin},
-		{fullNameWithChannel, snap.TypeFramework, "fwk." + testOrigin},
 	} {
 		names, err := ActiveSnapIterByType(t.f, t.t)
 		c.Check(err, IsNil)
 		c.Check(names, DeepEquals, []string{t.n})
 	}
 
-	nm := make(map[string]bool, 2)
-	names, err := ActiveSnapIterByType(QualifiedName, snap.TypeApp, snap.TypeFramework)
-	c.Check(err, IsNil)
-	c.Assert(names, HasLen, 2)
-	for i := range names {
-		nm[names[i]] = true
-	}
-
-	c.Check(nm, DeepEquals, map[string]bool{"fwk": true, "app." + testOrigin: true})
 }
 
 func (s *SnapTestSuite) TestFindSnapsByNameNotAvailable(c *C) {

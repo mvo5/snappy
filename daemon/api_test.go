@@ -535,7 +535,7 @@ func (s *apiSuite) TestSnapsInfoFilterRemote(c *check.C) {
 
 func (s *apiSuite) TestSnapsInfoAppsOnly(c *check.C) {
 	s.mkInstalled(c, "app", "foo", "v1", true, "type: app")
-	s.mkInstalled(c, "framework", "foo", "v1", true, "type: framework")
+	s.mkInstalled(c, "kernel", "foo", "v1", true, "type: kernel")
 
 	req, err := http.NewRequest("GET", "/2.0/snaps?types=app", nil)
 	c.Assert(err, check.IsNil)
@@ -548,11 +548,11 @@ func (s *apiSuite) TestSnapsInfoAppsOnly(c *check.C) {
 	c.Assert(snaps["app.foo"], check.NotNil)
 }
 
-func (s *apiSuite) TestSnapsInfoFrameworksOnly(c *check.C) {
+func (s *apiSuite) TestSnapsInfoKernelOnly(c *check.C) {
 	s.mkInstalled(c, "app", "foo", "v1", true, "type: app")
-	s.mkInstalled(c, "framework", "foo", "v1", true, "type: framework")
+	s.mkInstalled(c, "kernel", "foo", "v1", true, "type: kernel")
 
-	req, err := http.NewRequest("GET", "/2.0/snaps?types=framework", nil)
+	req, err := http.NewRequest("GET", "/2.0/snaps?types=kernel", nil)
 	c.Assert(err, check.IsNil)
 
 	rsp := getSnapsInfo(snapsCmd, req).(*resp)
@@ -560,14 +560,14 @@ func (s *apiSuite) TestSnapsInfoFrameworksOnly(c *check.C) {
 	result := rsp.Result.(map[string]interface{})
 	snaps := result["snaps"].(map[string]map[string]interface{})
 	c.Assert(snaps, check.HasLen, 1)
-	c.Assert(snaps["framework.foo"], check.NotNil)
+	c.Assert(snaps["kernel.foo"], check.NotNil)
 }
 
-func (s *apiSuite) TestSnapsInfoAppsAndFrameworks(c *check.C) {
+func (s *apiSuite) TestSnapsInfoAppsAndKernels(c *check.C) {
 	s.mkInstalled(c, "app", "foo", "v1", true, "type: app")
-	s.mkInstalled(c, "framework", "foo", "v1", true, "type: framework")
+	s.mkInstalled(c, "kernel", "foo", "v1", true, "type: kernel")
 
-	req, err := http.NewRequest("GET", "/2.0/snaps?types=app,framework", nil)
+	req, err := http.NewRequest("GET", "/2.0/snaps?types=app,kernel", nil)
 	c.Assert(err, check.IsNil)
 
 	rsp := getSnapsInfo(snapsCmd, req).(*resp)

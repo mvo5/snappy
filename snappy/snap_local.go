@@ -31,7 +31,6 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/helpers"
 	"github.com/ubuntu-core/snappy/logger"
-	"github.com/ubuntu-core/snappy/policy"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/remote"
@@ -254,12 +253,6 @@ func (s *SnapPart) activate(inhibitHooks bool, inter interacter) error {
 		}
 	}
 
-	if s.Type() == snap.TypeFramework {
-		if err := policy.Install(s.Name(), s.basedir, dirs.GlobalRootDir); err != nil {
-			return err
-		}
-	}
-
 	// generate the security policy from the snap.yaml
 	// Note that this must happen before binaries/services are
 	// generated because serices may get started
@@ -333,12 +326,6 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 		return err
 	}
 
-	if s.Type() == snap.TypeFramework {
-		if err := policy.Remove(s.Name(), s.basedir, dirs.GlobalRootDir); err != nil {
-			return err
-		}
-	}
-
 	// and finally the current symlink
 	if err := os.Remove(currentSymlink); err != nil {
 		logger.Noticef("Failed to remove %q: %v", currentSymlink, err)
@@ -355,65 +342,6 @@ func (s *SnapPart) deactivate(inhibitHooks bool, inter interacter) error {
 // NeedsReboot returns true if the snap becomes active on the next reboot
 func (s *SnapPart) NeedsReboot() bool {
 	return kernelOrOsRebootRequired(s)
-}
-
-// Frameworks returns the list of frameworks needed by the snap
-func (s *SnapPart) Frameworks() ([]string, error) {
-	return s.m.Frameworks, nil
-}
-
-// DependentNames returns a list of the names of apps installed that
-// depend on this one
-//
-// /!\ not part of the Part interface.
-func (s *SnapPart) DependentNames() ([]string, error) {
-	deps, err := s.Dependents()
-	if err != nil {
-		return nil, err
-	}
-
-	names := make([]string, len(deps))
-	for i, dep := range deps {
-		names[i] = dep.Name()
-	}
-
-	return names, nil
-}
-
-// Dependents gives the list of apps installed that depend on this one
-//
-// /!\ not part of the Part interface.
-func (s *SnapPart) Dependents() ([]*SnapPart, error) {
-	if s.Type() != snap.TypeFramework {
-		// only frameworks are depended on
-		return nil, nil
-	}
-
-	var needed []*SnapPart
-
-	installed, err := NewLocalSnapRepository().Installed()
-	if err != nil {
-		return nil, err
-	}
-
-	name := s.Name()
-	for _, part := range installed {
-		fmks, err := part.Frameworks()
-		if err != nil {
-			return nil, err
-		}
-		for _, fmk := range fmks {
-			if fmk == name {
-				part, ok := part.(*SnapPart)
-				if !ok {
-					return nil, ErrInstalledNonSnapPart
-				}
-				needed = append(needed, part)
-			}
-		}
-	}
-
-	return needed, nil
 }
 
 // CanInstall checks whether the SnapPart passes a series of tests required for installation
@@ -449,29 +377,6 @@ func (s *SnapPart) RequestSecurityPolicyUpdate(policies, templates map[string]bo
 	//        will be preserved
 	if foundError != nil {
 		return foundError
-	}
-
-	return nil
-}
-
-// RefreshDependentsSecurity refreshes the security policies of dependent snaps
-func (s *SnapPart) RefreshDependentsSecurity(oldPart *SnapPart, inter interacter) (err error) {
-	oldBaseDir := ""
-	if oldPart != nil {
-		oldBaseDir = oldPart.basedir
-	}
-	upPol, upTpl := policy.AppArmorDelta(oldBaseDir, s.basedir, s.Name()+"_")
-
-	deps, err := s.Dependents()
-	if err != nil {
-		return err
-	}
-
-	for _, dep := range deps {
-		err := dep.RequestSecurityPolicyUpdate(upPol, upTpl)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
