@@ -24,23 +24,20 @@ import (
 
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
-	"github.com/ubuntu-core/snappy/progress"
-	"github.com/ubuntu-core/snappy/snappy"
+	"github.com/ubuntu-core/snappy/overlord"
 )
 
 type cmdRemove struct {
-	DisableGC bool `long:"no-gc"`
 }
 
 func init() {
-	arg, err := parser.AddCommand("remove",
+	_, err := parser.AddCommand("remove",
 		i18n.G("Remove a snapp part"),
 		i18n.G("Remove a snapp part"),
 		&cmdRemove{})
 	if err != nil {
 		logger.Panicf("Unable to remove: %v", err)
 	}
-	addOptionDescription(arg, "no-gc", i18n.G("Do not clean up old versions of the package."))
 }
 
 func (x *cmdRemove) Execute(args []string) (err error) {
@@ -50,18 +47,22 @@ func (x *cmdRemove) Execute(args []string) (err error) {
 }
 
 func (x *cmdRemove) doRemove(args []string) error {
-	flags := snappy.DoRemoveGC
-	if x.DisableGC {
-		flags = 0
+	overlord, err := overlord.New()
+	if err != nil {
+		return fmt.Errorf("can not create overlord: %s", err)
 	}
 
 	for _, part := range args {
 		// TRANSLATORS: the %s is a pkgname
 		fmt.Printf(i18n.G("Removing %s\n"), part)
 
-		if err := snappy.Remove(part, flags, progress.MakeProgressBar()); err != nil {
+		// FIXME: progress reporting!
+		if err := overlord.SnapManager().Remove(part); err != nil {
 			return err
 		}
+	}
+	if err := overlord.SnapManager().Ensure(); err != nil {
+		return err
 	}
 
 	return nil
