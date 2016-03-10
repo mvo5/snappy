@@ -47,11 +47,9 @@ func (m *SnapManager) Stop() error {
 	return nil
 }
 
-var mgr = &SnapManager{}
-
 // Manager returns a new snap manager.
 func Manager() (*SnapManager, error) {
-	return mgr, nil
+	return &SnapManager{}, nil
 }
 
 // Install initiates a change installing snap.
@@ -59,11 +57,10 @@ func Install(change *state.Change, snap string) error {
 	change.NewTask("download-snap", fmt.Sprintf("Downloading %q", snap))
 	change.NewTask("install-snap", fmt.Sprintf("Installing %q", snap))
 
-	mgr, _ := Manager()
 	var current managerState
-	mgr.state.Get("snaps", &current)
+	change.State().Get("snaps", &current)
 	current.Add(snap)
-	mgr.state.Set("snaps", &current)
+	change.State().Set("snaps", &current)
 
 	return nil
 }
@@ -84,23 +81,23 @@ func Remove(change *state.Change, snap string) error {
 
 // managerState keeps the state of all snaps on the system
 type managerState struct {
-	snaps []*snapState
+	Snaps []*snapState
 }
 
 func (m *managerState) Add(snap string) {
-	for _, st := range m.snaps {
+	for _, st := range m.Snaps {
 		// already part of the state, nothing to do
 		if st.Name == snap {
 			return
 		}
 	}
-	m.snaps = append(m.snaps, &snapState{Name: snap})
+	m.Snaps = append(m.Snaps, &snapState{Name: snap})
 }
 
 func (m *managerState) Del(snap string) {
-	for i, st := range m.snaps {
+	for i, st := range m.Snaps {
 		if st.Name == snap {
-			m.snaps = append(m.snaps[:i], m.snaps[i+1:]...)
+			m.Snaps = append(m.Snaps[:i], m.Snaps[i+1:]...)
 			return
 		}
 	}

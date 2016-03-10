@@ -124,6 +124,11 @@ func (c *Change) Summary() string {
 	return c.summary
 }
 
+// State return the pointer to the global State
+func (c *Change) State() *State {
+	return c.state
+}
+
 // Set associates value with key for future consulting by managers.
 // The provided value must properly marshal and unmarshal with encoding/json.
 func (c *Change) Set(key string, value interface{}) {

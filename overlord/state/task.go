@@ -118,6 +118,11 @@ func (t *Task) Status() Status {
 	return t.status
 }
 
+// State return the pointer to the global State
+func (t *Task) State() *State {
+	return t.state
+}
+
 // SetStatus sets the task status, overriding the default behavior (see Status method).
 func (t *Task) SetStatus(s Status) {
 	t.state.ensureLocked()

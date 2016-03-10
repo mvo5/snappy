@@ -22,15 +22,7 @@ package snapstate
 
 type Status int
 
-const (
-	NeedsDownload Status = 0
-	Downloaded
-	Unpacked
-	Configured
-)
-
 type snapState struct {
 	Name    string
-	Status  Status
 	DevMode bool `json:"dev-mode,omitempty`
 }
