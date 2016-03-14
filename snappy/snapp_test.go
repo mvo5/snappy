@@ -579,8 +579,8 @@ func (s *SnapTestSuite) TestUbuntuStoreRepositoryUpdates(c *C) {
 	results, err := snap.Updates()
 	c.Assert(err, IsNil)
 	c.Assert(results, HasLen, 1)
-	c.Assert(results[0].Name(), Equals, funkyAppName)
-	c.Assert(results[0].Version(), Equals, "42")
+	c.Assert(results[0].Name, Equals, funkyAppName)
+	c.Assert(results[0].Version, Equals, "42")
 }
 
 func (s *SnapTestSuite) TestUbuntuStoreRepositoryUpdatesNoSnaps(c *C) {
@@ -633,13 +633,13 @@ func (s *SnapTestSuite) TestUbuntuStoreRepositoryDetails(c *C) {
 	// the actual test
 	result, err := snap.Snap(funkyAppName+"."+funkyAppOrigin, "edge")
 	c.Assert(err, IsNil)
-	c.Check(result.Name(), Equals, funkyAppName)
-	c.Check(result.Origin(), Equals, funkyAppOrigin)
-	c.Check(result.Version(), Equals, "42")
-	c.Check(result.Hash(), Equals, "5364253e4a988f4f5c04380086d542f410455b97d48cc6c69ca2a5877d8aef2a6b2b2f83ec4f688cae61ebc8a6bf2cdbd4dbd8f743f0522fc76540429b79df42")
-	c.Check(result.Date().String(), Equals, "2015-04-15 18:30:16 +0000 UTC")
-	c.Check(result.DownloadSize(), Equals, int64(65375))
-	c.Check(result.Channel(), Equals, "edge")
+	c.Check(result.Name, Equals, funkyAppName)
+	c.Check(result.Origin, Equals, funkyAppOrigin)
+	c.Check(result.Version, Equals, "42")
+	c.Check(result.Hash, Equals, "5364253e4a988f4f5c04380086d542f410455b97d48cc6c69ca2a5877d8aef2a6b2b2f83ec4f688cae61ebc8a6bf2cdbd4dbd8f743f0522fc76540429b79df42")
+	c.Check(result.Date.String(), Equals, "2015-04-15 18:30:16 +0000 UTC")
+	c.Check(result.DownloadSize, Equals, int64(65375))
+	c.Check(result.Channel, Equals, "edge")
 }
 
 func (s *SnapTestSuite) TestUbuntuStoreRepositoryNoDetails(c *C) {
@@ -712,7 +712,7 @@ func (s *SnapTestSuite) TestUbuntuStoreRepositoryInstallRemoteSnap(c *C) {
 
 	mStore := NewUbuntuStoreSnapRepository()
 	p := &MockProgressMeter{}
-	name, err := installRemote(mStore, r, 0, p)
+	name, err := installRemote(mStore, r.Info(), 0, p)
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 	st, err := os.Stat(snapPackage)
@@ -766,12 +766,12 @@ apps:
 
 	mStore := NewUbuntuStoreSnapRepository()
 	p := &MockProgressMeter{}
-	name, err := installRemote(mStore, r, 0, p)
+	name, err := installRemote(mStore, r.Info(), 0, p)
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 	c.Check(p.notified, HasLen, 0)
 
-	_, err = installRemote(mStore, r, 0, p)
+	_, err = installRemote(mStore, r.Info(), 0, p)
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 	c.Check(p.notified, HasLen, 1)

@@ -33,6 +33,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/progress"
+	"github.com/ubuntu-core/snappy/snap"
 )
 
 func makeCloudInitMetaData(c *C, content string) string {
@@ -297,8 +298,8 @@ func (s *SnapTestSuite) TestUpdate(c *C) {
 	updates, err := UpdateAll(0, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Assert(updates, HasLen, 1)
-	c.Check(updates[0].Name(), Equals, "foo")
-	c.Check(updates[0].Version(), Equals, "2")
+	c.Check(updates[0].Name, Equals, "foo")
+	c.Check(updates[0].Version, Equals, "2")
 	// ensure that we get a "local" snap back - not a remote one
-	c.Check(updates[0], FitsTypeOf, &SnapPart{})
+	c.Check(updates[0], FitsTypeOf, &snap.Info{})
 }

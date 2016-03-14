@@ -194,8 +194,8 @@ func setUbuntuStoreHeaders(req *http.Request) {
 	}
 }
 
-// Snap returns the RemoteSnapPart for the given name or an error.
-func (s *SnapUbuntuStoreRepository) Snap(name, channel string) (*RemoteSnapPart, error) {
+// Snap returns the snap.Info for the given name or an error.
+func (s *SnapUbuntuStoreRepository) Snap(name, channel string) (*snap.Info, error) {
 
 	url, err := s.detailsURI.Parse(path.Join(name, channel))
 	if err != nil {
@@ -232,20 +232,7 @@ func (s *SnapUbuntuStoreRepository) Snap(name, channel string) (*RemoteSnapPart,
 		return nil, err
 	}
 
-	return NewRemoteSnapPart(detailsData), nil
-}
-
-// Details returns details for the given snap in this repository
-func (s *SnapUbuntuStoreRepository) Details(name, origin, channel string) (parts []Part, err error) {
-	snapName := name
-	if origin != "" {
-		snapName = name + "." + origin
-	}
-	snap, err := s.Snap(snapName, channel)
-	if err != nil {
-		return nil, err
-	}
-	return []Part{snap}, nil
+	return NewRemoteSnapPart(detailsData).Info(), nil
 }
 
 // All (installable) parts from the store
@@ -345,7 +332,7 @@ func (s *SnapUbuntuStoreRepository) Search(searchTerm string) (SharedNames, erro
 }
 
 // Updates returns the available updates
-func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
+func (s *SnapUbuntuStoreRepository) Updates() (updatable []*snap.Info, err error) {
 	// the store only supports apps, gadget and frameworks currently, so no
 	// sense in sending it our ubuntu-core snap
 	//
@@ -385,12 +372,12 @@ func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
 	for _, pkg := range updateData {
 		current := ActiveSnapByName(pkg.Name)
 		if current == nil || current.Version() != pkg.Version {
-			snap := NewRemoteSnapPart(pkg)
-			parts = append(parts, snap)
+			info := NewRemoteSnapPart(pkg).Info()
+			updatable = append(updatable, info)
 		}
 	}
 
-	return parts, nil
+	return updatable, nil
 }
 
 // Download downloads the given snap and returns its filename.

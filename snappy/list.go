@@ -19,12 +19,16 @@
 
 package snappy
 
+import (
+	"github.com/ubuntu-core/snappy/snap"
+)
+
 // ListInstalled returns all installed snaps
 func ListInstalled() ([]Part, error) {
 	return NewLocalSnapRepository().Installed()
 }
 
 // ListUpdates returns all snaps with updates
-func ListUpdates() ([]Part, error) {
+func ListUpdates() ([]*snap.Info, error) {
 	return NewUbuntuStoreSnapRepository().Updates()
 }

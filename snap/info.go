@@ -20,7 +20,15 @@
 package snap
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"time"
+
+	"gopkg.in/yaml.v2"
+
+	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/osutil"
 )
 
 // Info provides information about packages
@@ -29,9 +37,36 @@ type Info struct {
 	Version string
 	Type    Type
 
-	Channel string
-	IconURI string
-	Date    time.Time
+	// FIXME: compat with the store, should be "summary"
+	Title       string
+	Description string
+
+	Channel      string
+	IconURI      string
+	Date         time.Time
+	Origin       string
+	Hash         string
+	DownloadSize int64
+
+	Revision int64
 
 	URL string
+}
+
+func (i *Info) remoteManifestPath() string {
+	return filepath.Join(dirs.SnapMetaDir, fmt.Sprintf("%s.%s_%s.manifest", i.Name, i.Origin, i.Version))
+}
+
+func (i *Info) SaveManifest() error {
+	content, err := yaml.Marshal(i)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(dirs.SnapMetaDir, 0755); err != nil {
+		return err
+	}
+
+	// don't worry about previous contents
+	return osutil.AtomicWriteFile(i.remoteManifestPath(), content, 0644, 0)
 }

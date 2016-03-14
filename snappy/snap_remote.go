@@ -147,9 +147,20 @@ func (s *RemoteSnapPart) Frameworks() ([]string, error) {
 // Info returns a snap.Info
 func (s *RemoteSnapPart) Info() *snap.Info {
 	info := &snap.Info{
-		Name:    s.pkg.Name,
-		Version: s.pkg.Version,
+		Name:         s.pkg.Name,
+		Version:      s.pkg.Version,
+		Origin:       s.pkg.Origin,
+		DownloadSize: s.pkg.DownloadSize,
+		Channel:      s.pkg.Channel,
+		Revision:     s.pkg.Revision,
+
+		Hash: s.Hash(),
+		Date: s.Date(),
+
+		Description: s.pkg.Description,
+		Title:       s.pkg.Title,
 	}
+
 	if s.pkg.AnonDownloadURL != "" {
 		info.URL = s.pkg.AnonDownloadURL
 	} else {
