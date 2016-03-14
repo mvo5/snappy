@@ -143,3 +143,18 @@ func (s *RemoteSnapPart) NeedsReboot() bool {
 func (s *RemoteSnapPart) Frameworks() ([]string, error) {
 	return nil, ErrNotImplemented
 }
+
+// Info returns a snap.Info
+func (s *RemoteSnapPart) Info() *snap.Info {
+	info := &snap.Info{
+		Name:    s.pkg.Name,
+		Version: s.pkg.Version,
+	}
+	if s.pkg.AnonDownloadURL != "" {
+		info.URL = s.pkg.AnonDownloadURL
+	} else {
+		info.URL = s.pkg.DownloadURL
+	}
+
+	return info
+}

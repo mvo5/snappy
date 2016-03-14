@@ -396,8 +396,12 @@ func (s *SnapUbuntuStoreRepository) Updates() (parts []Part, err error) {
 // Download downloads the given snap and returns its filename.
 // The file is saved in temporary storage, and should be removed
 // after use to prevent the disk from running out of space.
-func (s *SnapUbuntuStoreRepository) Download(remoteSnap *RemoteSnapPart, pbar progress.Meter) (path string, err error) {
-	w, err := ioutil.TempFile("", remoteSnap.pkg.Name)
+func (s *SnapUbuntuStoreRepository) Download(remoteSnap *snap.Info, pbar progress.Meter) (path string, err error) {
+	if remoteSnap.URL == "" {
+		return "", fmt.Errorf("cannot download %s, no download URL", remoteSnap.Name)
+	}
+
+	w, err := ioutil.TempFile("", remoteSnap.Name)
 	if err != nil {
 		return "", err
 	}
@@ -412,17 +416,13 @@ func (s *SnapUbuntuStoreRepository) Download(remoteSnap *RemoteSnapPart, pbar pr
 	}()
 
 	// try anonymous download first and fallback to authenticated
-	url := remoteSnap.pkg.AnonDownloadURL
-	if url == "" {
-		url = remoteSnap.pkg.DownloadURL
-	}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", remoteSnap.URL, nil)
 	if err != nil {
 		return "", err
 	}
 	setUbuntuStoreHeaders(req)
 
-	if err := download(remoteSnap.Name(), w, req, pbar); err != nil {
+	if err := download(remoteSnap.Name, w, req, pbar); err != nil {
 		return "", err
 	}
 

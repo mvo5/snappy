@@ -29,6 +29,7 @@ import (
 	"github.com/ubuntu-core/snappy/dirs"
 	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/progress"
+	"github.com/ubuntu-core/snappy/snap"
 
 	. "gopkg.in/check.v1"
 )
@@ -58,7 +59,7 @@ func (t *remoteRepoTestSuite) TestDownloadOK(c *C) {
 		return nil
 	}
 
-	path, err := t.store.Download(&RemoteSnapPart{}, nil)
+	path, err := t.store.Download(&snap.Info{URL: "some-url"}, nil)
 	c.Assert(err, IsNil)
 	defer os.Remove(path)
 
@@ -75,7 +76,7 @@ func (t *remoteRepoTestSuite) TestDownloadFails(c *C) {
 	}
 
 	// simulate a failed download
-	path, err := t.store.Download(&RemoteSnapPart{}, nil)
+	path, err := t.store.Download(&snap.Info{URL: "some-url"}, nil)
 	c.Assert(err, ErrorMatches, "uh, it failed")
 	c.Assert(path, Equals, "")
 	// ... and ensure that the tempfile is removed
@@ -93,7 +94,7 @@ func (t *remoteRepoTestSuite) TestDownloadSyncFails(c *C) {
 	}
 
 	// simulate a failed sync
-	path, err := t.store.Download(&RemoteSnapPart{}, nil)
+	path, err := t.store.Download(&snap.Info{URL: "some-url"}, nil)
 	c.Assert(err, ErrorMatches, "fsync:.*")
 	c.Assert(path, Equals, "")
 	// ... and ensure that the tempfile is removed

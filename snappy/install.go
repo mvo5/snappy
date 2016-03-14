@@ -45,7 +45,7 @@ const (
 )
 
 func installRemote(mStore *SnapUbuntuStoreRepository, remoteSnap *RemoteSnapPart, flags InstallFlags, meter progress.Meter) (string, error) {
-	downloadedSnap, err := mStore.Download(remoteSnap, meter)
+	downloadedSnap, err := mStore.Download(remoteSnap.Info(), meter)
 	if err != nil {
 		return "", fmt.Errorf("cannot download %s: %s", remoteSnap.Name(), err)
 	}

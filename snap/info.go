@@ -19,9 +19,19 @@
 
 package snap
 
+import (
+	"time"
+)
+
 // Info provides information about packages
 type Info struct {
 	Name    string
 	Version string
 	Type    Type
+
+	Channel string
+	IconURI string
+	Date    time.Time
+
+	URL string
 }
