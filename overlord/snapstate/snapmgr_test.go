@@ -56,7 +56,7 @@ func (s *snapmgrTestSuite) TestInstallAddsTasks(c *C) {
 	s.state.Lock()
 	chg := s.state.NewChange("install", "installing foo")
 	s.state.Unlock()
-	snapstate.Install(chg, "foo")
+	snapstate.Install(chg, "some-snap-name", "some-channel")
 
 	s.state.Lock()
 	defer s.state.Unlock()

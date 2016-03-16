@@ -29,20 +29,19 @@ import (
 )
 
 // Install initiates a change installing snap.
-func Install(change *state.Change, snap string) error {
-	change.State().Lock()
-	defer change.State().Unlock()
+func Install(change *state.Change, snap, channel string) error {
+	println("snapstate.Install")
 
 	tIns := change.NewTask("install-snap", fmt.Sprintf("Installing %q", snap))
 	tIns.Set("name", snap)
+	tIns.Set("channel", channel)
 
 	return nil
 }
 
 // Remove initiates a change removing snap.
 func Remove(change *state.Change, snap string) error {
-	change.State().Lock()
-	defer change.State().Unlock()
+	println("snapstate.Remove")
 
 	t := change.NewTask("remove-snap", fmt.Sprintf("Removing %q", snap))
 	t.Set("name", snap)
@@ -63,17 +62,27 @@ func Manager() (*SnapManager, error) {
 }
 
 func (m *SnapManager) doInstallSnap(t *state.Task) error {
-	var name string
+	var name, channel string
+	t.State().Lock()
 	t.Get("name", &name)
-	channel := ""
+	t.Get("channel", &channel)
+	t.State().Unlock()
+	println("doInstall", name, channel)
+
 	_, err := snappy.Install(name, channel, 0, &progress.NullProgress{})
 	return err
 }
 
 func (m *SnapManager) doRemoveSnap(t *state.Task) error {
 	var name string
+	t.State().Lock()
 	t.Get("name", &name)
-	return snappy.Remove(name, 0, &progress.NullProgress{})
+	t.State().Unlock()
+	println("doRemove", name)
+
+	err := snappy.Remove(name, 0, &progress.NullProgress{})
+	fmt.Println(err)
+	return err
 }
 
 // Init implements StateManager.Init.
