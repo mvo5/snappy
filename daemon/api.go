@@ -38,6 +38,8 @@ import (
 	"github.com/ubuntu-core/snappy/interfaces"
 	"github.com/ubuntu-core/snappy/lockfile"
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/overlord"
+	"github.com/ubuntu-core/snappy/overlord/snapstate"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/release"
 	"github.com/ubuntu-core/snappy/snappy"
@@ -618,6 +620,8 @@ type snapInstruction struct {
 	LeaveOld bool         `json:"leave_old"`
 	License  *licenseData `json:"license"`
 	pkg      string
+
+	overlord *overlord.Overlord
 }
 
 // Agreed is part of the progress.Meter interface (q.v.)
@@ -634,21 +638,34 @@ func (inst *snapInstruction) Agreed(intro, license string) bool {
 var snappyInstall = snappy.Install
 
 func (inst *snapInstruction) install() interface{} {
-	flags := snappy.DoInstallGC
-	if inst.LeaveOld {
-		flags = 0
-	}
-	_, err := snappyInstall(inst.pkg, inst.Channel, flags, inst)
-	if err != nil {
-		if inst.License != nil && snappy.IsLicenseNotAccepted(err) {
-			return inst.License
-		}
-		return err
-	}
+	// FIXME: all of the bits below
+	//        - license agreement
+	//        - flags
+	state := inst.overlord.StateEngine().State()
+	state.Lock()
+	chg := state.NewChange("install-snap", fmt.Sprintf("Installing %s from %s", inst.pkg, inst.Channel))
+	err := snapstate.Install(chg, inst.pkg, inst.Channel)
+	state.Unlock()
 
-	// TODO: return the log
-	// also to do: commands update their output dynamically, as it changes.
-	return nil
+	inst.overlord.SnapManager().Ensure()
+	return err
+	/*
+		flags := snappy.DoInstallGC
+		if inst.LeaveOld {
+			flags = 0
+		}
+		_, err := snappyInstall(inst.pkg, inst.Channel, flags, inst)
+		if err != nil {
+			if inst.License != nil && snappy.IsLicenseNotAccepted(err) {
+				return inst.License
+			}
+			return err
+		}
+
+		// TODO: return the log
+		// also to do: commands update their output dynamically, as it changes.
+		return nil
+	*/
 }
 
 func (inst *snapInstruction) update() interface{} {
@@ -662,12 +679,25 @@ func (inst *snapInstruction) update() interface{} {
 }
 
 func (inst *snapInstruction) remove() interface{} {
-	flags := snappy.DoRemoveGC
-	if inst.LeaveOld {
-		flags = 0
-	}
+	// FIXME: all of the bits below
+	//        - flags
+	state := inst.overlord.StateEngine().State()
+	state.Lock()
+	chg := state.NewChange("remove-snap", fmt.Sprintf("Removing %s", inst.pkg))
+	err := snapstate.Remove(chg, inst.pkg)
+	state.Unlock()
+	logger.Debugf("snapInstruction.remove() for %s", inst.pkg)
 
-	return snappy.Remove(inst.pkg, flags, inst)
+	inst.overlord.SnapManager().Ensure()
+	return err
+	/*
+		flags := snappy.DoRemoveGC
+		if inst.LeaveOld {
+			flags = 0
+		}
+
+		return snappy.Remove(inst.pkg, flags, inst)
+	*/
 }
 
 func (inst *snapInstruction) purge() interface{} {
@@ -728,6 +758,7 @@ func postSnap(c *Command, r *http.Request) Response {
 
 	vars := muxVars(r)
 	inst.pkg = vars["name"] + "." + vars["developer"]
+	inst.overlord = c.d.overlord
 
 	f := pkgActionDispatch(&inst)
 	if f == nil {

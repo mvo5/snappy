@@ -24,6 +24,7 @@ import (
 	"fmt"
 
 	"github.com/ubuntu-core/snappy/i18n"
+	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/overlord/state"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snappy"
@@ -83,16 +84,22 @@ func (m *SnapManager) doInstallSnap(t *state.Task) error {
 	t.Get("name", &name)
 	t.Get("channel", &channel)
 	t.State().Unlock()
+
 	_, err := m.backend.Install(name, channel, 0, &progress.NullProgress{})
+	t.Logf("doInstallSnap: %s from %s: %s", name, channel, err)
 	return err
 }
 
 func (m *SnapManager) doRemoveSnap(t *state.Task) error {
-	var name string
+	var nameAndDeveloper string
 	t.State().Lock()
-	t.Get("name", &name)
+	t.Get("name", &nameAndDeveloper)
 	t.State().Unlock()
-	return m.backend.Remove(name, 0, &progress.NullProgress{})
+
+	name, _ := snappy.SplitDeveloper(nameAndDeveloper)
+	err := m.backend.Remove(name, 0, &progress.NullProgress{})
+	t.Logf("doRemoveSnap: %s: %s", name, err)
+	return err
 }
 
 // Init implements StateManager.Init.
@@ -109,6 +116,7 @@ func (m *SnapManager) Init(s *state.State) error {
 
 // Ensure implements StateManager.Ensure.
 func (m *SnapManager) Ensure() error {
+	logger.Debugf("SnapManager.Ensure called")
 	m.runner.Ensure()
 	return nil
 }
