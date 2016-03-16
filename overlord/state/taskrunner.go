@@ -58,21 +58,25 @@ func (r *TaskRunner) AddHandler(kind string, fn HandlerFunc) {
 	r.handlers[kind] = fn
 }
 
+// Handlers returns the map of name/handler functions
+func (r *TaskRunner) Handlers() map[string]HandlerFunc {
+	return r.handlers
+}
+
 // run must be called with the state lock in place
-func (r *TaskRunner) run(fn HandlerFunc, taskID string) {
-	t := r.state.tasks[taskID]
-	r.tombs[taskID] = &tomb.Tomb{}
-	r.tombs[taskID].Go(func() error {
-		err := fn(t)
+func (r *TaskRunner) run(fn HandlerFunc, task *Task) {
+	r.tombs[task.ID()] = &tomb.Tomb{}
+	r.tombs[task.ID()].Go(func() error {
+		err := fn(task)
 
 		r.state.Lock()
 		defer r.state.Unlock()
 		if err == nil {
-			t.SetStatus(DoneStatus)
+			task.SetStatus(DoneStatus)
 		} else {
-			t.SetStatus(ErrorStatus)
+			task.SetStatus(ErrorStatus)
 		}
-		delete(r.tombs, taskID)
+		delete(r.tombs, task.ID())
 
 		return err
 	})
@@ -80,11 +84,9 @@ func (r *TaskRunner) run(fn HandlerFunc, taskID string) {
 
 // mustWait must be called with the state lock in place
 func (r *TaskRunner) mustWait(t *Task) bool {
-	for _, id := range t.WaitTasks() {
-		if wt, ok := r.state.tasks[id]; ok {
-			if wt.Status() != DoneStatus {
-				return true
-			}
+	for _, wt := range t.WaitTasks() {
+		if wt.Status() != DoneStatus {
+			return true
 		}
 	}
 
@@ -93,20 +95,37 @@ func (r *TaskRunner) mustWait(t *Task) bool {
 
 // Ensure starts new goroutines for all known tasks with no pending
 // dependencies.
+// Note that Ensure will lock the state.
 func (r *TaskRunner) Ensure() {
 	r.state.Lock()
 	defer r.state.Unlock()
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	for _, chg := range r.state.Changes() {
+		if chg.Status() == DoneStatus {
+			continue
+		}
+
 		tasks := chg.Tasks()
 		for _, t := range tasks {
 			// done, nothing to do
 			if t.Status() == DoneStatus {
 				continue
 			}
+
+			// No handler for the given kind of task,
+			// this means another taskrunner is going
+			// to handle this task.
+			if _, ok := r.handlers[t.Kind()]; !ok {
+				continue
+			}
+
 			// we look at the Tomb instead of Status because
-			// a task is always in RunningStatus even if
-			// not running (FIXME?)
+			// a task can be in RunningStatus even when it
+			// is not started yet (like when the daemon
+			// process restarts)
 			if _, ok := r.tombs[t.ID()]; ok {
 				continue
 			}
@@ -118,15 +137,17 @@ func (r *TaskRunner) Ensure() {
 
 			// the task is ready to run (all prerequists done)
 			// so full steam ahead!
-			if fn, ok := r.handlers[t.Kind()]; ok {
-				r.run(fn, t.ID())
-			}
+			r.run(r.handlers[t.Kind()], t)
 		}
 	}
 }
 
 // Stop stops all concurrent activities and returns after that's done.
+// Note that Stop will lock the state.
 func (r *TaskRunner) Stop() {
+	r.state.Lock()
+	defer r.state.Unlock()
+
 	for _, tb := range r.tombs {
 		tb.Kill(nil)
 		tb.Wait()

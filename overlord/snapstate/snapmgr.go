@@ -37,7 +37,7 @@ func Install(change *state.Change, snap string) error {
 	tIns := change.NewTask("install-snap", fmt.Sprintf("Installing %q", snap))
 	tIns.Set("name", snap)
 	// FIMXE: how can tDl communicate the downloaded tmpfile name to tInst
-	t.inst.WaitFor(tDl)
+	tIns.WaitFor(tDl)
 
 	return nil
 }
@@ -89,6 +89,7 @@ func (m *SnapManager) doRemoveSnap(t *state.Task) error {
 
 // Init implements StateManager.Init.
 func (m *SnapManager) Init(s *state.State) error {
+	m.state = s
 	m.runner = state.NewTaskRunner(s)
 
 	// FIXME: make more fine grained
@@ -107,5 +108,6 @@ func (m *SnapManager) Ensure() error {
 
 // Stop implements StateManager.Stop.
 func (m *SnapManager) Stop() error {
+	m.runner.Stop()
 	return nil
 }

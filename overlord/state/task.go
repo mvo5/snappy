@@ -21,6 +21,8 @@ package state
 
 import (
 	"encoding/json"
+
+	"github.com/ubuntu-core/snappy/logger"
 )
 
 type progress struct {
@@ -40,16 +42,17 @@ type Task struct {
 	status    Status
 	progress  progress
 	data      customData
-	waitTasks []string
+	waitTasks taskIDsSet
 }
 
 func newTask(state *State, id, kind, summary string) *Task {
 	return &Task{
-		state:   state,
-		id:      id,
-		kind:    kind,
-		summary: summary,
-		data:    make(customData),
+		state:     state,
+		id:        id,
+		kind:      kind,
+		summary:   summary,
+		data:      make(customData),
+		waitTasks: make(taskIDsSet),
 	}
 }
 
@@ -60,7 +63,7 @@ type marshalledTask struct {
 	Status    Status                      `json:"status"`
 	Progress  progress                    `json:"progress"`
 	Data      map[string]*json.RawMessage `json:"data"`
-	WaitTasks []string                    `json:"wait-tasks"`
+	WaitTasks taskIDsSet                  `json:"wait-tasks"`
 }
 
 // MarshalJSON makes Task a json.Marshaller
@@ -128,7 +131,7 @@ func (t *Task) SetStatus(s Status) {
 	t.status = s
 }
 
-// State return the pointer to the global State
+// State returns the system State
 func (t *Task) State() *State {
 	return t.state
 }
@@ -155,6 +158,15 @@ func (t *Task) SetProgress(cur, total int) {
 	t.progress = progress{Current: cur, Total: total}
 }
 
+// Logf logs textual information about the progress of the task.
+// Only the most recent entries logged are held in memory, potentially
+// with different behavior for different task statuses. How many entries
+// are held is an implementation detail and may change over time.
+func (t *Task) Logf(format string, args ...interface{}) {
+	// XXX: minimal implementation for now
+	logger.Noticef(format, args...)
+}
+
 // Set associates value with key for future consulting by managers.
 // The provided value must properly marshal and unmarshal with encoding/json.
 func (t *Task) Set(key string, value interface{}) {
@@ -174,10 +186,11 @@ func (t *Task) Get(key string, value interface{}) error {
 func (t *Task) WaitFor(another *Task) {
 	t.state.ensureLocked()
 	t.status = WaitingStatus
-	t.waitTasks = append(t.waitTasks, another.ID())
+	t.waitTasks.add(another.ID())
 }
 
 // WaitTasks returns the list of tasks registered for t to wait for.
-func (t *Task) WaitTasks() []string {
-	return t.waitTasks
+func (t *Task) WaitTasks() []*Task {
+	t.state.ensureLocked()
+	return t.waitTasks.tasks(t.state)
 }
