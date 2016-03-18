@@ -75,7 +75,7 @@ func (s *snapmgrTestSuite) TestInstallAddsTasks(c *C) {
 	defer s.state.Unlock()
 
 	chg := s.state.NewChange("install", "installing foo")
-	snapstate.Install(chg, "some-snap", "some-channel")
+	snapstate.Install(chg, "some-snap", "some-channel", 0)
 
 	c.Assert(s.state.Changes(), HasLen, 1)
 	c.Assert(chg.Tasks(), HasLen, 1)
@@ -87,7 +87,7 @@ func (s *snapmgrTestSuite) TestRemoveAddsTasks(c *C) {
 	defer s.state.Unlock()
 
 	chg := s.state.NewChange("remove", "removing foo")
-	snapstate.Remove(chg, "foo")
+	snapstate.Remove(chg, "foo", 0)
 
 	c.Assert(s.state.Changes(), HasLen, 1)
 	c.Assert(chg.Tasks(), HasLen, 1)
@@ -97,7 +97,7 @@ func (s *snapmgrTestSuite) TestRemoveAddsTasks(c *C) {
 func (s *snapmgrTestSuite) TestInstallIntegration(c *C) {
 	s.state.Lock()
 	chg := s.state.NewChange("install", "install a snap")
-	err := snapstate.Install(chg, "some-snap", "some-channel")
+	err := snapstate.Install(chg, "some-snap", "some-channel", 0)
 	s.state.Unlock()
 
 	c.Assert(err, IsNil)
@@ -113,7 +113,7 @@ func (s *snapmgrTestSuite) TestInstallIntegration(c *C) {
 func (s *snapmgrTestSuite) TestRemoveIntegration(c *C) {
 	s.state.Lock()
 	chg := s.state.NewChange("remove", "remove a snap")
-	err := snapstate.Remove(chg, "some-remove-snap")
+	err := snapstate.Remove(chg, "some-remove-snap", 0)
 	s.state.Unlock()
 
 	c.Assert(err, IsNil)
