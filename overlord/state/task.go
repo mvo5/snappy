@@ -44,6 +44,7 @@ type Task struct {
 	data      customData
 	waitTasks taskIDsSet
 	haltTasks taskIDsSet
+	err       error
 }
 
 func newTask(state *State, id, kind, summary string) *Task {
@@ -139,6 +140,11 @@ func (t *Task) SetStatus(s Status) {
 // State returns the system State
 func (t *Task) State() *State {
 	return t.state
+}
+
+// Err returns the error information if there is any.
+func (t *Task) Err() error {
+	return t.err
 }
 
 // Progress returns the current progress for the task.
