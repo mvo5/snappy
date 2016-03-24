@@ -37,39 +37,40 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 		Channel: channel,
 		Flags:   flags,
 	}
+	ts := state.NewTaskSet()
 
-	tasks := make([]*state.Task, 0)
+	var t *state.Task
 	// download (if needed)
 	if !osutil.FileExists(snap) {
-		tasks = append(tasks, s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap)))
-		inst.DownloadTaskID = tasks[len(tasks)-1].ID()
+		t = s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap))
+		inst.DownloadTaskID = t.ID()
+		t.Set("install-state", inst)
+		ts.Chain(t)
 	} else {
-		tasks = append(tasks, s.NewTask("nop", ""))
 		inst.SnapPath = snap
 	}
-	tasks[len(tasks)-1].Set("install-state", inst)
 
 	// mount
-	tasks = append(tasks, s.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap)))
-	tasks[len(tasks)-1].WaitFor(tasks[len(tasks)-2])
-	tasks[len(tasks)-1].Set("install-state", inst)
+	t = s.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap))
+	t.Set("install-state", inst)
+	ts.Chain(t)
 
 	// copy-data
-	tasks = append(tasks, s.NewTask("copy-snap-data", fmt.Sprintf(i18n.G("Copying snap data for %q"), snap)))
-	tasks[len(tasks)-1].WaitFor(tasks[len(tasks)-2])
-	tasks[len(tasks)-1].Set("install-state", inst)
+	t = s.NewTask("copy-snap-data", fmt.Sprintf(i18n.G("Copying snap data for %q"), snap))
+	t.Set("install-state", inst)
+	ts.Chain(t)
 
 	// security
-	tasks = append(tasks, s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap)))
-	tasks[len(tasks)-2].WaitFor(tasks[len(tasks)-1])
-	tasks[len(tasks)-1].Set("install-state", inst)
+	t = s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap))
+	t.Set("install-state", inst)
+	ts.Chain(t)
 
 	// enable
-	tasks = append(tasks, s.NewTask("finalize-snap-install", fmt.Sprintf(i18n.G("Finalizing install of %q"), snap)))
-	tasks[len(tasks)-1].WaitFor(tasks[len(tasks)-2])
-	tasks[len(tasks)-1].Set("install-state", inst)
+	t = s.NewTask("finalize-snap-install", fmt.Sprintf(i18n.G("Finalizing install of %q"), snap))
+	t.Set("install-state", inst)
+	ts.Chain(t)
 
-	return state.NewTaskSet(tasks...), nil
+	return ts, nil
 }
 
 // Update initiates a change updating a snap.

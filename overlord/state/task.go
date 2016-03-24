@@ -271,16 +271,24 @@ func NewTaskSet(tasks ...*Task) *TaskSet {
 	return &TaskSet{tasks}
 }
 
+// Chain appends a task that waits for the previous task
+func (ts *TaskSet) Chain(t *Task) {
+	ts.tasks = append(ts.tasks, t)
+	if len(ts.tasks) > 1 {
+		ts.tasks[len(ts.tasks)-1].WaitFor(ts.tasks[len(ts.tasks)-2])
+	}
+}
+
 // WaitFor registers a task as a requirement for the tasks in the set
 // to make progress.
-func (ts TaskSet) WaitFor(another *Task) {
+func (ts *TaskSet) WaitFor(another *Task) {
 	for _, t := range ts.tasks {
 		t.WaitFor(another)
 	}
 }
 
 // Tasks returns the tasks in the task set.
-func (ts TaskSet) Tasks() []*Task {
+func (ts *TaskSet) Tasks() []*Task {
 	// Return something mutable, just like every other Tasks method.
 	return append([]*Task(nil), ts.tasks...)
 }
