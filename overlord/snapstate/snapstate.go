@@ -37,40 +37,37 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 		Channel: channel,
 		Flags:   flags,
 	}
-	ts := state.NewTaskSet()
 
-	var t *state.Task
 	// download (if needed)
+	var download *state.Task
 	if !osutil.FileExists(snap) {
-		t = s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap))
-		inst.DownloadTaskID = t.ID()
-		t.Set("install-state", inst)
-		ts.Chain(t)
+		download = s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap))
+		inst.DownloadTaskID = download.ID()
 	} else {
+		download = s.NewTask("nop", "")
 		inst.SnapPath = snap
 	}
+	download.Set("install-state", inst)
 
 	// mount
-	t = s.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap))
-	t.Set("install-state", inst)
-	ts.Chain(t)
-
-	// copy-data
-	t = s.NewTask("copy-snap-data", fmt.Sprintf(i18n.G("Copying snap data for %q"), snap))
-	t.Set("install-state", inst)
-	ts.Chain(t)
+	mount := s.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap))
+	mount.Set("install-state", inst)
+	mount.WaitFor(download)
 
 	// security
-	t = s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap))
-	t.Set("install-state", inst)
-	ts.Chain(t)
+	generateSecurity := s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap))
+	generateSecurity.WaitFor(mount)
 
-	// enable
-	t = s.NewTask("finalize-snap-install", fmt.Sprintf(i18n.G("Finalizing install of %q"), snap))
-	t.Set("install-state", inst)
-	ts.Chain(t)
+	// copy-data (needs to stop services)
+	copyData := s.NewTask("copy-snap-data", fmt.Sprintf(i18n.G("Copying snap data for %q"), snap))
+	copyData.WaitFor(generateSecurity)
 
-	return ts, nil
+	// finalize: update current symlink, start new services
+	finalize := s.NewTask("finalize-snap-install", fmt.Sprintf(i18n.G("Finalizing install of %q"), snap))
+	finalize.Set("install-state", inst)
+	finalize.WaitFor(copyData)
+
+	return state.NewTaskSet(download, mount, generateSecurity, copyData, finalize), nil
 }
 
 // Update initiates a change updating a snap.
