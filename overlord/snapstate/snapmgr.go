@@ -87,8 +87,18 @@ func Manager(s *state.State) (*SnapManager, error) {
 		return nil
 	})
 
+	// real handlers
 	runner.AddHandler("download-snap", m.doDownloadSnap)
-	runner.AddHandler("install-snap", m.doInstallLocalSnap)
+	runner.AddHandler("mount-snap", func(t *state.Task, _ *tomb.Tomb) error {
+		return nil
+	})
+	runner.AddHandler("copy-snap-data", func(t *state.Task, _ *tomb.Tomb) error {
+		return nil
+	})
+	runner.AddHandler("generate-security", func(t *state.Task, _ *tomb.Tomb) error {
+		return nil
+	})
+	runner.AddHandler("finalize-snap-install", m.doInstallLocalSnap)
 
 	runner.AddHandler("update-snap", m.doUpdateSnap)
 	runner.AddHandler("remove-snap", m.doRemoveSnap)

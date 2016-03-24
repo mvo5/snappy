@@ -38,23 +38,38 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 		Flags:   flags,
 	}
 
+	tasks := make([]*state.Task, 0)
 	// download (if needed)
-	var tdl *state.Task
 	if !osutil.FileExists(snap) {
-		tdl = s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap))
-		inst.DownloadTaskID = tdl.ID()
+		tasks = append(tasks, s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap)))
+		inst.DownloadTaskID = tasks[len(tasks)-1].ID()
 	} else {
-		tdl = s.NewTask("nop", "")
+		tasks = append(tasks, s.NewTask("nop", ""))
 		inst.SnapPath = snap
 	}
-	tdl.Set("install-state", inst)
+	tasks[len(tasks)-1].Set("install-state", inst)
 
-	// install
-	tm := s.NewTask("install-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap))
-	tm.WaitFor(tdl)
-	tm.Set("install-state", inst)
+	// mount
+	tasks = append(tasks, s.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap)))
+	tasks[len(tasks)-1].WaitFor(tasks[len(tasks)-2])
+	tasks[len(tasks)-1].Set("install-state", inst)
 
-	return state.NewTaskSet(tdl, tm), nil
+	// copy-data
+	tasks = append(tasks, s.NewTask("copy-snap-data", fmt.Sprintf(i18n.G("Copying snap data for %q"), snap)))
+	tasks[len(tasks)-1].WaitFor(tasks[len(tasks)-2])
+	tasks[len(tasks)-1].Set("install-state", inst)
+
+	// security
+	tasks = append(tasks, s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap)))
+	tasks[len(tasks)-2].WaitFor(tasks[len(tasks)-1])
+	tasks[len(tasks)-1].Set("install-state", inst)
+
+	// enable
+	tasks = append(tasks, s.NewTask("finalize-snap-install", fmt.Sprintf(i18n.G("Finalizing install of %q"), snap)))
+	tasks[len(tasks)-1].WaitFor(tasks[len(tasks)-2])
+	tasks[len(tasks)-1].Set("install-state", inst)
+
+	return state.NewTaskSet(tasks...), nil
 }
 
 // Update initiates a change updating a snap.
