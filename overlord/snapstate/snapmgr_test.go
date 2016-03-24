@@ -79,6 +79,14 @@ func (s *snapmgrTestSuite) TestRemoveTasks(c *C) {
 	c.Assert(ts.Tasks()[0].Kind(), Equals, "remove-snap")
 }
 
+func (s *snapmgrTestSuite) settle() {
+	// FIXME: use the real settle here
+	for i := 0; i < 50; i++ {
+		s.snapmgr.Ensure()
+		s.snapmgr.Wait()
+	}
+}
+
 func (s *snapmgrTestSuite) TestInstallIntegration(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
@@ -89,11 +97,7 @@ func (s *snapmgrTestSuite) TestInstallIntegration(c *C) {
 	chg.AddAll(ts)
 
 	s.state.Unlock()
-	// FIXME: use settle here
-	for i := 0; i < 10; i++ {
-		s.snapmgr.Ensure()
-		s.snapmgr.Wait()
-	}
+	s.settle()
 	defer s.snapmgr.Stop()
 	s.state.Lock()
 
@@ -131,8 +135,7 @@ func (s *snapmgrTestSuite) TestInstallLocalIntegration(c *C) {
 	chg.AddAll(ts)
 
 	s.state.Unlock()
-	s.snapmgr.Ensure()
-	s.snapmgr.Wait()
+	s.settle()
 	defer s.snapmgr.Stop()
 	s.state.Lock()
 

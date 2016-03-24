@@ -82,6 +82,11 @@ func Manager(s *state.State) (*SnapManager, error) {
 		runner:  runner,
 	}
 
+	// this handler does nothing
+	runner.AddHandler("nop", func(t *state.Task, _ *tomb.Tomb) error {
+		return nil
+	})
+
 	runner.AddHandler("download-snap", m.doDownloadSnap)
 	runner.AddHandler("install-snap", m.doInstallLocalSnap)
 

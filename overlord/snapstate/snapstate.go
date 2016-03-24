@@ -22,9 +22,9 @@ package snapstate
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/ubuntu-core/snappy/i18n"
+	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/overlord/state"
 	"github.com/ubuntu-core/snappy/snappy"
 )
@@ -38,24 +38,23 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 		Flags:   flags,
 	}
 
-	// check if it is a local snap, those are special
-	if fi, err := os.Stat(snap); err == nil && fi.Mode().IsRegular() {
+	// download (if needed)
+	var tdl *state.Task
+	if !osutil.FileExists(snap) {
+		tdl = s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap))
+		inst.DownloadTaskID = tdl.ID()
+	} else {
+		tdl = s.NewTask("nop", "")
 		inst.SnapPath = snap
-		tl := s.NewTask("install-snap", fmt.Sprintf(i18n.G("Installing %q"), snap))
-		tl.Set("install-state", inst)
-		return state.NewTaskSet(tl), nil
 	}
+	tdl.Set("install-state", inst)
 
-	// remote snap, queue download
-	t := s.NewTask("download-snap", fmt.Sprintf(i18n.G("Downloading %q"), snap))
-	t.Set("install-state", inst)
+	// install
+	tm := s.NewTask("install-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap))
+	tm.WaitFor(tdl)
+	tm.Set("install-state", inst)
 
-	t2 := s.NewTask("install-snap", fmt.Sprintf(i18n.G("Installing %q"), snap))
-	inst.DownloadTaskID = t.ID()
-	t2.Set("install-state", inst)
-	t2.WaitFor(t)
-
-	return state.NewTaskSet(t, t2), nil
+	return state.NewTaskSet(tdl, tm), nil
 }
 
 // Update initiates a change updating a snap.
