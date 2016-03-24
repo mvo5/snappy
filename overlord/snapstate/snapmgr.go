@@ -119,10 +119,11 @@ func (m *SnapManager) doDownloadSnap(t *state.Task, _ *tomb.Tomb) error {
 	var dl downloadState
 
 	t.State().Lock()
-	if err := t.Get("install-state", &inst); err != nil {
+	err := t.Get("install-state", &inst)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	pb := &TaskProgressAdapter{task: t}
 	downloadedSnapFile, developer, err := m.backend.Download(inst.Name, inst.Channel, pb)
@@ -150,10 +151,11 @@ func snapPathAndDeveloperFromInstState(t *state.Task, inst *installState) (strin
 
 		t.State().Lock()
 		tDl := t.State().Task(inst.DownloadTaskID)
-		if err := tDl.Get("download-state", &dl); err != nil {
+		err := tDl.Get("download-state", &dl)
+		t.State().Unlock()
+		if err != nil {
 			return "", "", err
 		}
-		t.State().Unlock()
 		return dl.SnapPath, dl.Developer, nil
 	}
 
@@ -164,10 +166,11 @@ func (m *SnapManager) doMountSnap(t *state.Task, _ *tomb.Tomb) error {
 	var inst installState
 
 	t.State().Lock()
-	if err := t.Get("install-state", &inst); err != nil {
+	err := t.Get("install-state", &inst)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
 	if err != nil {
@@ -182,10 +185,11 @@ func (m *SnapManager) doCopySnapData(t *state.Task, _ *tomb.Tomb) error {
 	var inst installState
 
 	t.State().Lock()
-	if err := t.Get("install-state", &inst); err != nil {
+	err := t.Get("install-state", &inst)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
 	if err != nil {
@@ -200,10 +204,11 @@ func (m *SnapManager) doVerifySnap(t *state.Task, _ *tomb.Tomb) error {
 	var inst installState
 
 	t.State().Lock()
-	if err := t.Get("install-state", &inst); err != nil {
+	err := t.Get("install-state", &inst)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
 	if err != nil {
@@ -217,10 +222,11 @@ func (m *SnapManager) doInstallLocalSnap(t *state.Task, _ *tomb.Tomb) error {
 	var inst installState
 
 	t.State().Lock()
-	if err := t.Get("install-state", &inst); err != nil {
+	err := t.Get("install-state", &inst)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
 	if err != nil {
@@ -233,13 +239,14 @@ func (m *SnapManager) doInstallLocalSnap(t *state.Task, _ *tomb.Tomb) error {
 func (m *SnapManager) doUpdateSnap(t *state.Task, _ *tomb.Tomb) error {
 	var inst installState
 	t.State().Lock()
-	if err := t.Get("update-state", &inst); err != nil {
+	err := t.Get("update-state", &inst)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	pb := &TaskProgressAdapter{task: t}
-	err := m.backend.Update(inst.Name, inst.Channel, inst.Flags, pb)
+	err = m.backend.Update(inst.Name, inst.Channel, inst.Flags, pb)
 	return err
 }
 
@@ -247,14 +254,15 @@ func (m *SnapManager) doRemoveSnap(t *state.Task, _ *tomb.Tomb) error {
 	var rm removeState
 
 	t.State().Lock()
-	if err := t.Get("remove-state", &rm); err != nil {
+	err := t.Get("remove-state", &rm)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	pb := &TaskProgressAdapter{task: t}
 	name, _ := snappy.SplitDeveloper(rm.Name)
-	err := m.backend.Remove(name, rm.Flags, pb)
+	err = m.backend.Remove(name, rm.Flags, pb)
 	return err
 }
 
@@ -262,14 +270,15 @@ func (m *SnapManager) doPurgeSnap(t *state.Task, _ *tomb.Tomb) error {
 	var purge purgeState
 
 	t.State().Lock()
-	if err := t.Get("purge-state", &purge); err != nil {
+	err := t.Get("purge-state", &purge)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	pb := &TaskProgressAdapter{task: t}
 	name, _ := snappy.SplitDeveloper(purge.Name)
-	err := m.backend.Purge(name, purge.Flags, pb)
+	err = m.backend.Purge(name, purge.Flags, pb)
 	return err
 }
 
@@ -277,14 +286,15 @@ func (m *SnapManager) doRollbackSnap(t *state.Task, _ *tomb.Tomb) error {
 	var rollback rollbackState
 
 	t.State().Lock()
-	if err := t.Get("rollback-state", &rollback); err != nil {
+	err := t.Get("rollback-state", &rollback)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	pb := &TaskProgressAdapter{task: t}
 	name, _ := snappy.SplitDeveloper(rollback.Name)
-	_, err := m.backend.Rollback(name, rollback.Version, pb)
+	_, err = m.backend.Rollback(name, rollback.Version, pb)
 	return err
 }
 
@@ -292,10 +302,11 @@ func (m *SnapManager) doActivateSnap(t *state.Task, _ *tomb.Tomb) error {
 	var activate activateState
 
 	t.State().Lock()
-	if err := t.Get("activate-state", &activate); err != nil {
+	err := t.Get("activate-state", &activate)
+	t.State().Unlock()
+	if err != nil {
 		return err
 	}
-	t.State().Unlock()
 
 	pb := &TaskProgressAdapter{task: t}
 	name, _ := snappy.SplitDeveloper(activate.Name)
