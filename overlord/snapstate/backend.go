@@ -28,6 +28,7 @@ type managerBackend interface {
 	InstallLocal(snap, developer string, flags snappy.InstallFlags, meter progress.Meter) error
 	Download(name, channel string, meter progress.Meter) (string, string, error)
 	VerifySnap(snapPath, developer string, flags snappy.InstallFlags) error
+	SetupAndMount(snapPath, developer string, flags snappy.InstallFlags) error
 
 	Update(name, channel string, flags snappy.InstallFlags, meter progress.Meter) error
 	Remove(name string, flags snappy.RemoveFlags, meter progress.Meter) error
@@ -42,6 +43,16 @@ func (s *defaultBackend) VerifySnap(snapFilePath, developer string, flags snappy
 	meter := &progress.NullProgress{}
 	_, err := snappy.CanInstall(snapFilePath, developer, flags, meter)
 	return err
+}
+
+func (s *defaultBackend) SetupAndMount(snapFilePath, developer string, flags snappy.InstallFlags) error {
+	allowUnauth := (flags & snappy.AllowUnauthenticated) != 0
+
+	sf, err := snappy.NewSnapFile(snapFilePath, developer, allowUnauth)
+	if err != nil {
+		return err
+	}
+	return snappy.SetupAndMount(sf, flags, &progress.NullProgress{})
 }
 
 func (s *defaultBackend) InstallLocal(snap, developer string, flags snappy.InstallFlags, meter progress.Meter) error {

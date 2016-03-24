@@ -52,6 +52,40 @@ func CanInstall(snapFilePath, developer string, flags InstallFlags, meter intera
 	return s, nil
 }
 
+func SetupAndMount(s *SnapFile, flags InstallFlags, meter progress.Meter) error {
+	inhibitHooks := (flags & InhibitHooks) != 0
+
+	// the "gadget" snaps are special
+	if s.Type() == snap.TypeGadget {
+		if err := installGadgetHardwareUdevRules(s.m); err != nil {
+			return err
+		}
+	}
+
+	if err := os.MkdirAll(s.instdir, 0755); err != nil {
+		logger.Noticef("Can not create %q: %v", s.instdir, err)
+		return err
+	}
+
+	if err := s.deb.Install(s.instdir); err != nil {
+		return err
+	}
+
+	// generate the mount unit for the squashfs
+	if err := addSquashfsMount(s.m, s.instdir, inhibitHooks, meter); err != nil {
+		return err
+	}
+
+	// FIXME: special handling is bad 'mkay
+	if s.m.Type == snap.TypeKernel {
+		if err := extractKernelAssets(s, meter, flags); err != nil {
+			return fmt.Errorf("failed to install kernel %s", err)
+		}
+	}
+
+	return nil
+}
+
 // Overlord is responsible for the overall system state.
 type Overlord struct {
 }
@@ -67,11 +101,8 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 		return nil, err
 	}
 
-	// the "gadget" snaps are special
-	if s.Type() == snap.TypeGadget {
-		if err := installGadgetHardwareUdevRules(s.m); err != nil {
-			return nil, err
-		}
+	if err := SetupAndMount(s, flags, meter); err != nil {
+		return nil, err
 	}
 
 	fullName := QualifiedName(s.Info())
@@ -85,11 +116,6 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 		}
 	}
 
-	if err := os.MkdirAll(s.instdir, 0755); err != nil {
-		logger.Noticef("Can not create %q: %v", s.instdir, err)
-		return nil, err
-	}
-
 	// if anything goes wrong here we cleanup
 	defer func() {
 		if err != nil {
@@ -99,16 +125,6 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 		}
 	}()
 
-	// we need to call the external helper so that we can reliable drop
-	// privs
-	if err := s.deb.Install(s.instdir); err != nil {
-		return nil, err
-	}
-
-	// generate the mount unit for the squashfs
-	if err := addSquashfsMount(s.m, s.instdir, inhibitHooks, meter); err != nil {
-		return nil, err
-	}
 	// if anything goes wrong we ensure we stop
 	defer func() {
 		if err != nil {
@@ -117,13 +133,6 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 			}
 		}
 	}()
-
-	// FIXME: special handling is bad 'mkay
-	if s.m.Type == snap.TypeKernel {
-		if err := extractKernelAssets(s, meter, flags); err != nil {
-			return nil, fmt.Errorf("failed to install kernel %s", err)
-		}
-	}
 
 	// deal with the data:
 	//

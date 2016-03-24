@@ -89,9 +89,7 @@ func Manager(s *state.State) (*SnapManager, error) {
 	// real handlers
 	runner.AddHandler("download-snap", m.doDownloadSnap)
 	runner.AddHandler("verify-snap", m.doVerifySnap)
-	runner.AddHandler("mount-snap", func(t *state.Task, _ *tomb.Tomb) error {
-		return nil
-	})
+	runner.AddHandler("mount-snap", m.doMountSnap)
 	runner.AddHandler("copy-snap-data", func(t *state.Task, _ *tomb.Tomb) error {
 		return nil
 	})
@@ -161,6 +159,24 @@ func snapPathAndDeveloperFromInstState(t *state.Task, inst *installState) (strin
 	}
 
 	return "", "", fmt.Errorf("internal error: installState created without a snap path source")
+}
+
+func (m *SnapManager) doMountSnap(t *state.Task, _ *tomb.Tomb) error {
+	var inst installState
+
+	t.State().Lock()
+	if err := t.Get("install-state", &inst); err != nil {
+		return err
+	}
+	t.State().Unlock()
+
+	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
+	if err != nil {
+		return err
+	}
+
+	return m.backend.SetupAndMount(snapPath, developer, inst.Flags)
+
 }
 
 func (m *SnapManager) doVerifySnap(t *state.Task, _ *tomb.Tomb) error {
