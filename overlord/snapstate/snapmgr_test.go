@@ -112,13 +112,18 @@ func (s *snapmgrTestSuite) TestInstallIntegration(c *C) {
 	s.state.Lock()
 
 	// ensure all our tasks ran
-	c.Assert(s.fakeBackend.ops, HasLen, 2)
+	c.Assert(s.fakeBackend.ops, HasLen, 3)
 	c.Check(s.fakeBackend.ops[0], DeepEquals, fakeOp{
 		op:      "download",
 		name:    "some-snap",
 		channel: "some-channel",
 	})
 	c.Check(s.fakeBackend.ops[1], DeepEquals, fakeOp{
+		op:        "verify-snap",
+		name:      "downloaded-snap-path",
+		developer: "some-developer",
+	})
+	c.Check(s.fakeBackend.ops[2], DeepEquals, fakeOp{
 		op:        "install-local",
 		name:      "downloaded-snap-path",
 		developer: "some-developer",
@@ -150,10 +155,13 @@ func (s *snapmgrTestSuite) TestInstallLocalIntegration(c *C) {
 	s.state.Lock()
 
 	// ensure only local install was run
-	c.Assert(s.fakeBackend.ops, HasLen, 1)
-	c.Check(s.fakeBackend.ops[0].op, Equals, "install-local")
+	c.Assert(s.fakeBackend.ops, HasLen, 2)
+	c.Check(s.fakeBackend.ops[0].op, Equals, "verify-snap")
 	c.Check(s.fakeBackend.ops[0].name, Matches, `.*/mock.snap`)
 	c.Check(s.fakeBackend.ops[0].developer, Equals, snappy.SideloadedDeveloper)
+	c.Check(s.fakeBackend.ops[1].op, Equals, "install-local")
+	c.Check(s.fakeBackend.ops[1].name, Matches, `.*/mock.snap`)
+	c.Check(s.fakeBackend.ops[1].developer, Equals, snappy.SideloadedDeveloper)
 }
 
 func (s *snapmgrTestSuite) TestRemoveIntegration(c *C) {

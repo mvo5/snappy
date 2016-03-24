@@ -44,7 +44,7 @@ type fakeSnappyBackend struct {
 
 func (f *fakeSnappyBackend) VerifySnap(snapPath, developer string, flags snappy.InstallFlags) error {
 	f.ops = append(f.ops, fakeOp{
-		op:        "verify",
+		op:        "verify-snap",
 		name:      snapPath,
 		developer: developer,
 	})

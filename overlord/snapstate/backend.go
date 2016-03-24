@@ -38,8 +38,10 @@ type managerBackend interface {
 
 type defaultBackend struct{}
 
-func (s *defaultBackend) VerifySnap(snapPath, developer string, flags snappy.InstallFlags) error {
-	return nil
+func (s *defaultBackend) VerifySnap(snapFilePath, developer string, flags snappy.InstallFlags) error {
+	meter := &progress.NullProgress{}
+	_, err := snappy.CanInstall(snapFilePath, developer, flags, meter)
+	return err
 }
 
 func (s *defaultBackend) InstallLocal(snap, developer string, flags snappy.InstallFlags, meter progress.Meter) error {

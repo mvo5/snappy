@@ -22,7 +22,6 @@ package snapstate
 
 import (
 	"fmt"
-	"os"
 
 	"gopkg.in/tomb.v2"
 
@@ -89,9 +88,7 @@ func Manager(s *state.State) (*SnapManager, error) {
 
 	// real handlers
 	runner.AddHandler("download-snap", m.doDownloadSnap)
-	runner.AddHandler("verify-snap", func(t *state.Task, _ *tomb.Tomb) error {
-		return nil
-	})
+	runner.AddHandler("verify-snap", m.doVerifySnap)
 	runner.AddHandler("mount-snap", func(t *state.Task, _ *tomb.Tomb) error {
 		return nil
 	})
@@ -146,9 +143,28 @@ func (m *SnapManager) doDownloadSnap(t *state.Task, _ *tomb.Tomb) error {
 	return nil
 }
 
-func (m *SnapManager) doInstallLocalSnap(t *state.Task, _ *tomb.Tomb) error {
+// helper to find the path and developer from an installState
+// (it may either be a local snap or downloaded from the store)
+func snapPathAndDeveloperFromInstState(t *state.Task, inst *installState) (string, string, error) {
+	if inst.SnapPath != "" {
+		return inst.SnapPath, snappy.SideloadedDeveloper, nil
+	} else if inst.DownloadTaskID != "" {
+		var dl downloadState
+
+		t.State().Lock()
+		tDl := t.State().Task(inst.DownloadTaskID)
+		if err := tDl.Get("download-state", &dl); err != nil {
+			return "", "", err
+		}
+		t.State().Unlock()
+		return dl.SnapPath, dl.Developer, nil
+	}
+
+	return "", "", fmt.Errorf("internal error: installState created without a snap path source")
+}
+
+func (m *SnapManager) doVerifySnap(t *state.Task, _ *tomb.Tomb) error {
 	var inst installState
-	var dl downloadState
 
 	t.State().Lock()
 	if err := t.Get("install-state", &inst); err != nil {
@@ -156,26 +172,27 @@ func (m *SnapManager) doInstallLocalSnap(t *state.Task, _ *tomb.Tomb) error {
 	}
 	t.State().Unlock()
 
-	// local snaps are special
-	var snapPath string
-	var developer string
-	if inst.SnapPath != "" {
-		snapPath = inst.SnapPath
-		developer = snappy.SideloadedDeveloper
-	} else if inst.DownloadTaskID != "" {
-		t.State().Lock()
-		tDl := t.State().Task(inst.DownloadTaskID)
-		if err := tDl.Get("download-state", &dl); err != nil {
-			return err
-		}
-		t.State().Unlock()
-		defer os.Remove(dl.SnapPath)
-		snapPath = dl.SnapPath
-		developer = dl.Developer
-	} else {
-		return fmt.Errorf("internal error: install-snap created without a snap path source")
+	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
+	if err != nil {
+		return err
 	}
 
+	return m.backend.VerifySnap(snapPath, developer, inst.Flags)
+}
+
+func (m *SnapManager) doInstallLocalSnap(t *state.Task, _ *tomb.Tomb) error {
+	var inst installState
+
+	t.State().Lock()
+	if err := t.Get("install-state", &inst); err != nil {
+		return err
+	}
+	t.State().Unlock()
+
+	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
+	if err != nil {
+		return err
+	}
 	pb := &TaskProgressAdapter{task: t}
 	return m.backend.InstallLocal(snapPath, developer, inst.Flags, pb)
 }

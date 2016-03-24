@@ -32,16 +32,9 @@ import (
 	"github.com/ubuntu-core/snappy/snap/squashfs"
 )
 
-// Overlord is responsible for the overall system state.
-type Overlord struct {
-}
-
-// Install installs the given snap file to the system.
-//
-// It returns the local snap file or an error
-func (o *Overlord) Install(snapFilePath string, developer string, flags InstallFlags, meter progress.Meter) (sp *Snap, err error) {
+// CanInstall checks whether the Snap passes a series of tests required for installation
+func CanInstall(snapFilePath, developer string, flags InstallFlags, meter interacter) (*SnapFile, error) {
 	allowGadget := (flags & AllowGadget) != 0
-	inhibitHooks := (flags & InhibitHooks) != 0
 	allowUnauth := (flags & AllowUnauthenticated) != 0
 
 	s, err := NewSnapFile(snapFilePath, developer, allowUnauth)
@@ -53,6 +46,24 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 	// NewSnapFile() to ensure that we do not mount/inspect
 	// potentially dangerous snaps
 	if err := canInstall(s, allowGadget, meter); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// Overlord is responsible for the overall system state.
+type Overlord struct {
+}
+
+// Install installs the given snap file to the system.
+//
+// It returns the local snap file or an error
+func (o *Overlord) Install(snapFilePath string, developer string, flags InstallFlags, meter progress.Meter) (sp *Snap, err error) {
+	inhibitHooks := (flags & InhibitHooks) != 0
+
+	s, err := CanInstall(snapFilePath, developer, flags, meter)
+	if err != nil {
 		return nil, err
 	}
 
@@ -175,7 +186,6 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 	return newSnapFromYaml(filepath.Join(s.instdir, "meta", "snap.yaml"), s.developer, s.m)
 }
 
-// CanInstall checks whether the Snap passes a series of tests required for installation
 func canInstall(s *SnapFile, allowGadget bool, inter interacter) error {
 	if err := checkForPackageInstalled(s.m, s.Developer()); err != nil {
 		return err
