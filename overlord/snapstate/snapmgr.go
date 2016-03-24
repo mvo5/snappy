@@ -89,6 +89,9 @@ func Manager(s *state.State) (*SnapManager, error) {
 
 	// real handlers
 	runner.AddHandler("download-snap", m.doDownloadSnap)
+	runner.AddHandler("verify-snap", func(t *state.Task, _ *tomb.Tomb) error {
+		return nil
+	})
 	runner.AddHandler("mount-snap", func(t *state.Task, _ *tomb.Tomb) error {
 		return nil
 	})

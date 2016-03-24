@@ -42,6 +42,15 @@ type fakeSnappyBackend struct {
 	fakeTotalProgress   int
 }
 
+func (f *fakeSnappyBackend) VerifySnap(snapPath, developer string, flags snappy.InstallFlags) error {
+	f.ops = append(f.ops, fakeOp{
+		op:        "verify",
+		name:      snapPath,
+		developer: developer,
+	})
+	return nil
+}
+
 func (f *fakeSnappyBackend) InstallLocal(path, developer string, flags snappy.InstallFlags, p progress.Meter) error {
 	f.ops = append(f.ops, fakeOp{
 		op:        "install-local",

@@ -63,12 +63,19 @@ func (s *snapmgrTestSuite) TestInstallTasks(c *C) {
 	ts, err := snapstate.Install(s.state, "some-snap", "some-channel", 0)
 	c.Assert(err, IsNil)
 
-	c.Assert(ts.Tasks(), HasLen, 5)
-	c.Assert(ts.Tasks()[0].Kind(), Equals, "download-snap")
-	c.Assert(ts.Tasks()[1].Kind(), Equals, "mount-snap")
-	c.Assert(ts.Tasks()[2].Kind(), Equals, "copy-snap-data")
-	c.Assert(ts.Tasks()[3].Kind(), Equals, "generate-security")
-	c.Assert(ts.Tasks()[4].Kind(), Equals, "finalize-snap-install")
+	i := 0
+	c.Assert(ts.Tasks(), HasLen, 6)
+	c.Assert(ts.Tasks()[i].Kind(), Equals, "download-snap")
+	i++
+	c.Assert(ts.Tasks()[i].Kind(), Equals, "verify-snap")
+	i++
+	c.Assert(ts.Tasks()[i].Kind(), Equals, "mount-snap")
+	i++
+	c.Assert(ts.Tasks()[i].Kind(), Equals, "generate-security")
+	i++
+	c.Assert(ts.Tasks()[i].Kind(), Equals, "copy-snap-data")
+	i++
+	c.Assert(ts.Tasks()[i].Kind(), Equals, "finalize-snap-install")
 }
 
 func (s *snapmgrTestSuite) TestRemoveTasks(c *C) {

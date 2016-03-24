@@ -27,6 +27,8 @@ import (
 type managerBackend interface {
 	InstallLocal(snap, developer string, flags snappy.InstallFlags, meter progress.Meter) error
 	Download(name, channel string, meter progress.Meter) (string, string, error)
+	VerifySnap(snapPath, developer string, flags snappy.InstallFlags) error
+
 	Update(name, channel string, flags snappy.InstallFlags, meter progress.Meter) error
 	Remove(name string, flags snappy.RemoveFlags, meter progress.Meter) error
 	Purge(name string, flags snappy.PurgeFlags, meter progress.Meter) error
@@ -35,6 +37,10 @@ type managerBackend interface {
 }
 
 type defaultBackend struct{}
+
+func (s *defaultBackend) VerifySnap(snapPath, developer string, flags snappy.InstallFlags) error {
+	return nil
+}
 
 func (s *defaultBackend) InstallLocal(snap, developer string, flags snappy.InstallFlags, meter progress.Meter) error {
 	// FIXME: the name `snappy.Overlord` is confusing :/

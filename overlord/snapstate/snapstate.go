@@ -49,10 +49,15 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 	}
 	download.Set("install-state", inst)
 
+	// verify
+	verify := s.NewTask("verify-snap", fmt.Sprintf(i18n.G("Verifying %q"), snap))
+	verify.Set("install-state", inst)
+	verify.WaitFor(download)
+
 	// mount
 	mount := s.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mounting %q"), snap))
 	mount.Set("install-state", inst)
-	mount.WaitFor(download)
+	mount.WaitFor(verify)
 
 	// security
 	generateSecurity := s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap))
@@ -67,7 +72,7 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 	finalize.Set("install-state", inst)
 	finalize.WaitFor(copyData)
 
-	return state.NewTaskSet(download, mount, generateSecurity, copyData, finalize), nil
+	return state.NewTaskSet(download, verify, mount, generateSecurity, copyData, finalize), nil
 }
 
 // Update initiates a change updating a snap.
