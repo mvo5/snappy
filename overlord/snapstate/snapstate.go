@@ -61,10 +61,12 @@ func Install(s *state.State, snap, channel string, flags snappy.InstallFlags) (*
 
 	// security
 	generateSecurity := s.NewTask("generate-security", fmt.Sprintf(i18n.G("Generating security profile for %q"), snap))
+	generateSecurity.Set("install-state", inst)
 	generateSecurity.WaitFor(mount)
 
 	// copy-data (needs to stop services)
 	copyData := s.NewTask("copy-snap-data", fmt.Sprintf(i18n.G("Copying snap data for %q"), snap))
+	copyData.Set("install-state", inst)
 	copyData.WaitFor(generateSecurity)
 
 	// finalize: update current symlink, start new services

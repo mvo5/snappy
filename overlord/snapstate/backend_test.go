@@ -60,6 +60,15 @@ func (f *fakeSnappyBackend) SetupAndMount(snapPath, developer string, flags snap
 	return nil
 }
 
+func (f *fakeSnappyBackend) CopySnapData(snapPath, developer string, flags snappy.InstallFlags) error {
+	f.ops = append(f.ops, fakeOp{
+		op:        "copy-snap-data",
+		name:      snapPath,
+		developer: developer,
+	})
+	return nil
+}
+
 func (f *fakeSnappyBackend) InstallLocal(path, developer string, flags snappy.InstallFlags, p progress.Meter) error {
 	f.ops = append(f.ops, fakeOp{
 		op:        "install-local",

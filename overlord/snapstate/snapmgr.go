@@ -90,9 +90,8 @@ func Manager(s *state.State) (*SnapManager, error) {
 	runner.AddHandler("download-snap", m.doDownloadSnap)
 	runner.AddHandler("verify-snap", m.doVerifySnap)
 	runner.AddHandler("mount-snap", m.doMountSnap)
-	runner.AddHandler("copy-snap-data", func(t *state.Task, _ *tomb.Tomb) error {
-		return nil
-	})
+	runner.AddHandler("copy-snap-data", m.doCopySnapData)
+
 	runner.AddHandler("generate-security", func(t *state.Task, _ *tomb.Tomb) error {
 		return nil
 	})
@@ -176,6 +175,24 @@ func (m *SnapManager) doMountSnap(t *state.Task, _ *tomb.Tomb) error {
 	}
 
 	return m.backend.SetupAndMount(snapPath, developer, inst.Flags)
+
+}
+
+func (m *SnapManager) doCopySnapData(t *state.Task, _ *tomb.Tomb) error {
+	var inst installState
+
+	t.State().Lock()
+	if err := t.Get("install-state", &inst); err != nil {
+		return err
+	}
+	t.State().Unlock()
+
+	snapPath, developer, err := snapPathAndDeveloperFromInstState(t, &inst)
+	if err != nil {
+		return err
+	}
+
+	return m.backend.CopySnapData(snapPath, developer, inst.Flags)
 
 }
 

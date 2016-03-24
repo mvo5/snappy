@@ -86,6 +86,39 @@ func SetupAndMount(s *SnapFile, flags InstallFlags, meter progress.Meter) error 
 	return nil
 }
 
+func CopySnapData(s *SnapFile, flags InstallFlags, meter progress.Meter) (*Snap, error) {
+	inhibitHooks := (flags & InhibitHooks) != 0
+
+	fullName := QualifiedName(s.Info())
+	dataDir := filepath.Join(dirs.SnapDataDir, fullName, s.Version())
+
+	// no previously active snap, we just create the data dir
+	// and are done
+	currentActiveDir, _ := filepath.EvalSymlinks(filepath.Join(s.instdir, "..", "current"))
+	if currentActiveDir == "" {
+		return nil, os.MkdirAll(dataDir, 0755)
+	}
+
+	oldSnap, err := NewInstalledSnap(filepath.Join(currentActiveDir, "meta", "snap.yaml"), s.developer)
+	if err != nil {
+		return nil, err
+	}
+
+	// deal with the data:
+	//
+	// stop the previous version from being active so that it
+	// stops running and can no longer be started.
+	// then copy the data
+	//
+	err = oldSnap.deactivate(inhibitHooks, meter)
+	if err != nil {
+		return nil, err
+	}
+
+	err = copySnapData(fullName, oldSnap.Version(), s.Version())
+	return oldSnap, err
+}
+
 // Overlord is responsible for the overall system state.
 type Overlord struct {
 }
@@ -101,19 +134,9 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 		return nil, err
 	}
 
+	fullName := QualifiedName(s.Info())
 	if err := SetupAndMount(s, flags, meter); err != nil {
 		return nil, err
-	}
-
-	fullName := QualifiedName(s.Info())
-	dataDir := filepath.Join(dirs.SnapDataDir, fullName, s.Version())
-
-	var oldSnap *Snap
-	if currentActiveDir, _ := filepath.EvalSymlinks(filepath.Join(s.instdir, "..", "current")); currentActiveDir != "" {
-		oldSnap, err = NewInstalledSnap(filepath.Join(currentActiveDir, "meta", "snap.yaml"), s.developer)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// if anything goes wrong here we cleanup
@@ -134,32 +157,17 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 		}
 	}()
 
-	// deal with the data:
-	//
-	// if there was a previous version, stop it
-	// from being active so that it stops running and can no longer be
-	// started then copy the data
-	//
-	// otherwise just create a empty data dir
-	if oldSnap != nil {
-		// we need to stop making it active
-		err = oldSnap.deactivate(inhibitHooks, meter)
-		defer func() {
-			if err != nil {
-				if cerr := oldSnap.activate(inhibitHooks, meter); cerr != nil {
-					logger.Noticef("Setting old version back to active failed: %v", cerr)
-				}
-			}
-		}()
-		if err != nil {
-			return nil, err
-		}
-
-		err = copySnapData(fullName, oldSnap.Version(), s.Version())
-	} else {
-		err = os.MkdirAll(dataDir, 0755)
+	oldSnap, err := CopySnapData(s, flags, meter)
+	if err != nil {
+		return nil, err
 	}
-
+	defer func() {
+		if err != nil {
+			if cerr := oldSnap.activate(inhibitHooks, meter); cerr != nil {
+				logger.Noticef("Setting old version back to active failed: %v", cerr)
+			}
+		}
+	}()
 	defer func() {
 		if err != nil {
 			if cerr := removeSnapData(fullName, s.Version()); cerr != nil {
@@ -167,10 +175,6 @@ func (o *Overlord) Install(snapFilePath string, developer string, flags InstallF
 			}
 		}
 	}()
-
-	if err != nil {
-		return nil, err
-	}
 
 	if !inhibitHooks {
 		newSnap, err := newSnapFromYaml(filepath.Join(s.instdir, "meta", "snap.yaml"), s.developer, s.m)

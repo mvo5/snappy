@@ -129,6 +129,11 @@ func (s *snapmgrTestSuite) TestInstallIntegration(c *C) {
 			developer: "some-developer",
 		},
 		fakeOp{
+			op:        "copy-snap-data",
+			name:      "downloaded-snap-path",
+			developer: "some-developer",
+		},
+		fakeOp{
 			op:        "install-local",
 			name:      "downloaded-snap-path",
 			developer: "some-developer",
