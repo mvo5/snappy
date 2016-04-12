@@ -533,6 +533,8 @@ type snapInstruction struct {
 	License  *licenseData `json:"license"`
 	pkg      string
 
+	chg *state.Change
+
 	overlord *overlord.Overlord
 }
 
@@ -560,7 +562,7 @@ func waitChange(chg *state.Change) error {
 	return chg.Err()
 }
 
-func (inst *snapInstruction) install() interface{} {
+func (inst *snapInstruction) install(t *Task) interface{} {
 	flags := snappy.DoInstallGC
 	if inst.LeaveOld {
 		flags = 0
@@ -580,6 +582,7 @@ func (inst *snapInstruction) install() interface{} {
 	if err != nil {
 		return err
 	}
+	t.chg = chg
 	state.EnsureBefore(0)
 	err = waitChange(chg)
 	return err
@@ -596,7 +599,7 @@ func (inst *snapInstruction) install() interface{} {
 	*/
 }
 
-func (inst *snapInstruction) update() interface{} {
+func (inst *snapInstruction) update(t *Task) interface{} {
 	flags := snappy.DoInstallGC
 	if inst.LeaveOld {
 		flags = 0
@@ -621,7 +624,7 @@ func (inst *snapInstruction) update() interface{} {
 	return waitChange(chg)
 }
 
-func (inst *snapInstruction) remove() interface{} {
+func (inst *snapInstruction) remove(t *Task) interface{} {
 	flags := snappy.DoRemoveGC
 	if inst.LeaveOld {
 		flags = 0
@@ -638,12 +641,12 @@ func (inst *snapInstruction) remove() interface{} {
 	if err != nil {
 		return err
 	}
-
+	t.chg = chg
 	state.EnsureBefore(0)
 	return waitChange(chg)
 }
 
-func (inst *snapInstruction) rollback() interface{} {
+func (inst *snapInstruction) rollback(t *Task) interface{} {
 	state := inst.overlord.State()
 	state.Lock()
 	msg := fmt.Sprintf(i18n.G("Rollback %q snap"), inst.pkg)
@@ -658,12 +661,12 @@ func (inst *snapInstruction) rollback() interface{} {
 	if err != nil {
 		return err
 	}
-
+	t.chg = chg
 	state.EnsureBefore(0)
 	return waitChange(chg)
 }
 
-func (inst *snapInstruction) activate() interface{} {
+func (inst *snapInstruction) activate(t *Task) interface{} {
 	state := inst.overlord.State()
 	state.Lock()
 	msg := fmt.Sprintf(i18n.G("Activate %q snap"), inst.pkg)
@@ -676,12 +679,12 @@ func (inst *snapInstruction) activate() interface{} {
 	if err != nil {
 		return err
 	}
-
+	t.chg = chg
 	state.EnsureBefore(0)
 	return waitChange(chg)
 }
 
-func (inst *snapInstruction) deactivate() interface{} {
+func (inst *snapInstruction) deactivate(t *Task) interface{} {
 	state := inst.overlord.State()
 	state.Lock()
 	msg := fmt.Sprintf(i18n.G("Deactivate %q snap"), inst.pkg)
@@ -694,12 +697,12 @@ func (inst *snapInstruction) deactivate() interface{} {
 	if err != nil {
 		return err
 	}
-
+	t.chg = chg
 	state.EnsureBefore(0)
 	return waitChange(chg)
 }
 
-func (inst *snapInstruction) dispatch() func() interface{} {
+func (inst *snapInstruction) dispatch() func(t *Task) interface{} {
 	switch inst.Action {
 	case "install":
 		return inst.install
@@ -718,7 +721,7 @@ func (inst *snapInstruction) dispatch() func() interface{} {
 	}
 }
 
-func pkgActionDispatchImpl(inst *snapInstruction) func() interface{} {
+func pkgActionDispatchImpl(inst *snapInstruction) func(t *Task) interface{} {
 	return inst.dispatch()
 }
 
@@ -745,14 +748,15 @@ func postSnap(c *Command, r *http.Request) Response {
 		return BadRequest("unknown action %s", inst.Action)
 	}
 
-	return AsyncResponse(c.d.AddTask(func() interface{} {
+	t := c.d.AddTask(func(t *Task) interface{} {
 		lock, err := lockfile.Lock(dirs.SnapLockFile, true)
 		if err != nil {
 			return err
 		}
 		defer lock.Unlock()
-		return f()
-	}).Map(route))
+		return f(t)
+	})
+	return AsyncResponse(t.Map(route))
 }
 
 const maxReadBuflen = 1024 * 1024
@@ -823,7 +827,7 @@ func sideloadSnap(c *Command, r *http.Request) Response {
 		return InternalError("can't copy request into tempfile: %v", err)
 	}
 
-	return AsyncResponse(c.d.AddTask(func() interface{} {
+	return AsyncResponse(c.d.AddTask(func(t *Task) interface{} {
 		defer os.Remove(tmpf.Name())
 
 		var flags snappy.InstallFlags

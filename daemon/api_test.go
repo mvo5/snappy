@@ -858,12 +858,15 @@ func (s *apiSuite) TestGetOpInfoIntegration(c *check.C) {
 	c.Check(rsp.Status, check.Equals, http.StatusOK)
 	c.Check(rsp.Type, check.Equals, ResponseTypeSync)
 	c.Check(rsp.Result, check.DeepEquals, map[string]interface{}{
-		"resource":   "/v2/operations/" + id,
-		"status":     TaskRunning,
-		"may-cancel": false,
-		"created-at": FormatTime(t.CreatedAt()),
-		"updated-at": FormatTime(t.UpdatedAt()),
-		"output":     nil,
+		"resource":         "/v2/operations/" + id,
+		"status":           TaskRunning,
+		"may-cancel":       false,
+		"created-at":       FormatTime(t.CreatedAt()),
+		"updated-at":       FormatTime(t.UpdatedAt()),
+		"output":           nil,
+		"progress_msg":     "",
+		"progress_current": 0,
+		"progress_total":   0,
 	})
 	tf1 := t.UpdatedAt().UTC().UnixNano()
 
@@ -875,12 +878,15 @@ func (s *apiSuite) TestGetOpInfoIntegration(c *check.C) {
 	c.Check(rsp.Status, check.Equals, http.StatusOK)
 	c.Check(rsp.Type, check.Equals, ResponseTypeSync)
 	c.Check(rsp.Result, check.DeepEquals, map[string]interface{}{
-		"resource":   "/v2/operations/" + id,
-		"status":     TaskSucceeded,
-		"may-cancel": false,
-		"created-at": FormatTime(t.CreatedAt()),
-		"updated-at": FormatTime(t.UpdatedAt()),
-		"output":     "hello",
+		"resource":         "/v2/operations/" + id,
+		"status":           TaskSucceeded,
+		"may-cancel":       false,
+		"created-at":       FormatTime(t.CreatedAt()),
+		"updated-at":       FormatTime(t.UpdatedAt()),
+		"output":           "hello",
+		"progress_msg":     "",
+		"progress_current": 0,
+		"progress_total":   0,
 	})
 
 	tf2 := t.UpdatedAt().UTC().UnixNano()

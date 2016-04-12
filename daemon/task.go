@@ -24,6 +24,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"gopkg.in/tomb.v2"
+
+	"github.com/ubuntu-core/snappy/overlord/state"
 )
 
 // A Task encapsulates an asynchronous operation.
@@ -33,6 +35,8 @@ type Task struct {
 	t0     time.Time
 	tf     time.Time
 	output interface{}
+
+	chg *state.Change
 }
 
 // A task can be in one of three states
@@ -103,18 +107,41 @@ func FormatTime(t time.Time) string {
 
 // Map the task onto a map[string]interface{}, using the given route for the Location()
 func (t *Task) Map(route *mux.Route) map[string]interface{} {
+	msg := ""
+	cur := 0
+	total := 0
+
+	if t.chg != nil {
+		st := t.chg.State()
+		st.Lock()
+		defer st.Unlock()
+
+		msg = t.chg.Summary()
+		// FIXME: way too simplistic, report only the first
+		//        active task via the progress
+		for _, ts := range t.chg.Tasks() {
+			cur, total = ts.Progress()
+			if cur > 0 && cur != total {
+				break
+			}
+		}
+	}
+
 	return map[string]interface{}{
-		"resource":   t.Location(route),
-		"status":     t.State(),
-		"created-at": FormatTime(t.CreatedAt()),
-		"updated-at": FormatTime(t.UpdatedAt()),
-		"may-cancel": false,
-		"output":     t.Output(),
+		"resource":         t.Location(route),
+		"status":           t.State(),
+		"created-at":       FormatTime(t.CreatedAt()),
+		"updated-at":       FormatTime(t.UpdatedAt()),
+		"may-cancel":       false,
+		"output":           t.Output(),
+		"progress_msg":     msg,
+		"progress_current": cur,
+		"progress_total":   total,
 	}
 }
 
 // RunTask creates a Task for the given function and runs it.
-func RunTask(f func() interface{}) *Task {
+func RunTask(f func(t *Task) interface{}) *Task {
 	id := UUID4()
 	t0 := time.Now()
 	t := &Task{
@@ -127,7 +154,7 @@ func RunTask(f func() interface{}) *Task {
 		defer func() {
 			t.tf = time.Now()
 		}()
-		out := f()
+		out := f(t)
 		t.output = out
 
 		switch out := out.(type) {
