@@ -20,21 +20,47 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/ubuntu-core/snappy/client"
 	"github.com/ubuntu-core/snappy/i18n"
+	"github.com/ubuntu-core/snappy/progress"
 
 	"github.com/jessevdk/go-flags"
 )
 
 func wait(client *client.Client, id string) error {
+	pb := progress.NewTextProgress()
+	defer pb.Finished()
+	started := false
+
 	for {
 		chg, err := client.Change(id)
 		if err != nil {
 			return err
+		}
+
+		// FIXME: a bit simplistic
+		msg := ""
+		cur := 0
+		total := 0
+		for _, t := range chg.Tasks {
+			cur = t.Progress.Done
+			total = t.Progress.Total
+			if total > 1 && cur != total {
+				break
+			}
+		}
+		if total == 1 {
+			pb.Spin("")
+		} else {
+			if !started {
+				pb.Start(msg, float64(total))
+				started = true
+			}
+			pb.Set(float64(cur))
 		}
 
 		// XXX move this to a method of client.Change
@@ -42,10 +68,10 @@ func wait(client *client.Client, id string) error {
 		case "Done":
 			return nil
 		case "Error", "Undone", "Hold":
-			return errors.New("something broke")
+			return fmt.Errorf("something broke: %q", chg.Summary)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
