@@ -32,35 +32,45 @@ import (
 )
 
 func wait(client *client.Client, id string) error {
+	// FIXME: progress is all a bit simplistic, however its ok
+	//        for now because the only meaningful progress
+	//        we have is the download progress
+
+	// we may have multiple downloads in a single change
+	lastTotal := 0
 	pb := progress.NewTextProgress()
-	defer pb.Finished()
-	started := false
+	defer func() {
+		pb.Set(float64(lastTotal))
+		pb.Finished()
+	}()
 
 	for {
 		chg, err := client.Change(id)
 		if err != nil {
 			return err
 		}
-
-		// FIXME: a bit simplistic
+		total := 1
 		msg := ""
-		cur := 0
-		total := 0
 		for _, t := range chg.Tasks {
-			cur = t.Progress.Done
-			total = t.Progress.Total
-			if total > 1 && cur != total {
-				break
+			if t.Status == "Doing" {
+				msg := t.Summary
+				// this will break once we have multiple
+				// downloads in parallel in a single change
+				if t.Progress.Total > 1 {
+					cur := t.Progress.Done
+					total = t.Progress.Total
+					if t.Progress.Total != lastTotal {
+						pb.Start(msg, float64(total))
+						lastTotal = total
+					}
+					pb.Set(float64(cur))
+				}
 			}
 		}
+		// we have no meaningful progress, just show spinner for
+		// last doing task
 		if total == 1 {
-			pb.Spin("")
-		} else {
-			if !started {
-				pb.Start(msg, float64(total))
-				started = true
-			}
-			pb.Set(float64(cur))
+			pb.Spin(msg)
 		}
 
 		// XXX move this to a method of client.Change

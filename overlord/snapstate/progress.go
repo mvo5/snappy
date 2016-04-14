@@ -26,8 +26,9 @@ import (
 // TaskProgressAdapter adapts the progress.Meter to the task progress
 // until we have native install/update/remove.
 type TaskProgressAdapter struct {
-	task  *state.Task
-	total float64
+	task    *state.Task
+	total   float64
+	current float64
 }
 
 // Start sets total
@@ -37,6 +38,7 @@ func (t *TaskProgressAdapter) Start(pkg string, total float64) {
 
 // Set sets the current progress
 func (t *TaskProgressAdapter) Set(current float64) {
+	t.current = current
 	t.task.State().Lock()
 	defer t.task.State().Unlock()
 	t.task.SetProgress(int(current), int(t.total))
@@ -56,6 +58,11 @@ func (t *TaskProgressAdapter) Finished() {
 
 // Write does nothing
 func (t *TaskProgressAdapter) Write(p []byte) (n int, err error) {
+	t.task.State().Lock()
+	defer t.task.State().Unlock()
+
+	t.current += float64(len(p))
+	t.task.SetProgress(int(t.current), int(t.total))
 	return len(p), nil
 }
 
