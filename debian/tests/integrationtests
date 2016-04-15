@@ -1,13 +1,14 @@
 #!/bin/sh
 
 # make debian autopkgtest host happy
-mkdir -p /etc/systemd/system/snapd.service.d/
-cat <EOF>/etc/systemd/system/snapd.service.d/proxy.conf
+sudo mkdir -p /etc/systemd/system/snapd.service.d/
+sudo cat <<EOF | sudo tee -a /etc/systemd/system/snapd.service.d/proxy.conf
 [Service]
 Environment=http_proxy=$http_proxy
 Environment=https_proxy=$http_proxy
 EOF
-systemctl daemon-reload
+
+sudo systemctl daemon-reload
 
 # ensure our PATH is right
 . /etc/profile.d/apps-bin-path.sh
