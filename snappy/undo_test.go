@@ -86,19 +86,15 @@ func (s *undoTestSuite) TestUndoForSetupSnapKernelUboot(c *C) {
 	}
 
 	testFiles := [][]string{
-		{"vmlinuz-4.4.0-14-generic.efi.signed", "kernel"},
-		{"initrd.img-4.4.0-14-generic", "initrd"},
+		{"vmlinuz", "kernel"},
+		{"initrd.img", "initrd"},
 		{"lib/modules/4.4.0-14-generic/foo.ko", "a module"},
 		{"lib/firmware/bar.bin", "some firmware"},
+		{"meta/kernel.yaml", "version: 4.4.0-14-generic"},
 	}
 	snapPath := makeTestSnapPackageWithFiles(c, `name: kernel-snap
 version: 1.0
 type: kernel
-
-kernel: vmlinuz-4.4.0-14-generic.efi.signed
-initrd: initrd.img-4.4.0-14-generic
-modules: lib/modules/4.4.0-14-generic
-firmware: lib/firmware
 `, testFiles)
 
 	si := snap.SideInfo{

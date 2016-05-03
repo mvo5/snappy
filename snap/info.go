@@ -109,6 +109,9 @@ type Info struct {
 	// legacy fields collected
 	Legacy *LegacyYaml
 
+	// kernel fields collected
+	Kernel *KernelYaml
+
 	// The information in all the remaining fields is not sourced from the snap blob itself.
 	SideInfo
 
@@ -283,7 +286,23 @@ func ReadInfo(name string, si *SideInfo) (*Info, error) {
 		return nil, err
 	}
 
-	return infoFromSnapYamlWithSideInfo(meta, si)
+	info, err := infoFromSnapYamlWithSideInfo(meta, si)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.Type == TypeKernel {
+		kernelYamlFn := filepath.Join(MountDir(name, si.Revision), "meta", "kernel.yaml")
+		kmeta, err := ioutil.ReadFile(kernelYamlFn)
+		if err != nil {
+			return nil, err
+		}
+		if err := addKernelToInfo(kmeta, info); err != nil {
+			return nil, err
+		}
+	}
+
+	return info, nil
 }
 
 // ReadInfoFromSnapFile reads the snap information from the given File
@@ -297,6 +316,16 @@ func ReadInfoFromSnapFile(snapf File, si *SideInfo) (*Info, error) {
 	info, err := infoFromSnapYamlWithSideInfo(meta, si)
 	if err != nil {
 		return nil, err
+	}
+
+	if info.Type == TypeKernel {
+		kmeta, err := snapf.ReadFile("meta/kernel.yaml")
+		if err != nil {
+			return nil, err
+		}
+		if err := addKernelToInfo(kmeta, info); err != nil {
+			return nil, err
+		}
 	}
 
 	err = Validate(info)

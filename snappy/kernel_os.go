@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/ubuntu-core/snappy/logger"
+	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snap"
@@ -93,7 +94,7 @@ func extractKernelAssets(s *snap.Info, snapf snap.File, flags InstallFlags, inte
 	}
 	defer dir.Close()
 
-	for _, src := range []string{s.Legacy.Kernel, s.Legacy.Initrd} {
+	for _, src := range []string{"vmlinuz", "initrd.img"} {
 		if src == "" {
 			continue
 		}
@@ -109,8 +110,9 @@ func extractKernelAssets(s *snap.Info, snapf snap.File, flags InstallFlags, inte
 			return err
 		}
 	}
-	if s.Legacy.Dtbs != "" {
-		src := filepath.Join(s.Legacy.Dtbs, "*")
+	dtbsDir := "dtbs"
+	if osutil.FileExists(dtbsDir) {
+		src := filepath.Join(dtbsDir, "*")
 		dst := dstDir
 		if err := snapf.Unpack(src, dst); err != nil {
 			return err
