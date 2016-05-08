@@ -29,6 +29,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snap/snaptest"
@@ -180,7 +181,7 @@ func makeTwoTestSnaps(c *C, snapType snap.Type, extra ...string) (*snap.Info, *s
 		Revision:     100,
 		Channel:      "remote-channel",
 	}
-	info1, err := (&Overlord{}).InstallWithSideInfo(snapPath, foo10, AllowUnauthenticated|AllowGadget, inter)
+	info1, err := (&Overlord{}).InstallWithSideInfo(snapPath, foo10, flags.AllowUnauthenticated|flags.AllowGadget, inter)
 	c.Assert(err, IsNil)
 
 	snapPath = makeTestSnapPackage(c, snapYamlContent+"version: 2.0")
@@ -190,7 +191,7 @@ func makeTwoTestSnaps(c *C, snapType snap.Type, extra ...string) (*snap.Info, *s
 		Revision:     200,
 		Channel:      "remote-channel",
 	}
-	info2, err := (&Overlord{}).InstallWithSideInfo(snapPath, foo20, AllowUnauthenticated|AllowGadget, inter)
+	info2, err := (&Overlord{}).InstallWithSideInfo(snapPath, foo20, flags.AllowUnauthenticated|flags.AllowGadget, inter)
 	c.Assert(err, IsNil)
 
 	installed, err := (&Overlord{}).Installed()

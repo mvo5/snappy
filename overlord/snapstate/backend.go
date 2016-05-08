@@ -20,6 +20,7 @@
 package snapstate
 
 import (
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/snappy"
@@ -72,20 +73,20 @@ func (b *defaultBackend) Download(name, channel string, checker func(*snap.Info)
 	return snap, downloadedSnapFile, nil
 }
 
-func (b *defaultBackend) CheckSnap(snapFilePath string, curInfo *snap.Info, flags int) error {
+func (b *defaultBackend) CheckSnap(snapFilePath string, curInfo *snap.Info, mflags int) error {
 	meter := &progress.NullProgress{}
-	return snappy.CheckSnap(snapFilePath, curInfo, snappy.InstallFlags(flags), meter)
+	return snappy.CheckSnap(snapFilePath, curInfo, flags.InstallFlags(mflags), meter)
 }
 
-func (b *defaultBackend) SetupSnap(snapFilePath string, sideInfo *snap.SideInfo, flags int) error {
+func (b *defaultBackend) SetupSnap(snapFilePath string, sideInfo *snap.SideInfo, mflags int) error {
 	meter := &progress.NullProgress{}
-	_, err := snappy.SetupSnap(snapFilePath, sideInfo, snappy.InstallFlags(flags), meter)
+	_, err := snappy.SetupSnap(snapFilePath, sideInfo, flags.InstallFlags(mflags), meter)
 	return err
 }
 
-func (b *defaultBackend) CopySnapData(newInfo, oldInfo *snap.Info, flags int) error {
+func (b *defaultBackend) CopySnapData(newInfo, oldInfo *snap.Info, mflags int) error {
 	meter := &progress.NullProgress{}
-	return snappy.CopyData(newInfo, oldInfo, snappy.InstallFlags(flags), meter)
+	return snappy.CopyData(newInfo, oldInfo, flags.InstallFlags(mflags), meter)
 }
 
 func (b *defaultBackend) LinkSnap(info *snap.Info) error {
@@ -99,9 +100,9 @@ func (b *defaultBackend) UndoSetupSnap(s snap.PlaceInfo) error {
 	return nil
 }
 
-func (b *defaultBackend) UndoCopySnapData(newInfo *snap.Info, flags int) error {
+func (b *defaultBackend) UndoCopySnapData(newInfo *snap.Info, mflags int) error {
 	meter := &progress.NullProgress{}
-	snappy.UndoCopyData(newInfo, snappy.InstallFlags(flags), meter)
+	snappy.UndoCopyData(newInfo, flags.InstallFlags(mflags), meter)
 	return nil
 }
 

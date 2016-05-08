@@ -29,6 +29,8 @@ import (
 
 	"github.com/ubuntu-core/snappy/arch"
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/flags"
+	"github.com/ubuntu-core/snappy/kernel_os"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/progress"
@@ -62,9 +64,9 @@ func checkAssumes(s *snap.Info) error {
 }
 
 // CheckSnap ensures that the snap can be installed
-func CheckSnap(snapFilePath string, curInfo *snap.Info, flags InstallFlags, meter progress.Meter) error {
-	allowGadget := (flags & AllowGadget) != 0
-	allowUnauth := (flags & AllowUnauthenticated) != 0
+func CheckSnap(snapFilePath string, curInfo *snap.Info, mflags flags.InstallFlags, meter progress.Meter) error {
+	allowGadget := (mflags & flags.AllowGadget) != 0
+	allowUnauth := (mflags & flags.AllowUnauthenticated) != 0
 
 	// we do not Verify() the package here. This is done earlier in
 	// openSnapFile() to ensure that we do not mount/inspect
@@ -89,9 +91,9 @@ func CheckSnap(snapFilePath string, curInfo *snap.Info, flags InstallFlags, mete
 
 // SetupSnap does prepare and mount the snap for further processing
 // It returns the installed path and an error
-func SetupSnap(snapFilePath string, sideInfo *snap.SideInfo, flags InstallFlags, meter progress.Meter) (snap.PlaceInfo, error) {
-	inhibitHooks := (flags & InhibitHooks) != 0
-	allowUnauth := (flags & AllowUnauthenticated) != 0
+func SetupSnap(snapFilePath string, sideInfo *snap.SideInfo, mflags flags.InstallFlags, meter progress.Meter) (snap.PlaceInfo, error) {
+	inhibitHooks := (mflags & flags.InhibitHooks) != 0
+	allowUnauth := (mflags & flags.AllowUnauthenticated) != 0
 
 	s, snapf, err := openSnapFile(snapFilePath, allowUnauth, sideInfo)
 	if err != nil {
@@ -115,7 +117,7 @@ func SetupSnap(snapFilePath string, sideInfo *snap.SideInfo, flags InstallFlags,
 
 	// FIXME: special handling is bad 'mkay
 	if s.Type == snap.TypeKernel {
-		if err := extractKernelAssets(s, snapf, flags, meter); err != nil {
+		if err := kernel_os.ExtractKernelAssets(s, snapf, mflags, meter); err != nil {
 			return s, fmt.Errorf("cannot install kernel: %s", err)
 		}
 	}
@@ -200,7 +202,7 @@ func UndoSetupSnap(s snap.PlaceInfo, meter progress.Meter) {
 	//        and can only be used during install right now
 }
 
-func CopyData(newSnap, oldSnap *snap.Info, flags InstallFlags, meter progress.Meter) error {
+func CopyData(newSnap, oldSnap *snap.Info, flags flags.InstallFlags, meter progress.Meter) error {
 	// deal with the old data or
 	// otherwise just create a empty data dir
 
@@ -217,8 +219,8 @@ func CopyData(newSnap, oldSnap *snap.Info, flags InstallFlags, meter progress.Me
 	return copySnapData(oldSnap, newSnap)
 }
 
-func UndoCopyData(newInfo *snap.Info, flags InstallFlags, meter progress.Meter) {
-	// XXX we were copying data, assume InhibitHooks was false
+func UndoCopyData(newInfo *snap.Info, flags flags.InstallFlags, meter progress.Meter) {
+	// XXX we were copying data, assume flags.InhibitHooks was false
 
 	if err := RemoveSnapData(newInfo); err != nil {
 		logger.Noticef("When cleaning up data for %s %s: %v", newInfo.Name(), newInfo.Version, err)
@@ -398,7 +400,7 @@ func UnlinkSnap(info *snap.Info, inter interacter) error {
 // Install installs the given snap file to the system.
 //
 // It returns the local snap file or an error
-func (o *Overlord) Install(snapFilePath string, flags InstallFlags, meter progress.Meter) (sp *snap.Info, err error) {
+func (o *Overlord) Install(snapFilePath string, flags flags.InstallFlags, meter progress.Meter) (sp *snap.Info, err error) {
 	return o.InstallWithSideInfo(snapFilePath, nil, flags, meter)
 }
 
@@ -406,7 +408,7 @@ func (o *Overlord) Install(snapFilePath string, flags InstallFlags, meter progre
 // considering the provided side info.
 //
 // It returns the local snap file or an error
-func (o *Overlord) InstallWithSideInfo(snapFilePath string, sideInfo *snap.SideInfo, flags InstallFlags, meter progress.Meter) (sp *snap.Info, err error) {
+func (o *Overlord) InstallWithSideInfo(snapFilePath string, sideInfo *snap.SideInfo, mflags flags.InstallFlags, meter progress.Meter) (sp *snap.Info, err error) {
 	var oldInfo *snap.Info
 
 	if sideInfo != nil {
@@ -416,11 +418,11 @@ func (o *Overlord) InstallWithSideInfo(snapFilePath string, sideInfo *snap.SideI
 		}
 	}
 
-	if err := CheckSnap(snapFilePath, oldInfo, flags, meter); err != nil {
+	if err := CheckSnap(snapFilePath, oldInfo, mflags, meter); err != nil {
 		return nil, err
 	}
 
-	minInfo, err := SetupSnap(snapFilePath, sideInfo, flags, meter)
+	minInfo, err := SetupSnap(snapFilePath, sideInfo, mflags, meter)
 	defer func() {
 		if err != nil {
 			if minInfo != nil {
@@ -432,7 +434,7 @@ func (o *Overlord) InstallWithSideInfo(snapFilePath string, sideInfo *snap.SideI
 		return nil, err
 	}
 
-	allowUnauth := (flags & AllowUnauthenticated) != 0
+	allowUnauth := (mflags & flags.AllowUnauthenticated) != 0
 	newInfo, _, err := openSnapFile(snapFilePath, allowUnauth, sideInfo)
 	if err != nil {
 		return nil, err
@@ -465,10 +467,10 @@ func (o *Overlord) InstallWithSideInfo(snapFilePath string, sideInfo *snap.SideI
 	}
 
 	// deal with the data
-	err = CopyData(newInfo, oldInfo, flags, meter)
+	err = CopyData(newInfo, oldInfo, mflags, meter)
 	defer func() {
 		if err != nil {
-			UndoCopyData(newInfo, flags, meter)
+			UndoCopyData(newInfo, mflags, meter)
 		}
 	}()
 	if err != nil {
@@ -477,8 +479,8 @@ func (o *Overlord) InstallWithSideInfo(snapFilePath string, sideInfo *snap.SideI
 
 	// and finally make active
 
-	if (flags & InhibitHooks) != 0 {
-		// XXX: kill InhibitHooks flag but used by u-d-f atm
+	if (mflags & flags.InhibitHooks) != 0 {
+		// XXX: kill flags.InhibitHooks flag but used by u-d-f atm
 		return newInfo, nil
 	}
 
@@ -607,7 +609,7 @@ func RemoveSnapFiles(s snap.PlaceInfo, meter progress.Meter) error {
 
 	// remove the kernel assets (if any)
 	if typ == snap.TypeKernel {
-		if err := removeKernelAssets(s, meter); err != nil {
+		if err := kernel_os.RemoveKernelAssets(s, meter); err != nil {
 			logger.Noticef("removing kernel assets failed with %s", err)
 		}
 	}

@@ -25,10 +25,10 @@ import (
 
 	"gopkg.in/tomb.v2"
 
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/overlord/auth"
 	"github.com/ubuntu-core/snappy/overlord/state"
 	"github.com/ubuntu-core/snappy/snap"
-	"github.com/ubuntu-core/snappy/snappy"
 	"github.com/ubuntu-core/snappy/store"
 )
 
@@ -61,7 +61,7 @@ func (ss *SnapSetup) MountDir() string {
 }
 
 func (ss *SnapSetup) DevMode() bool {
-	return ss.Flags&int(snappy.DeveloperMode) != 0
+	return ss.Flags&int(flags.DeveloperMode) != 0
 }
 
 // SnapStateFlags are flags stored in SnapState.

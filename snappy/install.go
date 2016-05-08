@@ -24,6 +24,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/progress"
 	"github.com/ubuntu-core/snappy/provisioning"
@@ -31,24 +32,7 @@ import (
 	"github.com/ubuntu-core/snappy/store"
 )
 
-// SetupFlags can be used to pass additional flags to the install of a
-// snap
-type InstallFlags uint
-
-const (
-	// AllowUnauthenticated allows to install a snap even if it cannot be authenticated
-	AllowUnauthenticated InstallFlags = 1 << iota
-	// InhibitHooks will ensure that the hooks are not run
-	InhibitHooks
-	// DoInstallGC will ensure that garbage collection is done
-	DoInstallGC
-	// AllowGadget allows the installation of Gadget packages, this does not affect updates.
-	AllowGadget
-	// DeveloperMode will install the snap without confinement
-	DeveloperMode
-)
-
-func installRemote(mStore *store.SnapUbuntuStoreRepository, remoteSnap *snap.Info, flags InstallFlags, meter progress.Meter) (string, error) {
+func installRemote(mStore *store.SnapUbuntuStoreRepository, remoteSnap *snap.Info, flags flags.InstallFlags, meter progress.Meter) (string, error) {
 	downloadedSnap, err := mStore.Download(remoteSnap, meter, nil)
 	if err != nil {
 		return "", fmt.Errorf("cannot download %s: %s", remoteSnap.Name(), err)
@@ -63,7 +47,7 @@ func installRemote(mStore *store.SnapUbuntuStoreRepository, remoteSnap *snap.Inf
 	return localSnap.Name(), nil
 }
 
-func doUpdate(mStore *store.SnapUbuntuStoreRepository, rsnap *snap.Info, flags InstallFlags, meter progress.Meter) error {
+func doUpdate(mStore *store.SnapUbuntuStoreRepository, rsnap *snap.Info, flags flags.InstallFlags, meter progress.Meter) error {
 	_, err := installRemote(mStore, rsnap, flags, meter)
 	if err == ErrSideLoaded {
 		logger.Noticef("Skipping sideloaded package: %s", rsnap.Name())
@@ -149,7 +133,7 @@ func NewConfiguredUbuntuStoreSnapRepository() *store.SnapUbuntuStoreRepository {
 }
 
 // Update updates the selected name
-func Update(name string, flags InstallFlags, meter progress.Meter) ([]*Snap, error) {
+func Update(name string, flags flags.InstallFlags, meter progress.Meter) ([]*Snap, error) {
 	installed, err := (&Overlord{}).Installed()
 	if err != nil {
 		return nil, err
@@ -192,7 +176,7 @@ func Update(name string, flags InstallFlags, meter progress.Meter) ([]*Snap, err
 // UpdateAll the installed snappy packages, it returns the updated Snaps
 // if updates where available and an error and nil if any of the updates
 // fail to apply.
-func UpdateAll(flags InstallFlags, meter progress.Meter) ([]*Snap, error) {
+func UpdateAll(flags flags.InstallFlags, meter progress.Meter) ([]*Snap, error) {
 	mStore := NewConfiguredUbuntuStoreSnapRepository()
 	updates, err := snapUpdates(mStore)
 	if err != nil {
@@ -216,7 +200,7 @@ func UpdateAll(flags InstallFlags, meter progress.Meter) ([]*Snap, error) {
 
 // Install the givens snap names provided via args. This can be local
 // files or snaps that are queried from the store
-func Install(name, channel string, flags InstallFlags, meter progress.Meter) (string, error) {
+func Install(name, channel string, flags flags.InstallFlags, meter progress.Meter) (string, error) {
 	name, err := doInstall(name, channel, flags, meter)
 	if err != nil {
 		return "", err
@@ -225,7 +209,7 @@ func Install(name, channel string, flags InstallFlags, meter progress.Meter) (st
 	return name, GarbageCollect(name, flags, meter)
 }
 
-func doInstall(name, channel string, flags InstallFlags, meter progress.Meter) (snapName string, err error) {
+func doInstall(name, channel string, mflags flags.InstallFlags, meter progress.Meter) (snapName string, err error) {
 	defer func() {
 		if err != nil {
 			err = &ErrInstallFailed{Snap: name, OrigErr: err}
@@ -237,10 +221,10 @@ func doInstall(name, channel string, flags InstallFlags, meter progress.Meter) (
 		// we allow unauthenticated package when in developer
 		// mode
 		if provisioning.InDeveloperMode() {
-			flags |= AllowUnauthenticated
+			mflags |= flags.AllowUnauthenticated
 		}
 
-		snap, err := (&Overlord{}).Install(name, flags, meter)
+		snap, err := (&Overlord{}).Install(name, mflags, meter)
 		if err != nil {
 			return "", err
 		}
@@ -268,16 +252,16 @@ func doInstall(name, channel string, flags InstallFlags, meter progress.Meter) (
 		return "", ErrPackageNameAlreadyInstalled
 	}
 
-	return installRemote(mStore, snap, flags, meter)
+	return installRemote(mStore, snap, mflags, meter)
 }
 
 // GarbageCollect removes all versions two older than the current active
 // version, as long as NeedsReboot() is false on all the versions found, and
 // DoInstallGC is set.
-func GarbageCollect(name string, flags InstallFlags, pb progress.Meter) error {
+func GarbageCollect(name string, mflags flags.InstallFlags, pb progress.Meter) error {
 	var snaps BySnapVersion
 
-	if (flags & DoInstallGC) == 0 {
+	if (mflags & flags.DoInstallGC) == 0 {
 		return nil
 	}
 

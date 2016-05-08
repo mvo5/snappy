@@ -37,6 +37,7 @@ import (
 
 	"github.com/ubuntu-core/snappy/asserts"
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/interfaces"
 	"github.com/ubuntu-core/snappy/overlord/auth"
@@ -626,17 +627,17 @@ func withEnsureUbuntuCore(st *state.State, targetSnap string, userID int, instal
 }
 
 func snapInstall(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
-	flags := snappy.DoInstallGC
+	mflags := flags.DoInstallGC
 	if inst.LeaveOld {
-		flags = 0
+		mflags = 0
 	}
 	if inst.DevMode {
-		flags |= snappy.DeveloperMode
+		mflags |= flags.DeveloperMode
 	}
 
 	tsets, err := withEnsureUbuntuCore(st, inst.snap, inst.userID,
 		func() (*state.TaskSet, error) {
-			return snapstateInstall(st, inst.snap, inst.Channel, inst.userID, flags)
+			return snapstateInstall(st, inst.snap, inst.Channel, inst.userID, mflags)
 		},
 	)
 	if err != nil {
@@ -663,7 +664,7 @@ func snapInstall(inst *snapInstruction, st *state.State) (string, []*state.TaskS
 }
 
 func snapUpdate(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
-	flags := snappy.DoInstallGC
+	flags := flags.DoInstallGC
 	if inst.LeaveOld {
 		flags = 0
 	}
@@ -817,10 +818,10 @@ func sideloadSnap(c *Command, r *http.Request) Response {
 		return BadRequest("cannot read POST form: %v", err)
 	}
 
-	var flags snappy.InstallFlags
+	var mflags flags.InstallFlags
 
 	if len(form.Value["devmode"]) > 0 && form.Value["devmode"][0] == "true" {
-		flags |= snappy.DeveloperMode
+		mflags |= flags.DeveloperMode
 	}
 
 	// find the file for the "snap" form field
@@ -890,7 +891,7 @@ out:
 
 	tsets, err := withEnsureUbuntuCore(st, snapName, userID,
 		func() (*state.TaskSet, error) {
-			return snapstateInstallPath(st, snapName, tempPath, "", flags)
+			return snapstateInstallPath(st, snapName, tempPath, "", mflags)
 		},
 	)
 	if err != nil {

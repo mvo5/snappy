@@ -32,12 +32,13 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/progress"
 )
 
 func (s *SnapTestSuite) TestInstallInstall(c *C) {
 	snapPath := makeTestSnapPackage(c, "")
-	name, err := Install(snapPath, "channel", AllowUnauthenticated|DoInstallGC, &progress.NullProgress{})
+	name, err := Install(snapPath, "channel", flags.AllowUnauthenticated|flags.DoInstallGC, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 
@@ -51,7 +52,7 @@ func (s *SnapTestSuite) TestInstallInstall(c *C) {
 
 func (s *SnapTestSuite) TestInstallNoHook(c *C) {
 	snapPath := makeTestSnapPackage(c, "")
-	name, err := Install(snapPath, "", AllowUnauthenticated|DoInstallGC|InhibitHooks, &progress.NullProgress{})
+	name, err := Install(snapPath, "", flags.AllowUnauthenticated|flags.DoInstallGC|flags.InhibitHooks, &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 
@@ -71,7 +72,7 @@ vendor: Foo Bar <foo@example.com>
 license-agreement: explicit
 `)
 	ag := &MockProgressMeter{y: true}
-	name, err := Install(snapPath, "", AllowUnauthenticated|DoInstallGC, ag)
+	name, err := Install(snapPath, "", flags.AllowUnauthenticated|flags.DoInstallGC, ag)
 	c.Assert(err, IsNil)
 	c.Check(name, Equals, "foo")
 	c.Check(ag.license, Equals, "WTFPL")
@@ -85,12 +86,12 @@ vendor: Foo Bar <foo@example.com>
 license-agreement: explicit
 `)
 	ag := &MockProgressMeter{y: false}
-	_, err := Install(snapPath, "", AllowUnauthenticated|DoInstallGC, ag)
+	_, err := Install(snapPath, "", flags.AllowUnauthenticated|flags.DoInstallGC, ag)
 	c.Assert(IsLicenseNotAccepted(err), Equals, true)
 	c.Check(ag.license, Equals, "WTFPL")
 }
 
-func (s *SnapTestSuite) installThree(c *C, flags InstallFlags) {
+func (s *SnapTestSuite) installThree(c *C, flags flags.InstallFlags) {
 	c.Skip("can't really install 3 separate snap version just through the old snappy.Install interface, they all get revision 0!")
 	dirs.SnapDataHomeGlob = filepath.Join(s.tempdir, "home", "*", "snaps")
 	homeDir := filepath.Join(s.tempdir, "home", "user1", "snaps")
@@ -115,7 +116,7 @@ func (s *SnapTestSuite) installThree(c *C, flags InstallFlags) {
 
 // check that on install we remove all but the two newest package versions
 func (s *SnapTestSuite) TestClickInstallGCSimple(c *C) {
-	s.installThree(c, AllowUnauthenticated|DoInstallGC)
+	s.installThree(c, flags.AllowUnauthenticated|flags.DoInstallGC)
 
 	globs, err := filepath.Glob(filepath.Join(dirs.SnapSnapsDir, "foo", "*"))
 	c.Check(err, IsNil)
@@ -136,9 +137,9 @@ func (s *SnapTestSuite) TestClickInstallGCSimple(c *C) {
 	c.Check(commonFound, Equals, true)
 }
 
-// check that if flags does not include DoInstallGC, no gc is done
+// check that if flags does not include flags.DoInstallGC, no gc is done
 func (s *SnapTestSuite) TestClickInstallGCSuppressed(c *C) {
-	s.installThree(c, AllowUnauthenticated)
+	s.installThree(c, flags.AllowUnauthenticated)
 
 	globs, err := filepath.Glob(filepath.Join(dirs.SnapSnapsDir, "foo", "*"))
 	c.Assert(err, IsNil)

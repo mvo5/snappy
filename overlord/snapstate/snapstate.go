@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/i18n"
 	"github.com/ubuntu-core/snappy/logger"
 	"github.com/ubuntu-core/snappy/overlord/state"
@@ -34,7 +35,7 @@ import (
 // allow exchange in the tests
 var backend managerBackend = &defaultBackend{}
 
-func doInstall(s *state.State, curActive bool, snapName, snapPath, channel string, userID int, flags snappy.InstallFlags) (*state.TaskSet, error) {
+func doInstall(s *state.State, curActive bool, snapName, snapPath, channel string, userID int, flags flags.InstallFlags) (*state.TaskSet, error) {
 	if err := checkChangeConflict(s, snapName); err != nil {
 		return nil, err
 	}
@@ -115,7 +116,7 @@ func checkChangeConflict(s *state.State, snapName string) error {
 
 // Install returns a set of tasks for installing snap.
 // Note that the state must be locked by the caller.
-func Install(s *state.State, name, channel string, userID int, flags snappy.InstallFlags) (*state.TaskSet, error) {
+func Install(s *state.State, name, channel string, userID int, flags flags.InstallFlags) (*state.TaskSet, error) {
 	var snapst SnapState
 	err := Get(s, name, &snapst)
 	if err != nil && err != state.ErrNoState {
@@ -130,7 +131,7 @@ func Install(s *state.State, name, channel string, userID int, flags snappy.Inst
 
 // InstallPath returns a set of tasks for installing snap from a file path.
 // Note that the state must be locked by the caller.
-func InstallPath(s *state.State, name, path, channel string, flags snappy.InstallFlags) (*state.TaskSet, error) {
+func InstallPath(s *state.State, name, path, channel string, flags flags.InstallFlags) (*state.TaskSet, error) {
 	var snapst SnapState
 	err := Get(s, name, &snapst)
 	if err != nil && err != state.ErrNoState {
@@ -142,7 +143,7 @@ func InstallPath(s *state.State, name, path, channel string, flags snappy.Instal
 
 // Update initiates a change updating a snap.
 // Note that the state must be locked by the caller.
-func Update(s *state.State, name, channel string, userID int, flags snappy.InstallFlags) (*state.TaskSet, error) {
+func Update(s *state.State, name, channel string, userID int, flags flags.InstallFlags) (*state.TaskSet, error) {
 	var snapst SnapState
 	err := Get(s, name, &snapst)
 	if err != nil && err != state.ErrNoState {

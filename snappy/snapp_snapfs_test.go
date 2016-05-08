@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/kernel_os"
 	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/partition"
 	"github.com/ubuntu-core/snappy/snap"
@@ -344,7 +345,7 @@ func (s *SquashfsTestSuite) TestInstallKernelSnapUnpacksKernelErrors(c *C) {
 	snap, snapf, err := openSnapFile(snapPkg, true, nil)
 	c.Assert(err, IsNil)
 
-	err = extractKernelAssets(snap, snapf, 0, nil)
+	err = kernel_os.ExtractKernelAssets(snap, snapf, 0, nil)
 	c.Assert(err, ErrorMatches, `cannot extract kernel assets from snap type "app"`)
 }
 

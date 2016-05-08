@@ -602,7 +602,7 @@ func (s *interfaceManagerSuite) TestSetupProfilesUsesFreshSnapInfo(c *C) {
 //
 // This variant checks restoring DevMode to true
 func (s *interfaceManagerSuite) TestSetupProfilesUndoDevModeTrue(c *C) {
-	s.undoDevModeCheck(c, snappy.InstallFlags(0), true)
+	s.undoDevModeCheck(c, snappy.flags.InstallFlags(0), true)
 }
 
 // The undo handler of the setup-profiles task will honor `old-devmode` that
@@ -611,10 +611,10 @@ func (s *interfaceManagerSuite) TestSetupProfilesUndoDevModeTrue(c *C) {
 //
 // This variant checks restoring DevMode to false
 func (s *interfaceManagerSuite) TestSetupProfilesUndoDevModeFalse(c *C) {
-	s.undoDevModeCheck(c, snappy.InstallFlags(0), false)
+	s.undoDevModeCheck(c, snappy.flags.InstallFlags(0), false)
 }
 
-func (s *interfaceManagerSuite) undoDevModeCheck(c *C, flags snappy.InstallFlags, devMode bool) {
+func (s *interfaceManagerSuite) undoDevModeCheck(c *C, flags flags.InstallFlags, devMode bool) {
 	// Put the OS and sample snaps in place.
 	s.mockSnap(c, osSnapYaml)
 	snapInfo := s.mockSnap(c, sampleSnapYaml)

@@ -29,6 +29,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/ubuntu-core/snappy/dirs"
+	"github.com/ubuntu-core/snappy/flags"
 	"github.com/ubuntu-core/snappy/osutil"
 	"github.com/ubuntu-core/snappy/snap"
 	"github.com/ubuntu-core/snappy/systemd"
@@ -303,7 +304,7 @@ version: 1.0
 type: gadget
 `)
 	// revision will be 0
-	_, err := (&Overlord{}).Install(snapPath, AllowGadget, nil)
+	_, err := (&Overlord{}).Install(snapPath, flags.AllowGadget, nil)
 	c.Assert(err, IsNil)
 
 	contentFile := filepath.Join(dirs.SnapSnapsDir, "foo", "0", "bin", "foo")
@@ -323,7 +324,7 @@ type: gadget
 		Revision:     100,
 		Channel:      "remote-channel",
 	}
-	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, foo10, AllowGadget, nil)
+	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, foo10, flags.AllowGadget, nil)
 	c.Assert(err, IsNil)
 
 	contentFile := filepath.Join(dirs.SnapSnapsDir, "foo", "100", "bin", "foo")
@@ -353,7 +354,7 @@ type: gadget
 	c.Check(err, Equals, ErrGadgetPackageInstall)
 
 	// this will cause chaos, but let's test if it works
-	_, err = (&Overlord{}).Install(snapPath, AllowGadget, nil)
+	_, err = (&Overlord{}).Install(snapPath, flags.AllowGadget, nil)
 	c.Check(err, IsNil)
 }
 
@@ -374,11 +375,11 @@ func (s *SnapTestSuite) TestClickSetActive(c *C) {
 	snapYamlContent := `name: foo
 `
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
-	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, AllowUnauthenticated, nil)
+	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 
 	snapPath = makeTestSnapPackage(c, snapYamlContent+"version: 2.0")
-	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, AllowUnauthenticated, nil)
+	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 
 	// ensure v2 is active
@@ -419,7 +420,7 @@ func (s *SnapTestSuite) TestCopyData(c *C) {
 	canaryData := []byte("ni ni ni")
 
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
-	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, AllowUnauthenticated, nil)
+	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 	canaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "10", "canary.txt")
 	err = ioutil.WriteFile(canaryDataFile, canaryData, 0644)
@@ -433,7 +434,7 @@ func (s *SnapTestSuite) TestCopyData(c *C) {
 	c.Assert(err, IsNil)
 
 	snapPath = makeTestSnapPackage(c, snapYamlContent+"version: 2.0")
-	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, AllowUnauthenticated, nil)
+	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 	newCanaryDataFile := filepath.Join(dirs.SnapDataDir, appDir, "20", "canary.txt")
 	content, err := ioutil.ReadFile(newCanaryDataFile)
@@ -469,7 +470,7 @@ func (s *SnapTestSuite) TestCopyDataNoUserHomes(c *C) {
 	snapYamlContent := `name: foo
 `
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
-	snap, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, AllowUnauthenticated, nil)
+	snap, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 	canaryDataFile := filepath.Join(snap.DataDir(), "canary.txt")
 	err = ioutil.WriteFile(canaryDataFile, []byte(""), 0644)
@@ -479,7 +480,7 @@ func (s *SnapTestSuite) TestCopyDataNoUserHomes(c *C) {
 	c.Assert(err, IsNil)
 
 	snapPath = makeTestSnapPackage(c, snapYamlContent+"version: 2.0")
-	snap2, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, AllowUnauthenticated, nil)
+	snap2, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 	_, err = os.Stat(filepath.Join(snap2.DataDir(), "canary.txt"))
 	c.Assert(err, IsNil)
@@ -498,7 +499,7 @@ apps:
   command: bin/bar
 `
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
-	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, AllowUnauthenticated, nil)
+	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 
 	// ensure that the binary wrapper file got generated with the right
@@ -511,7 +512,7 @@ apps:
 
 	// and that it gets updated on upgrade
 	snapPath = makeTestSnapPackage(c, snapYamlContent+"version: 2.0")
-	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, AllowUnauthenticated, nil)
+	_, err = (&Overlord{}).InstallWithSideInfo(snapPath, fooSI20, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 	newSnapBin := filepath.Join(dirs.SnapSnapsDir[len(dirs.GlobalRootDir):], "foo", "20", "bin", "bar")
 	content, err = ioutil.ReadFile(binaryWrapper)
@@ -533,7 +534,7 @@ apps:
 
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
 	// revision will be 0
-	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, si, AllowUnauthenticated, nil)
+	_, err := (&Overlord{}).InstallWithSideInfo(snapPath, si, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 
 	servicesFile := filepath.Join(dirs.SnapServicesDir, "snap.foo.service.service")
@@ -570,7 +571,7 @@ apps:
    daemon: forking
 `
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
-	_, err := (&Overlord{}).Install(snapPath, InhibitHooks, nil)
+	_, err := (&Overlord{}).Install(snapPath, flags.InhibitHooks, nil)
 	c.Assert(err, IsNil)
 
 	c.Assert(allSystemctl, HasLen, 0)
@@ -585,7 +586,7 @@ apps:
 `
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
 	// revision will be 0
-	_, err := (&Overlord{}).Install(snapPath, AllowUnauthenticated, nil)
+	_, err := (&Overlord{}).Install(snapPath, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 
 	// ensure that the binary wrapper file go generated with the right
@@ -636,7 +637,7 @@ slots:
 `
 	snapPath := makeTestSnapPackage(c, snapYamlContent+"version: 1.0")
 	// Use InstallWithSideInfo, this is just a cheap way to call openSnapFile
-	snapInfo, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, AllowUnauthenticated, nil)
+	snapInfo, err := (&Overlord{}).InstallWithSideInfo(snapPath, fooSI10, flags.AllowUnauthenticated, nil)
 	c.Assert(err, IsNil)
 
 	// Ensure that side info is correctly stored
