@@ -63,7 +63,7 @@ func (s *installSuite) TestCallSuccessfulBinaryFromInstalledSnap(c *check.C) {
 	defer os.Remove(snapPath)
 	c.Assert(err, check.IsNil, check.Commentf("Error building local snap: %s", err))
 	common.InstallSnap(c, snapPath)
-	defer common.RemoveSnap(c, data.BasicBinariesSnapName)
+	//defer common.RemoveSnap(c, data.BasicBinariesSnapName)
 
 	// Exec command does not fail.
 	cli.ExecCommand(c, "basic-binaries.success")

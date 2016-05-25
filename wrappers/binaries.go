@@ -26,12 +26,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/snapcore/snapd/arch"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
-	"github.com/snapcore/snapd/snap/snapenv"
 )
 
 // Doesn't need to handle complications like internal quotes, just needs to
@@ -42,20 +40,7 @@ func quoteEnvVar(envVar string) string {
 
 func generateSnapBinaryWrapper(app *snap.AppInfo) (string, error) {
 	wrapperTemplate := `#!/bin/sh
-set -e
-
-# snap info
-{{.EnvVars}}
-
-if [ ! -d "$SNAP_USER_DATA" ]; then
-   mkdir -p "$SNAP_USER_DATA"
-fi
-export HOME="$SNAP_USER_DATA"
-
-# Snap name is: {{.App.Snap.Name}}
-# App name is: {{.App.Name}}
-
-{{.App.LauncherCommand}} "$@"
+exec {{.App.LauncherCommand}} "$@"
 `
 
 	if err := snap.ValidateApp(app); err != nil {
@@ -65,34 +50,10 @@ export HOME="$SNAP_USER_DATA"
 	var templateOut bytes.Buffer
 	t := template.Must(template.New("wrapper").Parse(wrapperTemplate))
 	wrapperData := struct {
-		App     *snap.AppInfo
-		EnvVars string
-		// XXX: needed by snapenv
-		SnapName string
-		SnapArch string
-		SnapPath string
-		Version  string
-		Revision snap.Revision
-		Home     string
+		App *snap.AppInfo
 	}{
 		App: app,
-		// XXX: needed by snapenv
-		SnapName: app.Snap.Name(),
-		SnapArch: arch.UbuntuArchitecture(),
-		SnapPath: app.Snap.MountDir(),
-		Version:  app.Snap.Version,
-		Revision: app.Snap.Revision,
-		Home:     "$HOME",
 	}
-
-	envVars := []string{}
-	for _, envVar := range append(
-		snapenv.GetBasicSnapEnvVars(wrapperData),
-		snapenv.GetUserSnapEnvVars(wrapperData)...) {
-		envVars = append(envVars, quoteEnvVar(envVar))
-	}
-	wrapperData.EnvVars = strings.Join(envVars, "\n")
-
 	if err := t.Execute(&templateOut, wrapperData); err != nil {
 		// this can never happen, except we forget a variable
 		logger.Panicf("Unable to execute template: %v", err)
