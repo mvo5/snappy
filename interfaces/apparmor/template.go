@@ -293,6 +293,10 @@ var defaultTemplate = []byte(`
   /sys/class/ r,
   /sys/class/**/ r,
 
+  # snap run needs this
+  #include <abstractions/nameservice> 
+  @{PROC}/sys/net/core/somaxconn r,
+
 ###SNIPPETS###
 }
 `)

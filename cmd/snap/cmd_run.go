@@ -39,8 +39,8 @@ type cmdRun struct {
 		App     string `positional-arg-name:"app" description:"the app"`
 		Command string `positional-arg-name:"cmd" description:"the command to run"`
 	} `positional-args:"yes" required:"yes"`
-	AfterSuidSetup bool   `description:"after-suid-setup"`
-	Revision       string `description:"revision of the snap"`
+	AfterSuidSetup bool   `long:"after-suid-setup" description:"after-suid-setup"`
+	Revision       string `long:"revision" description:"revision of the snap"`
 }
 
 func init() {
@@ -77,10 +77,9 @@ func (x *cmdRun) Execute(args []string) error {
 			return fmt.Errorf("multiple snaps for %q: %d", x.Positional.Snap, len(snaps))
 		}
 		sn := snaps[0]
-
 		// FIXME copied code
 		info, err := snap.ReadInfo(x.Positional.Snap, &snap.SideInfo{
-			Revision: snap.R(x.Revision),
+			Revision: snap.R(sn.Revision.N),
 		})
 		if err != nil {
 			return err

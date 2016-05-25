@@ -40,7 +40,9 @@ func quoteEnvVar(envVar string) string {
 
 func generateSnapBinaryWrapper(app *snap.AppInfo) (string, error) {
 	wrapperTemplate := `#!/bin/sh
-exec {{.App.LauncherCommand}} "$@"
+set -e
+
+{{.App.LauncherCommand}} "$@"
 `
 
 	if err := snap.ValidateApp(app); err != nil {

@@ -473,4 +473,10 @@ writev
 pwrite
 pwrite64
 pwritev
+
+# for /usr/bin/snap
+setsockopt
+bind
+getsockname
+getpeername
 `)
