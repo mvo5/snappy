@@ -237,10 +237,6 @@ func (app *AppInfo) SecurityTag() string {
 	return fmt.Sprintf("snap.%s.%s", app.Snap.Name(), app.Name)
 }
 
-func (app *AppInfo) EnvironmentFile() string {
-	return filepath.Join(dirs.SnapEnvironmentDir, app.SecurityTag())
-}
-
 // WrapperPath returns the path to wrapper invoking the app binary.
 func (app *AppInfo) WrapperPath() string {
 	var binName string
@@ -312,7 +308,7 @@ func ReadInfo(name string, si *SideInfo) (*Info, error) {
 
 // ReadInfoFromSnapFile reads the snap information from the given File
 // and completes it with the given side-info if this is not nil.
-func ReadInfoFromSnapFile(snapf File, si *SideInfo) (*Info, error) {
+func ReadInfoFromSnapFile(snapf Container, si *SideInfo) (*Info, error) {
 	meta, err := snapf.ReadFile("meta/snap.yaml")
 	if err != nil {
 		return nil, err
