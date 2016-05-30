@@ -27,8 +27,10 @@ import (
 
 	"github.com/jessevdk/go-flags"
 
+	"github.com/snapcore/snapd/arch"
 	"github.com/snapcore/snapd/i18n"
 	"github.com/snapcore/snapd/snap"
+	"github.com/snapcore/snapd/snap/snapenv"
 )
 
 type cmdRun struct {
@@ -88,19 +90,46 @@ func (x *cmdRun) Execute(args []string) error {
 		return fmt.Errorf("cannot find app %q in %q", appName, snapName)
 	}
 
-	// FIXME: setup SNAP_USER_DATA_DIR here before running the confinement
+	// build wrapper env
+	env := os.Environ()
+	wrapperData := struct {
+		App     *snap.AppInfo
+		EnvVars string
+		// XXX: needed by snapenv
+		SnapName string
+		SnapArch string
+		SnapPath string
+		Version  string
+		Revision snap.Revision
+		Home     string
+	}{
+		App: app,
+		// XXX: needed by snapenv
+		SnapName: app.Snap.Name(),
+		SnapArch: arch.UbuntuArchitecture(),
+		SnapPath: app.Snap.MountDir(),
+		Version:  app.Snap.Version,
+		Revision: app.Snap.Revision,
+		// must be an absolute path for
+		//   ubuntu-core-launcher/snap-confine
+		// which will mkdir() SNAP_USER_DATA for us
+		Home: os.Getenv("$HOME"),
+	}
+	for _, envVar := range append(
+		snapenv.GetBasicSnapEnvVars(wrapperData),
+		snapenv.GetUserSnapEnvVars(wrapperData)...) {
+		env = append(env, envVar)
+	}
+
 	cmd := []string{
 		"/usr/bin/ubuntu-core-launcher",
 		app.SecurityTag(),
 		app.SecurityTag(),
 		"/usr/lib/snapd/snap-exec",
-		snapName,
-		appName,
+		x.Positional.SnapCmd,
 		// FIXME: command needs to take "--command=post-stop" into
 		//        account
-		app.Command,
-		sn.Revision.String(),
 	}
 	cmd = append(cmd, args...)
-	return syscall.Exec(cmd[0], cmd, os.Environ())
+	return syscall.Exec(cmd[0], cmd, env)
 }

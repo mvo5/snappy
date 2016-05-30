@@ -23,11 +23,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
-	"github.com/snapcore/snapd/arch"
 	"github.com/snapcore/snapd/snap"
-	"github.com/snapcore/snapd/snap/snapenv"
 )
 
 func main() {
@@ -46,16 +45,23 @@ func copyEnv(in map[string]string) map[string]string {
 	return out
 }
 
+func splitSnapCmd(snapCmd string) (snap, app string) {
+	l := strings.SplitN(snapCmd, ".", 2)
+	if len(l) < 2 {
+		return l[0], ""
+	}
+	return l[0], l[1]
+}
+
 func snapLaunch() error {
 	// FIXME: use proper parser
-	snapName := os.Args[1]
-	appName := os.Args[2]
-	command := os.Args[3]
-	revision := os.Args[4]
-	args := os.Args[5:]
+	snapCmd := os.Args[1]
+	args := os.Args[2:]
+
+	snapName, appName := splitSnapCmd(snapCmd)
 
 	info, err := snap.ReadInfo(snapName, &snap.SideInfo{
-		Revision: snap.R(revision),
+		Revision: snap.R(os.Getenv("SNAP_REVISION")),
 	})
 	if err != nil {
 		return err
@@ -71,35 +77,8 @@ func snapLaunch() error {
 		return fmt.Errorf("cannot find app %q in %q", appName, snapName)
 	}
 
-	// build wrapper env
+	// build the evnironment from the yamle
 	env := os.Environ()
-	wrapperData := struct {
-		App     *snap.AppInfo
-		EnvVars string
-		// XXX: needed by snapenv
-		SnapName string
-		SnapArch string
-		SnapPath string
-		Version  string
-		Revision snap.Revision
-		Home     string
-	}{
-		App: app,
-		// XXX: needed by snapenv
-		SnapName: app.Snap.Name(),
-		SnapArch: arch.UbuntuArchitecture(),
-		SnapPath: app.Snap.MountDir(),
-		Version:  app.Snap.Version,
-		Revision: app.Snap.Revision,
-		Home:     "$HOME",
-	}
-	for _, envVar := range append(
-		snapenv.GetBasicSnapEnvVars(wrapperData),
-		snapenv.GetUserSnapEnvVars(wrapperData)...) {
-		env = append(env, envVar)
-	}
-
-	// build the evnironment from the yaml
 	appEnv := copyEnv(app.Snap.Environment)
 	for k, v := range app.Environment {
 		appEnv[k] = v
@@ -109,6 +88,6 @@ func snapLaunch() error {
 	}
 
 	// run the command
-	cmd := filepath.Join(app.Snap.MountDir(), command)
+	cmd := filepath.Join(app.Snap.MountDir(), app.Command)
 	return syscall.Exec(cmd, args, env)
 }
