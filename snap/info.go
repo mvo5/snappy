@@ -250,7 +250,7 @@ func (app *AppInfo) WrapperPath() string {
 }
 
 func (app *AppInfo) launcherCommand(command string) string {
-	return fmt.Sprintf("/usr/bin/snap run %s %s %s", app.Snap.Name(), app.Name, command)
+	return fmt.Sprintf("/usr/bin/snap run %s.%s", app.Snap.Name(), app.Name)
 
 }
 
