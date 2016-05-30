@@ -93,7 +93,7 @@ func (x *cmdRun) Execute(args []string) error {
 		"/usr/bin/ubuntu-core-launcher",
 		app.SecurityTag(),
 		app.SecurityTag(),
-		"/usr/lib/snapd/snap-launch",
+		"/usr/lib/snapd/snap-exec",
 		snapName,
 		appName,
 		// FIXME: command needs to take "--command=post-stop" into

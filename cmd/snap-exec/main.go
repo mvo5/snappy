@@ -32,7 +32,7 @@ import (
 
 func main() {
 	if err := snapLaunch(); err != nil {
-		fmt.Println("cannot snapLaunch: %s", err)
+		fmt.Printf("cannot snapLaunch: %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -110,6 +110,5 @@ func snapLaunch() error {
 
 	// run the command
 	cmd := filepath.Join(app.Snap.MountDir(), command)
-	println(cmd)
 	return syscall.Exec(cmd, args, env)
 }
