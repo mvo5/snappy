@@ -17,12 +17,14 @@
  *
  */
 
-package snappy
+package overlord
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/snapcore/snapd/overlord/snapstate"
+	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/partition"
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/snap"
@@ -49,6 +51,7 @@ func SyncBoot() error {
 	if release.OnClassic {
 		return nil
 	}
+
 	bootloader, err := partition.FindBootloader()
 	if err != nil {
 		return fmt.Errorf("cannot run SyncBoot: %s", err)
@@ -57,22 +60,45 @@ func SyncBoot() error {
 	kernelSnap, _ := bootloader.GetBootVar("snappy_kernel")
 	osSnap, _ := bootloader.GetBootVar("snappy_os")
 
-	installed, err := (&Overlord{}).Installed()
+	ovld, err := New()
+	if err != nil {
+		return err
+	}
+	ovld.Loop()
+	defer ovld.Stop()
+
+	st := ovld.State()
+	st.Lock()
+	installed, err := snapstate.All(st)
 	if err != nil {
 		return fmt.Errorf("cannot run SyncBoot: %s", err)
 	}
 
-	overlord := &Overlord{}
+	var tsAll []*state.TaskSet
 	for _, snap := range []string{kernelSnap, osSnap} {
 		name, revno := nameAndRevnoFromSnap(snap)
-		found := FindSnapsByNameAndRevision(name, revno, installed)
-		if len(found) != 1 {
-			return fmt.Errorf("cannot SyncBoot, expected 1 snap %q (revision %s) found %d", snap, revno, len(found))
-		}
-		if err := overlord.SetActive(found[0], true, nil); err != nil {
-			return fmt.Errorf("cannot SyncBoot, cannot make %s active: %s", found[0].Name(), err)
+		// FIXME: ensure we find exactly one "name"
+		for snapName, snapState := range installed {
+			if name == snapName {
+				if revno != snapState.Current().Revision {
+					tsAll := append(tsAll, snapstate.SetActive())
+				}
+			}
 		}
 	}
+	st.Unlock()
+
+	if len(tsAll) == 0 {
+		return nil
+	}
+
+	st.Lock()
+	msg := fmt.Sprintf("Syncing boot")
+	chg := st.NewChange("sync-boot", msg)
+	for _, ts := range tsAll {
+		chg.AddAll(ts)
+	}
+	st.Unlock()
 
 	return nil
 }
