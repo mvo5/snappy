@@ -1,7 +1,8 @@
 name: content-slot
 version: 1.0
 slots:
- content-sharing::
+ shared-content:
+  interface: content-sharing
   content: mylib
-  attrs:
-   path: ./
+  path: ./
+

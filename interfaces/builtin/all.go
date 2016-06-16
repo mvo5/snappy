@@ -48,6 +48,7 @@ var allInterfaces = []interfaces.Interface{
 	NewOpenglInterface(),
 	NewPulseAudioInterface(),
 	NewCupsControlInterface(),
+	&ContentSharingInterface{},
 }
 
 // Interfaces returns all of the built-in interfaces.
