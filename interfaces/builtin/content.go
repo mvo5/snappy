@@ -72,16 +72,9 @@ func (iface *ContentSharingInterface) ConnectedSlotSnippet(plug *interfaces.Plug
 }
 
 func (iface *ContentSharingInterface) PermanentSlotSnippet(slot *interfaces.Slot, securitySystem interfaces.SecuritySystem) ([]byte, error) {
-	path := slot.Attrs["path"].(string)
-	path = filepath.Join(slot.Snap.MountDir(), path)
 
-	contentSnippet := []byte(fmt.Sprintf(`
-%s/** r,
-`, path))
 	switch securitySystem {
-	case interfaces.SecurityAppArmor:
-		return contentSnippet, nil
-	case interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
+	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
@@ -89,8 +82,16 @@ func (iface *ContentSharingInterface) PermanentSlotSnippet(slot *interfaces.Slot
 }
 
 func (iface *ContentSharingInterface) ConnectedPlugSnippet(plug *interfaces.Plug, slot *interfaces.Slot, securitySystem interfaces.SecuritySystem) ([]byte, error) {
+	path := slot.Attrs["path"].(string)
+	path = filepath.Join(slot.Snap.MountDir(), path)
+
+	contentSnippet := []byte(fmt.Sprintf(`
+%s/** rix,
+`, path))
 	switch securitySystem {
-	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
+	case interfaces.SecurityAppArmor:
+		return contentSnippet, nil
+	case interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
