@@ -29,10 +29,6 @@ import (
 
 type ContentSharingInterface struct{}
 
-func (iface *ContentSharingInterface) String() string {
-	return iface.Name()
-}
-
 func (iface *ContentSharingInterface) Name() string {
 	return "content-sharing"
 }

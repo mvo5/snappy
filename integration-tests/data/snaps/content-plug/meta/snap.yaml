@@ -3,8 +3,8 @@ version: 1.0
 apps:
  content-plug:
   command: bin/content-plug
-  plugs: [shared-content]
+  plugs: [shared-content-plug]
 plugs:
- shared-content:
+ shared-content-plug:
   interface: content-sharing
   content: $mylib

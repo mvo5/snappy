@@ -5,7 +5,7 @@ set -e
 cat <<EOF 
 Please run:
 
-sudo snap connect content-plug:shared-content content-slot:shared-content
+sudo snap connect content-plug:shared-content-plug content-slot:shared-content-slot
 
 if you see an permission denied error
 EOF

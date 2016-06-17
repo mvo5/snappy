@@ -1,7 +1,7 @@
 name: content-slot
 version: 1.0
 slots:
- shared-content:
+ shared-content-slot:
   interface: content-sharing
   content: mylib
   path: ./
