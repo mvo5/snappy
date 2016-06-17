@@ -36,6 +36,7 @@ var (
 	AppArmorCacheDir          string
 	SnapAppArmorAdditionalDir string
 	SnapSeccompDir            string
+	SnapBindPolicyDir         string
 	SnapUdevRulesDir          string
 	LocaleDir                 string
 	SnapMetaDir               string
@@ -83,6 +84,8 @@ func SetRootDir(rootdir string) {
 	AppArmorCacheDir = filepath.Join(rootdir, "/var/cache/apparmor")
 	SnapAppArmorAdditionalDir = filepath.Join(rootdir, snappyDir, "apparmor", "additional")
 	SnapSeccompDir = filepath.Join(rootdir, snappyDir, "seccomp", "profiles")
+	SnapBindPolicyDir = filepath.Join(rootdir, snappyDir, "bind", "profiles")
+
 	SnapMetaDir = filepath.Join(rootdir, snappyDir, "meta")
 	SnapBlobDir = filepath.Join(rootdir, snappyDir, "snaps")
 	SnapDesktopFilesDir = filepath.Join(rootdir, snappyDir, "desktop", "applications")
