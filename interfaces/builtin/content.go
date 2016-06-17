@@ -20,6 +20,7 @@
 package builtin
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -37,14 +38,17 @@ func (iface *ContentSharingInterface) SanitizeSlot(slot *interfaces.Slot) error 
 	if iface.Name() != slot.Interface {
 		panic(fmt.Sprintf("slot is not of interface %q", iface))
 	}
-	path, ok := slot.Attrs["read"].(string)
-	if !ok || path == "" {
-		return fmt.Errorf("content must contain the path attribute")
+
+	// FIXME: check for read or for write
+	rpath, ok := slot.Attrs["read"].([]interface{})
+	if !ok || len(rpath) == 0 {
+		return fmt.Errorf("content must contain the read attribute")
 	}
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("relative path not allowed")
+	for _, r := range rpath {
+		if strings.Contains(r.(string), "..") {
+			return fmt.Errorf("relative path not allowed")
+		}
 	}
-	// FIXME: validate `path`, expand $SNAP wildcard
 
 	return nil
 }
@@ -78,18 +82,29 @@ func (iface *ContentSharingInterface) PermanentSlotSnippet(slot *interfaces.Slot
 }
 
 func (iface *ContentSharingInterface) ConnectedPlugSnippet(plug *interfaces.Plug, slot *interfaces.Slot, securitySystem interfaces.SecuritySystem) ([]byte, error) {
-	// FIXME: do "write" too
-	old := slot.Attrs["read"].(string)
-	old = filepath.Join(slot.Snap.MountDir(), old)
-	new := plug.Attrs["target"].(string)
-	new = filepath.Join(plug.Snap.MountDir(), new)
-	contentSnippet := []byte(fmt.Sprintf(`
-%s %s (ro)
-`, old, new))
+	contentSnippet := bytes.NewBuffer(nil)
+	dst := plug.Attrs["target"].(string)
+	dst = filepath.Join(plug.Snap.MountDir(), dst)
+
+	// read
+	if readPaths, ok := slot.Attrs["read"].([]interface{}); ok {
+		for _, r := range readPaths {
+			src := filepath.Join(slot.Snap.MountDir(), r.(string))
+			fmt.Fprintf(contentSnippet, "%s %s (ro)\n", src, dst)
+		}
+	}
+
+	// write
+	if writePaths, ok := slot.Attrs["write"].([]interface{}); ok {
+		for _, r := range writePaths {
+			src := filepath.Join(slot.Snap.MountDir(), r.(string))
+			fmt.Fprintf(contentSnippet, "%s %s (rw)\n", src, dst)
+		}
+	}
 
 	switch securitySystem {
 	case interfaces.SecurityBind:
-		return contentSnippet, nil
+		return contentSnippet.Bytes(), nil
 	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
 		return nil, nil
 	default:

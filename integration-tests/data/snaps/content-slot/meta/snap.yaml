@@ -4,5 +4,7 @@ slots:
  shared-content-slot:
   interface: content
   content: mylib
-  read: ./
+  read:
+   - ./
+   - ./
 
