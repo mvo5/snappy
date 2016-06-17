@@ -6,5 +6,5 @@ apps:
   plugs: [shared-content-plug]
 plugs:
  shared-content-plug:
-  interface: content-sharing
+  interface: content
   content: $mylib

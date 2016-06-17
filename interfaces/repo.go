@@ -744,7 +744,7 @@ func (r *Repository) AutoConnectCandidates(plugSnapName, plugName string) []*Slo
 			plugContent := plug.Attrs["content"].(string)
 			// split of the leading "$"
 			plugContent = plugContent[1:]
-			if slot.Interface == "content-sharing" && slot.Attrs["content"] == plugContent {
+			if slot.Interface == "content" && slot.Attrs["content"] == plugContent {
 				candidates = append(candidates, slot)
 			}
 		}

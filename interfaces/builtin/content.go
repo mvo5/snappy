@@ -30,7 +30,7 @@ import (
 type ContentSharingInterface struct{}
 
 func (iface *ContentSharingInterface) Name() string {
-	return "content-sharing"
+	return "content"
 }
 
 func (iface *ContentSharingInterface) SanitizeSlot(slot *interfaces.Slot) error {
@@ -39,7 +39,7 @@ func (iface *ContentSharingInterface) SanitizeSlot(slot *interfaces.Slot) error 
 	}
 	path, ok := slot.Attrs["path"].(string)
 	if !ok || path == "" {
-		return fmt.Errorf("content-sharing must contain the path attribute")
+		return fmt.Errorf("content must contain the path attribute")
 	}
 	if strings.Contains(path, "..") {
 		return fmt.Errorf("relative path not allowed")
