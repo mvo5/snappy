@@ -728,6 +728,8 @@ func (r *Repository) AutoConnectCandidates(plugSnapName, plugName string) []*Slo
 		return nil
 	}
 	var candidates []*Slot
+
+	// OS snap
 	for _, slotsForSnap := range r.slots {
 		for _, slot := range slotsForSnap {
 			if slot.Snap.Type == snap.TypeOS && slot.Interface == plug.Interface {
@@ -735,5 +737,18 @@ func (r *Repository) AutoConnectCandidates(plugSnapName, plugName string) []*Slo
 			}
 		}
 	}
+
+	// check content sharing stuff
+	for _, slotsForSnap := range r.slots {
+		for _, slot := range slotsForSnap {
+			plugContent := plug.Attrs["content"].(string)
+			// split of the leading "$"
+			plugContent = plugContent[1:]
+			if slot.Interface == "content-sharing" && slot.Attrs["content"] == plugContent {
+				candidates = append(candidates, slot)
+			}
+		}
+	}
+
 	return candidates
 }
