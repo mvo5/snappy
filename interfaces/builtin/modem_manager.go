@@ -1149,7 +1149,7 @@ func (iface *ModemManagerInterface) Name() string {
 
 func (iface *ModemManagerInterface) PermanentPlugSnippet(plug *interfaces.Plug, securitySystem interfaces.SecuritySystem) ([]byte, error) {
 	switch securitySystem {
-	case interfaces.SecurityDBus, interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityUDev:
+	case interfaces.SecurityDBus, interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityUDev, interfaces.SecurityBind:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
@@ -1203,7 +1203,7 @@ func (iface *ModemManagerInterface) ConnectedSlotSnippet(plug *interfaces.Plug, 
 		new := plugAppLabelExpr(plug)
 		snippet := bytes.Replace(modemManagerConnectedSlotAppArmor, old, new, -1)
 		return snippet, nil
-	case interfaces.SecurityDBus, interfaces.SecuritySecComp, interfaces.SecurityUDev:
+	case interfaces.SecurityDBus, interfaces.SecuritySecComp, interfaces.SecurityUDev, interfaces.SecurityBind:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
