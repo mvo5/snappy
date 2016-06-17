@@ -37,7 +37,7 @@ func (iface *ContentSharingInterface) SanitizeSlot(slot *interfaces.Slot) error 
 	if iface.Name() != slot.Interface {
 		panic(fmt.Sprintf("slot is not of interface %q", iface))
 	}
-	path, ok := slot.Attrs["path"].(string)
+	path, ok := slot.Attrs["read"].(string)
 	if !ok || path == "" {
 		return fmt.Errorf("content must contain the path attribute")
 	}
@@ -60,7 +60,7 @@ func (iface *ContentSharingInterface) SanitizePlug(slot *interfaces.Plug) error 
 
 func (iface *ContentSharingInterface) ConnectedSlotSnippet(plug *interfaces.Plug, slot *interfaces.Slot, securitySystem interfaces.SecuritySystem) ([]byte, error) {
 	switch securitySystem {
-	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
+	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev, interfaces.SecurityBind:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
@@ -70,7 +70,7 @@ func (iface *ContentSharingInterface) ConnectedSlotSnippet(plug *interfaces.Plug
 func (iface *ContentSharingInterface) PermanentSlotSnippet(slot *interfaces.Slot, securitySystem interfaces.SecuritySystem) ([]byte, error) {
 
 	switch securitySystem {
-	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
+	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev, interfaces.SecurityBind:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
@@ -78,16 +78,19 @@ func (iface *ContentSharingInterface) PermanentSlotSnippet(slot *interfaces.Slot
 }
 
 func (iface *ContentSharingInterface) ConnectedPlugSnippet(plug *interfaces.Plug, slot *interfaces.Slot, securitySystem interfaces.SecuritySystem) ([]byte, error) {
-	path := slot.Attrs["path"].(string)
-	path = filepath.Join(slot.Snap.MountDir(), path)
-
+	// FIXME: do "write" too
+	old := slot.Attrs["read"].(string)
+	old = filepath.Join(slot.Snap.MountDir(), old)
+	new := plug.Attrs["target"].(string)
+	new = filepath.Join(plug.Snap.MountDir(), new)
 	contentSnippet := []byte(fmt.Sprintf(`
-%s/** rix,
-`, path))
+%s %s (ro)
+`, old, new))
+
 	switch securitySystem {
-	case interfaces.SecurityAppArmor:
+	case interfaces.SecurityBind:
 		return contentSnippet, nil
-	case interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
+	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity
@@ -96,7 +99,7 @@ func (iface *ContentSharingInterface) ConnectedPlugSnippet(plug *interfaces.Plug
 
 func (iface *ContentSharingInterface) PermanentPlugSnippet(plug *interfaces.Plug, securitySystem interfaces.SecuritySystem) ([]byte, error) {
 	switch securitySystem {
-	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev:
+	case interfaces.SecurityAppArmor, interfaces.SecuritySecComp, interfaces.SecurityDBus, interfaces.SecurityUDev, interfaces.SecurityBind:
 		return nil, nil
 	default:
 		return nil, interfaces.ErrUnknownSecurity

@@ -7,4 +7,5 @@ apps:
 plugs:
  shared-content-plug:
   interface: content
+  target: ./import
   content: mylib
