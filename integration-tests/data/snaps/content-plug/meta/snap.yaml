@@ -7,4 +7,4 @@ apps:
 plugs:
  shared-content-plug:
   interface: content
-  content: $mylib
+  content: mylib

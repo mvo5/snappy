@@ -729,22 +729,9 @@ func (r *Repository) AutoConnectCandidates(plugSnapName, plugName string) []*Slo
 	}
 	var candidates []*Slot
 
-	// OS snap
 	for _, slotsForSnap := range r.slots {
 		for _, slot := range slotsForSnap {
 			if isAutoConnectCandidate(plug, slot) {
-				candidates = append(candidates, slot)
-			}
-		}
-	}
-
-	// check content sharing stuff
-	for _, slotsForSnap := range r.slots {
-		for _, slot := range slotsForSnap {
-			plugContent := plug.Attrs["content"].(string)
-			// split of the leading "$"
-			plugContent = plugContent[1:]
-			if slot.Interface == "content" && slot.Attrs["content"] == plugContent {
 				candidates = append(candidates, slot)
 			}
 		}
@@ -756,5 +743,16 @@ func (r *Repository) AutoConnectCandidates(plugSnapName, plugName string) []*Slo
 // isAutoConnectCandidate returns true if the plug is a candidate to
 // automatically connect to the given slot.
 func isAutoConnectCandidate(plug *Plug, slot *Slot) bool {
-	return slot.Snap.Type == snap.TypeOS && slot.Interface == plug.Interface
+	// OS snap
+	if slot.Snap.Type == snap.TypeOS && slot.Interface == plug.Interface {
+		return true
+	}
+
+	// content sharing
+	// FIXME: add check for same vendor/developer
+	if slot.Interface == "content" && slot.Attrs["content"] == plug.Attrs["content"] {
+		return true
+	}
+
+	return false
 }
