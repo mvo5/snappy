@@ -598,22 +598,7 @@ func withEnsureUbuntuCore(st *state.State, targetSnap string, userID int, instal
 	return []*state.TaskSet{ts}, nil
 }
 
-func tsForDefaultProvider(inst *snapInstruction, st *state.State, user *auth.UserState, flags snapstate.Flags) ([]*state.TaskSet, error) {
-	// can only happen in tests
-	if inst.store == nil {
-		return nil, nil
-	}
-
-	var auther store.Authenticator
-	if user != nil {
-		auther = user.Authenticator()
-	}
-
-	info, err := inst.store.Snap(inst.snap, inst.Channel, auther)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get details for %s: %s", inst.snap, err)
-	}
-
+func tsForDefaultProvider(info *snap.Info, channel string, st *state.State, user *auth.UserState, flags snapstate.Flags) ([]*state.TaskSet, error) {
 	// can only happen in tests
 	if info == nil {
 		return nil, nil
@@ -625,7 +610,8 @@ func tsForDefaultProvider(inst *snapInstruction, st *state.State, user *auth.Use
 			if !ok || dprovider == "" {
 				continue
 			}
-			ts, err := snapstateInstall(st, dprovider, inst.Channel, inst.userID, flags)
+			// FIXME: inst.UserID ?
+			ts, err := snapstateInstall(st, dprovider, channel, 0, flags)
 			if err != nil {
 				return nil, err
 			}
@@ -652,19 +638,32 @@ func snapInstall(inst *snapInstruction, st *state.State, user *auth.UserState) (
 	}
 
 	// FIXME: do the same for snapUpdate
-	tsDefaultProviders, err := tsForDefaultProvider(inst, st, user, flags)
-	if err != nil {
-		return "", nil, err
-	}
-	if tsDefaultProviders != nil {
-		for _, ts := range tsets {
-			for _, t := range ts.Tasks() {
-				for _, tsDefaultProvider := range tsDefaultProviders {
-					t.WaitAll(tsDefaultProvider)
+	// can only happen in tests
+	if inst.store != nil {
+		var auther store.Authenticator
+		if user != nil {
+			auther = user.Authenticator()
+		}
+
+		info, err := inst.store.Snap(inst.snap, inst.Channel, auther)
+		if err != nil {
+			return "", nil, fmt.Errorf("cannot get details for %s: %s", inst.snap, err)
+		}
+
+		tsDefaultProviders, err := tsForDefaultProvider(info, "", st, user, flags)
+		if err != nil {
+			return "", nil, err
+		}
+		if tsDefaultProviders != nil {
+			for _, ts := range tsets {
+				for _, t := range ts.Tasks() {
+					for _, tsDefaultProvider := range tsDefaultProviders {
+						t.WaitAll(tsDefaultProvider)
+					}
 				}
 			}
+			tsets = append(tsets, tsDefaultProviders...)
 		}
-		tsets = append(tsets, tsDefaultProviders...)
 	}
 
 	msg := fmt.Sprintf(i18n.G("Install %q snap"), inst.snap)
@@ -918,6 +917,22 @@ out:
 	)
 	if err != nil {
 		return InternalError("cannot install snap file: %v", err)
+	}
+
+	// FIXME: copyied code!
+	tsDefaultProviders, err := tsForDefaultProvider(info, "", st, user, flags)
+	if err != nil {
+		return InternalError("cannot resolve default providere: %v", err)
+	}
+	if tsDefaultProviders != nil {
+		for _, ts := range tsets {
+			for _, t := range ts.Tasks() {
+				for _, tsDefaultProvider := range tsDefaultProviders {
+					t.WaitAll(tsDefaultProvider)
+				}
+			}
+		}
+		tsets = append(tsets, tsDefaultProviders...)
 	}
 
 	chg := newChange(st, "install-snap", msg, tsets, []string{snapName})
