@@ -1046,7 +1046,7 @@ func (s *apiSuite) TestPostSnap(c *check.C) {
 
 	s.vars = map[string]string{"name": "foo"}
 
-	snapInstructionDispTable["install"] = func(*snapInstruction, *state.State) (string, []*state.TaskSet, error) {
+	snapInstructionDispTable["install"] = func(*snapInstruction, *state.State, *auth.UserState) (string, []*state.TaskSet, error) {
 		return "foooo", nil, nil
 	}
 	defer func() {
@@ -1079,7 +1079,7 @@ func (s *apiSuite) TestPostSnapSetsUser(c *check.C) {
 	d := s.daemon(c)
 	ensureStateSoon = func(st *state.State) {}
 
-	snapInstructionDispTable["install"] = func(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
+	snapInstructionDispTable["install"] = func(inst *snapInstruction, st *state.State, user *auth.UserState) (string, []*state.TaskSet, error) {
 		return fmt.Sprintf("<install by user %d>", inst.userID), nil, nil
 	}
 	defer func() {
@@ -1543,7 +1543,7 @@ func (s *apiSuite) TestRefresh(c *check.C) {
 	st := d.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	summary, _, err := inst.dispatch()(inst, st)
+	summary, _, err := inst.dispatch()(inst, st, nil)
 	c.Check(err, check.IsNil)
 
 	c.Check(calledFlags, check.Equals, snapstate.Flags(0))
@@ -1625,7 +1625,7 @@ func (s *apiSuite) TestInstallUbuntuCoreWhenMissing(c *check.C) {
 	st := d.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	_, _, err := inst.dispatch()(inst, st)
+	_, _, err := inst.dispatch()(inst, st, nil)
 	c.Check(err, check.IsNil)
 
 	c.Check(installQueue, check.HasLen, 2)
@@ -1694,7 +1694,7 @@ func (s *apiSuite) TestInstallLeaveOld(c *check.C) {
 	st := d.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	_, _, err := inst.dispatch()(inst, st)
+	_, _, err := inst.dispatch()(inst, st, nil)
 	c.Assert(err, check.IsNil)
 
 	c.Check(calledFlags, check.Equals, snapstate.Flags(0))
@@ -1721,7 +1721,7 @@ func (s *apiSuite) TestInstallDevMode(c *check.C) {
 	st := d.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	_, _, err := inst.dispatch()(inst, st)
+	_, _, err := inst.dispatch()(inst, st, nil)
 	c.Check(err, check.IsNil)
 
 	// DevMode was converted to the snapstate.DevMode flag

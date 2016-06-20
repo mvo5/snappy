@@ -544,6 +544,7 @@ type snapInstruction struct {
 	// The fields below should not be unmarshalled into. Do not export them.
 	snap   string
 	userID int
+	store  snapstate.StoreService
 }
 
 var snapstateInstall = snapstate.Install
@@ -597,7 +598,45 @@ func withEnsureUbuntuCore(st *state.State, targetSnap string, userID int, instal
 	return []*state.TaskSet{ts}, nil
 }
 
-func snapInstall(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
+func tsForDefaultProvider(inst *snapInstruction, st *state.State, user *auth.UserState, flags snapstate.Flags) ([]*state.TaskSet, error) {
+	// can only happen in tests
+	if inst.store == nil {
+		return nil, nil
+	}
+
+	var auther store.Authenticator
+	if user != nil {
+		auther = user.Authenticator()
+	}
+
+	info, err := inst.store.Snap(inst.snap, inst.Channel, auther)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get details for %s: %s", inst.snap, err)
+	}
+
+	// can only happen in tests
+	if info == nil {
+		return nil, nil
+	}
+	tsAll := []*state.TaskSet{}
+	for _, plug := range info.Plugs {
+		if plug.Interface == "content" {
+			dprovider, ok := plug.Attrs["default-provider"].(string)
+			if !ok || dprovider == "" {
+				continue
+			}
+			ts, err := snapstateInstall(st, dprovider, inst.Channel, inst.userID, flags)
+			if err != nil {
+				return nil, err
+			}
+			tsAll = append(tsAll, ts)
+		}
+	}
+
+	return tsAll, nil
+}
+
+func snapInstall(inst *snapInstruction, st *state.State, user *auth.UserState) (string, []*state.TaskSet, error) {
 	flags := snapstate.Flags(0)
 	if inst.DevMode || release.ReleaseInfo.ForceDevMode() {
 		flags |= snapstate.DevMode
@@ -612,6 +651,22 @@ func snapInstall(inst *snapInstruction, st *state.State) (string, []*state.TaskS
 		return "", nil, err
 	}
 
+	// FIXME: do the same for snapUpdate
+	tsDefaultProviders, err := tsForDefaultProvider(inst, st, user, flags)
+	if err != nil {
+		return "", nil, err
+	}
+	if tsDefaultProviders != nil {
+		for _, ts := range tsets {
+			for _, t := range ts.Tasks() {
+				for _, tsDefaultProvider := range tsDefaultProviders {
+					t.WaitAll(tsDefaultProvider)
+				}
+			}
+		}
+		tsets = append(tsets, tsDefaultProviders...)
+	}
+
 	msg := fmt.Sprintf(i18n.G("Install %q snap"), inst.snap)
 	if inst.Channel != "stable" && inst.Channel != "" {
 		msg = fmt.Sprintf(i18n.G("Install %q snap from %q channel"), inst.snap, inst.Channel)
@@ -619,7 +674,7 @@ func snapInstall(inst *snapInstruction, st *state.State) (string, []*state.TaskS
 	return msg, tsets, nil
 }
 
-func snapUpdate(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
+func snapUpdate(inst *snapInstruction, st *state.State, user *auth.UserState) (string, []*state.TaskSet, error) {
 	flags := snapstate.Flags(0)
 
 	ts, err := snapstateUpdate(st, inst.snap, inst.Channel, inst.userID, flags)
@@ -635,7 +690,7 @@ func snapUpdate(inst *snapInstruction, st *state.State) (string, []*state.TaskSe
 	return msg, []*state.TaskSet{ts}, nil
 }
 
-func snapRemove(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
+func snapRemove(inst *snapInstruction, st *state.State, user *auth.UserState) (string, []*state.TaskSet, error) {
 	ts, err := snapstate.Remove(st, inst.snap)
 	if err != nil {
 		return "", nil, err
@@ -645,7 +700,7 @@ func snapRemove(inst *snapInstruction, st *state.State) (string, []*state.TaskSe
 	return msg, []*state.TaskSet{ts}, nil
 }
 
-func snapRollback(inst *snapInstruction, st *state.State) (string, []*state.TaskSet, error) {
+func snapRollback(inst *snapInstruction, st *state.State, user *auth.UserState) (string, []*state.TaskSet, error) {
 	// use previous version
 	ver := ""
 	ts, err := snapstate.Rollback(st, inst.snap, ver)
@@ -657,7 +712,7 @@ func snapRollback(inst *snapInstruction, st *state.State) (string, []*state.Task
 	return msg, []*state.TaskSet{ts}, nil
 }
 
-type snapActionFunc func(*snapInstruction, *state.State) (string, []*state.TaskSet, error)
+type snapActionFunc func(*snapInstruction, *state.State, *auth.UserState) (string, []*state.TaskSet, error)
 
 var snapInstructionDispTable = map[string]snapActionFunc{
 	"install":  snapInstall,
@@ -692,13 +747,14 @@ func postSnap(c *Command, r *http.Request, user *auth.UserState) Response {
 
 	vars := muxVars(r)
 	inst.snap = vars["name"]
+	inst.store = getStore(c)
 
 	impl := inst.dispatch()
 	if impl == nil {
 		return BadRequest("unknown action %s", inst.Action)
 	}
 
-	msg, tsets, err := impl(&inst, state)
+	msg, tsets, err := impl(&inst, state, user)
 	if err != nil {
 		return InternalError("cannot %s %q: %v", inst.Action, inst.snap, err)
 	}
