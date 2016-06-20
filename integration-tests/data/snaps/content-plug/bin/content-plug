@@ -11,4 +11,4 @@ if you see an permission denied error
 EOF
 
 
-cat /snap/content-slot/current/shared-content
+cat $SNAP/import/shared-content
