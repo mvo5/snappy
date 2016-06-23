@@ -34,6 +34,10 @@ func (iface *ContentSharingInterface) Name() string {
 	return "content"
 }
 
+func cleanSubPath(path string) bool {
+	return filepath.Clean(path) == path && path != ".." && !strings.HasPrefix(path, "../")
+}
+
 func (iface *ContentSharingInterface) SanitizeSlot(slot *interfaces.Slot) error {
 	if iface.Name() != slot.Interface {
 		panic(fmt.Sprintf("slot is not of interface %q", iface))
@@ -45,7 +49,7 @@ func (iface *ContentSharingInterface) SanitizeSlot(slot *interfaces.Slot) error 
 		return fmt.Errorf("content must contain the read attribute")
 	}
 	for _, r := range rpath {
-		if strings.Contains(r.(string), "..") {
+		if !cleanSubPath(r.(string)) {
 			return fmt.Errorf("relative path not allowed")
 		}
 	}
