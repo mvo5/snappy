@@ -111,6 +111,7 @@ type SnapState struct {
 	Active    bool             `json:"active,omitempty"`
 	Channel   string           `json:"channel,omitempty"`
 	Flags     SnapStateFlags   `json:"flags,omitempty"`
+
 	// incremented revision used for local installs
 	LocalRevision snap.Revision `json:"local-revision,omitempty"`
 }
@@ -145,6 +146,43 @@ func (snapst *SnapState) CurrentSideInfo() *snap.SideInfo {
 		}
 	}
 	panic("cannot find snapst.Current in the snapst.Sequence")
+}
+
+func (snapst *SnapState) PreviousSideInfo() *snap.SideInfo {
+	n := len(snapst.Sequence)
+	if n < 2 {
+		return nil
+	}
+	// find "current" and return the one before that
+	currentIndex := snapst.findIndex(snapst.Current)
+	if currentIndex == 0 {
+		return nil
+	}
+	return snapst.Sequence[currentIndex-1]
+}
+
+func (snapst *SnapState) findIndex(rev snap.Revision) int {
+	for i, si := range snapst.Sequence {
+		if si.Revision == rev {
+			return i
+		}
+	}
+	return -1
+}
+
+// Block returns revisions that should be blocked on refreshes,
+// computed as Sequence[currentRevisionIndex:].
+func (snapst *SnapState) Block() []snap.Revision {
+	// return revisions from Sequence[currentIndex:]
+	currentIndex := snapst.findIndex(snapst.Current)
+	if currentIndex < 0 {
+		return nil
+	}
+	out := make([]snap.Revision, 0, len(snapst.Sequence))
+	for _, si := range snapst.Sequence[currentIndex:] {
+		out = append(out, si.Revision)
+	}
+	return out
 }
 
 // DevMode returns true if the snap is installed in developer mode.
@@ -270,15 +308,17 @@ func (m *SnapManager) doPrepareSnap(t *state.Task, _ *tomb.Tomb) error {
 		}
 		snapst.LocalRevision = revision
 		ss.Revision = revision
+		snapst.Candidate = &snap.SideInfo{Revision: ss.Revision}
 	} else {
-		if err := checkRevisionIsNew(ss.Name, snapst, ss.Revision); err != nil {
-			return err
+		for _, si := range snapst.Sequence {
+			if si.Revision == ss.Revision {
+				snapst.Candidate = si
+			}
 		}
 	}
 
 	st.Lock()
 	t.Set("snap-setup", ss)
-	snapst.Candidate = &snap.SideInfo{Revision: ss.Revision}
 	Set(st, ss.Name, snapst)
 	st.Unlock()
 	return nil
@@ -678,9 +718,10 @@ func (m *SnapManager) doLinkSnap(t *state.Task, _ *tomb.Tomb) error {
 	}
 
 	cand := snapst.Candidate
-
 	m.backend.Candidate(snapst.Candidate)
-	snapst.Sequence = append(snapst.Sequence, snapst.Candidate)
+	if snapst.findIndex(snapst.Candidate.Revision) < 0 {
+		snapst.Sequence = append(snapst.Sequence, snapst.Candidate)
+	}
 	oldCurrent := snapst.Current
 	snapst.Current = snapst.Candidate.Revision
 	snapst.Candidate = nil
@@ -773,6 +814,7 @@ func (m *SnapManager) undoLinkSnap(t *state.Task, _ *tomb.Tomb) error {
 	snapst.Current = oldCurrent
 	snapst.Active = false
 	snapst.Channel = oldChannel
+	snapst.Current = oldCurrent
 	snapst.SetTryMode(oldTryMode)
 
 	newInfo, err := readInfo(ss.Name, snapst.Candidate)

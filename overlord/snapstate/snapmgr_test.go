@@ -1230,6 +1230,206 @@ func (s *snapmgrTestSuite) TestRemoveRefused(c *C) {
 	c.Check(err, ErrorMatches, `snap "gadget" is not removable`)
 }
 
+func (s *snapmgrTestSuite) TestRevertNoRevertAgain(c *C) {
+	siNew := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(77),
+	}
+
+	si := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(7),
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	snapstate.Set(s.state, "some-snap", &snapstate.SnapState{
+		Active:   true,
+		Sequence: []*snap.SideInfo{&si, &siNew},
+		Current:  snap.R(7),
+	})
+
+	ts, err := snapstate.Revert(s.state, "some-snap")
+	c.Assert(err, ErrorMatches, "no revision to revert to")
+	c.Assert(ts, IsNil)
+}
+
+func (s *snapmgrTestSuite) TestRevertNothingToRevertTo(c *C) {
+	si := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(7),
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	snapstate.Set(s.state, "some-snap", &snapstate.SnapState{
+		Active:   true,
+		Sequence: []*snap.SideInfo{&si},
+	})
+
+	ts, err := snapstate.Revert(s.state, "some-snap")
+	c.Assert(err, ErrorMatches, "no revision to revert to")
+	c.Assert(ts, IsNil)
+}
+
+func (s *snapmgrTestSuite) TestRevertToRevisionNoValidVersion(c *C) {
+	si := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(7),
+	}
+	si2 := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(77),
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	snapstate.Set(s.state, "some-snap", &snapstate.SnapState{
+		Active:   true,
+		Sequence: []*snap.SideInfo{&si, &si2},
+		Current:  snap.R(77),
+	})
+
+	ts, err := snapstate.RevertToRevision(s.state, "some-snap", snap.R("99"))
+	c.Assert(err, ErrorMatches, `cannot find revision 99 for snap "some-snap"`)
+	c.Assert(ts, IsNil)
+}
+
+func (s *snapmgrTestSuite) TestBlockunThrough(c *C) {
+	si := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(7),
+	}
+	siOld := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(2),
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	snapstate.Set(s.state, "some-snap", &snapstate.SnapState{
+		Active:   true,
+		Sequence: []*snap.SideInfo{&siOld, &si},
+		Current:  si.Revision,
+	})
+
+	chg := s.state.NewChange("revert", "revert a snap backwards")
+	ts, err := snapstate.Revert(s.state, "some-snap")
+	c.Assert(err, IsNil)
+	chg.AddAll(ts)
+
+	s.state.Unlock()
+	defer s.snapmgr.Stop()
+	s.settle()
+	s.state.Lock()
+
+	c.Assert(s.fakeBackend.ops, HasLen, 4)
+	expected := []fakeOp{
+		fakeOp{
+			op:   "unlink-snap",
+			name: "/snap/some-snap/7",
+		},
+		fakeOp{
+			op:    "setup-profiles:Doing",
+			name:  "some-snap",
+			revno: snap.R(2),
+		},
+		fakeOp{
+			op: "candidate",
+			sinfo: snap.SideInfo{
+				OfficialName: "some-snap",
+				Revision:     snap.R(2),
+			},
+		},
+		fakeOp{
+			op:   "link-snap",
+			name: "/snap/some-snap/2",
+		},
+	}
+	c.Assert(s.fakeBackend.ops, DeepEquals, expected)
+
+	// verify that the R(2) version is active now and R(7) is still there
+	var snapst snapstate.SnapState
+	err = snapstate.Get(s.state, "some-snap", &snapst)
+	c.Assert(err, IsNil)
+
+	c.Assert(snapst.Active, Equals, true)
+	c.Assert(snapst.Candidate, IsNil)
+	c.Assert(snapst.Current, Equals, snap.R(2))
+	c.Assert(snapst.Sequence, HasLen, 2)
+	c.Assert(snapst.Sequence[0], DeepEquals, &snap.SideInfo{
+		OfficialName: "some-snap",
+		Channel:      "",
+		Revision:     snap.R(2),
+	})
+	c.Assert(snapst.Sequence[1], DeepEquals, &snap.SideInfo{
+		OfficialName: "some-snap",
+		Channel:      "",
+		Revision:     snap.R(7),
+	})
+}
+
+func (s *snapmgrTestSuite) TestRevertToRevisionNewVersion(c *C) {
+	siNew := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(7),
+	}
+
+	si := snap.SideInfo{
+		OfficialName: "some-snap",
+		Revision:     snap.R(2),
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	snapstate.Set(s.state, "some-snap", &snapstate.SnapState{
+		Active:   true,
+		Sequence: []*snap.SideInfo{&si, &siNew},
+		Current:  snap.R(2),
+	})
+
+	chg := s.state.NewChange("revert", "revert a snap forward")
+	ts, err := snapstate.RevertToRevision(s.state, "some-snap", snap.R(7))
+	c.Assert(err, IsNil)
+	chg.AddAll(ts)
+
+	s.state.Unlock()
+	defer s.snapmgr.Stop()
+	s.settle()
+	s.state.Lock()
+
+	c.Assert(s.fakeBackend.ops, HasLen, 4)
+	expected := []fakeOp{
+		fakeOp{
+			op:   "unlink-snap",
+			name: "/snap/some-snap/2",
+		},
+		fakeOp{
+			op:    "setup-profiles:Doing",
+			name:  "some-snap",
+			revno: snap.R(7),
+		},
+		fakeOp{
+			op: "candidate",
+			sinfo: snap.SideInfo{
+				OfficialName: "some-snap",
+				Revision:     snap.R(7),
+			},
+		},
+		fakeOp{
+			op:   "link-snap",
+			name: "/snap/some-snap/7",
+		},
+	}
+	c.Assert(s.fakeBackend.ops, DeepEquals, expected)
+
+}
+
 type snapmgrQuerySuite struct {
 	st *state.State
 }
@@ -1284,7 +1484,7 @@ func (s *snapmgrQuerySuite) TestInfo(c *C) {
 	c.Check(info.Description(), Equals, "Lots of text")
 }
 
-func (s *snapmgrQuerySuite) TestCurrent(c *C) {
+func (s *snapmgrQuerySuite) TestCurrentSideInfo(c *C) {
 	st := s.st
 	st.Lock()
 	defer st.Unlock()
@@ -1340,6 +1540,20 @@ version: gadget
 	c.Check(info.Revision, Equals, snap.R(2))
 	c.Check(info.Version, Equals, "gadget")
 	c.Check(info.Type, Equals, snap.TypeGadget)
+}
+
+func (s *snapmgrQuerySuite) TestPreviousSideInfo(c *C) {
+	st := s.st
+	st.Lock()
+	defer st.Unlock()
+
+	var snapst snapstate.SnapState
+	err := snapstate.Get(st, "name1", &snapst)
+	c.Assert(err, IsNil)
+	c.Assert(snapst.CurrentSideInfo(), NotNil)
+	c.Assert(snapst.CurrentSideInfo().Revision, Equals, snap.R(12))
+	c.Assert(snapst.PreviousSideInfo(), NotNil)
+	c.Assert(snapst.PreviousSideInfo().Revision, Equals, snap.R(11))
 }
 
 func (s *snapmgrQuerySuite) TestAll(c *C) {
