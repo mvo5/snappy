@@ -24,6 +24,8 @@ import (
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/snapcore/snapd/osutil"
 )
 
 // Series holds the Ubuntu Core series for snapd to use.
@@ -127,9 +129,7 @@ func init() {
 	// dpkg status file can be used as an indicator for a classic vs all-snap
 	// system.
 	if ReleaseInfo.ID == "ubuntu" {
-		// using os.Stat directly to avoid import cycle with osutil
-		_, err := os.Stat("/var/lib/dpkg/status")
-		OnClassic = err == nil
+		OnClassic = osutil.FileExists("/var/lib/dpkg/status")
 	}
 }
 

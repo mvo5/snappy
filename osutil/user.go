@@ -28,8 +28,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/snapcore/snapd/release"
 )
 
 var userLookup = user.Lookup
@@ -43,7 +41,18 @@ var sudoersTemplate = `
 %[1]s ALL=(ALL) NOPASSWD:ALL
 `
 
-func AddExtraUser(name string, sshKeys []string, gecos string, sudoer bool) error {
+type AddUserOptions struct {
+	Sudoer        bool
+	UseExtraUsers bool
+	Gecos         string
+	SshKeys       []string
+}
+
+func AddUser(name string, opts *AddUserOptions) error {
+	if opts == nil {
+		opts = &AddUserOptions{}
+	}
+
 	// we check the (user)name ourselves, adduser is a bit too
 	// strict (i.e. no `.`) - this regexp is in sync with that SSO
 	// allows as valid usernames
@@ -52,27 +61,23 @@ func AddExtraUser(name string, sshKeys []string, gecos string, sudoer bool) erro
 		return fmt.Errorf("cannot add user %q: name contains invalid characters", name)
 	}
 
-	var cmd *exec.Cmd
-
-	if release.OnClassic {
-		cmd = exec.Command("adduser",
-			"--force-badname",
-			"--gecos", gecos,
-			"--disabled-password",
-			name)
-	} else {
-		cmd = exec.Command("adduser",
-			"--force-badname",
-			"--gecos", gecos,
-			"--extrausers",
-			"--disabled-password",
-			name)
+	cmdStr := []string{
+		"adduser",
+		"--force-badname",
+		"--gecos", opts.Gecos,
+		"--disabled-password",
 	}
+	if opts.UseExtraUsers {
+		cmdStr = append(cmdStr, "--extrausers")
+	}
+	cmdStr = append(cmdStr, name)
+
+	cmd := exec.Command(cmdStr[0], cmdStr[1:]...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("adduser failed with %s: %s", err, output)
 	}
 
-	if sudoer {
+	if opts.Sudoer {
 		// Must escape "." as files containing it are ignored in sudoers.d.
 		sudoersFile := filepath.Join(sudoersDotD, "create-user-"+strings.Replace(name, ".", "%2E", -1))
 		if err := AtomicWriteFile(sudoersFile, []byte(fmt.Sprintf(sudoersTemplate, name)), 0400, 0); err != nil {
@@ -99,7 +104,7 @@ func AddExtraUser(name string, sshKeys []string, gecos string, sudoer bool) erro
 		return fmt.Errorf("cannot create %s: %s", sshDir, err)
 	}
 	authKeys := filepath.Join(sshDir, "authorized_keys")
-	authKeysContent := strings.Join(sshKeys, "\n")
+	authKeysContent := strings.Join(opts.SshKeys, "\n")
 	if err := AtomicWriteFileChown(authKeys, []byte(authKeysContent), 0600, 0, uid, gid); err != nil {
 		return fmt.Errorf("cannot write %s: %s", authKeys, err)
 	}

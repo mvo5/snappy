@@ -27,7 +27,6 @@ import (
 	"gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/osutil"
-	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/testutil"
 )
 
@@ -37,7 +36,7 @@ type createUserSuite struct {
 
 var _ = check.Suite(&createUserSuite{})
 
-func (s *createUserSuite) TestAddExtraUserOnClassic(c *check.C) {
+func (s *createUserSuite) TestAddUserOnClassic(c *check.C) {
 	mockHome := c.MkDir()
 	restorer := osutil.MockUserLookup(func(string) (*user.User, error) {
 		current, err := user.Current()
@@ -55,10 +54,12 @@ func (s *createUserSuite) TestAddExtraUserOnClassic(c *check.C) {
 	mockAddUser := testutil.MockCommand(c, "adduser", "true")
 	defer mockAddUser.Restore()
 
-	restore := release.MockOnClassic(true)
-	defer restore()
-
-	err := osutil.AddExtraUser("karl.sagan", []string{"ssh-key1", "ssh-key2"}, "my gecos", false)
+	err := osutil.AddUser("karl.sagan", &osutil.AddUserOptions{
+		SshKeys:       []string{"ssh-key1", "ssh-key2"},
+		Gecos:         "my gecos",
+		Sudoer:        false,
+		UseExtraUsers: false,
+	})
 	c.Assert(err, check.IsNil)
 
 	c.Check(mockAddUser.Calls(), check.DeepEquals, [][]string{
@@ -70,7 +71,7 @@ func (s *createUserSuite) TestAddExtraUserOnClassic(c *check.C) {
 	c.Check(string(sshKeys), check.Equals, "ssh-key1\nssh-key2")
 }
 
-func (s *createUserSuite) TestAddExtraSudoUser(c *check.C) {
+func (s *createUserSuite) TestAddSudoUser(c *check.C) {
 	mockHome := c.MkDir()
 	restorer := osutil.MockUserLookup(func(string) (*user.User, error) {
 		current, err := user.Current()
@@ -91,25 +92,32 @@ func (s *createUserSuite) TestAddExtraSudoUser(c *check.C) {
 	mockAddUser := testutil.MockCommand(c, "adduser", "true")
 	defer mockAddUser.Restore()
 
-	restore := release.MockOnClassic(false)
-	defer restore()
-
-	err := osutil.AddExtraUser("karl.sagan", []string{"ssh-key1", "ssh-key2"}, "my gecos", false)
+	err := osutil.AddUser("karl.sagan", &osutil.AddUserOptions{
+		SshKeys:       []string{"ssh-key1", "ssh-key2"},
+		Gecos:         "my gecos",
+		Sudoer:        false,
+		UseExtraUsers: true,
+	})
 	c.Assert(err, check.IsNil)
 
 	c.Check(mockAddUser.Calls(), check.DeepEquals, [][]string{
-		{"adduser", "--force-badname", "--gecos", "my gecos", "--extrausers", "--disabled-password", "karl.sagan"},
+		{"adduser", "--force-badname", "--gecos", "my gecos", "--disabled-password", "--extrausers", "karl.sagan"},
 	})
 	fs, _ := filepath.Glob(filepath.Join(mockSudoers, "*"))
 	c.Assert(fs, check.HasLen, 0)
 
 	mockAddUser.ForgetCalls()
 
-	err = osutil.AddExtraUser("karl.sagan", []string{"ssh-key1", "ssh-key2"}, "my gecos", true)
+	err = osutil.AddUser("karl.sagan", &osutil.AddUserOptions{
+		SshKeys:       []string{"ssh-key1", "ssh-key2"},
+		Gecos:         "my gecos",
+		Sudoer:        true,
+		UseExtraUsers: true,
+	})
 	c.Assert(err, check.IsNil)
 
 	c.Check(mockAddUser.Calls(), check.DeepEquals, [][]string{
-		{"adduser", "--force-badname", "--gecos", "my gecos", "--extrausers", "--disabled-password", "karl.sagan"},
+		{"adduser", "--force-badname", "--gecos", "my gecos", "--disabled-password", "--extrausers", "karl.sagan"},
 	})
 
 	sshKeys, err := ioutil.ReadFile(filepath.Join(mockHome, ".ssh", "authorized_keys"))
@@ -129,7 +137,7 @@ karl.sagan ALL=(ALL) NOPASSWD:ALL
 `)
 }
 
-func (s *createUserSuite) TestAddExtraSudoUserInvalid(c *check.C) {
-	err := osutil.AddExtraUser("k!", nil, "my gecos", false)
+func (s *createUserSuite) TestAddSudoUserInvalid(c *check.C) {
+	err := osutil.AddUser("k!", nil)
 	c.Assert(err, check.ErrorMatches, `cannot add user "k!": name contains invalid characters`)
 }
