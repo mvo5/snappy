@@ -1,0 +1,34 @@
+summary: Ensure that an upgrade to a non-existing kernel reverts
+
+systems: [ubuntu-core-16-64]
+
+execute: |
+    if [ "$SPREAD_REBOOT" = 0 ]; then
+        snap list|grep pc-kernel|tr -s " "|cut -f3 -d' ' > firstBoot 
+
+        echo "Boot into a not-existing kernel"
+        grub-editenv - set snap_try_kernel=pc-kernel_notthere.snap
+        grub-editenv - set snap_mode=try
+    
+        REBOOT
+    fi
+
+    if [ "$SPREAD_REBOOT" = 1 ]; then
+        echo "Waiting for boot-ok to finish"
+        while ! systemctl status snapd.boot-ok|grep SUCCESS; do
+            echo "Show debug info"
+            systemctl status snapd.boot-ok || true
+            sleep 1
+        done
+
+        echo "Useful debug info"
+        grub-editenv list
+        cat /proc/cmdline
+
+        echo "Ensure we booted back to the good kernel snap"
+        grep "snap_kernel=pc-kernel_$(cat firstBoot).snap" /proc/cmdline
+        echo "Ensure the bootloader is correct after reboot"
+        grub-editenv list | grep "snap_kernel=pc-kernel_$(cat firstBoot).snap"
+        grub-editenv list | grep '^snap_try_kernel=$'
+        grub-editenv list | grep '^snap_mode=$'
+    fi
