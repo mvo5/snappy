@@ -1,7 +1,5 @@
 #!/bin/sh
 
-NEEDS_REBOOT=/tmp/needs-reboot
-
 set -ex
 
 # for these tests, run snap and snapd from outside of the core snap
@@ -24,6 +22,18 @@ sudo systemctl daemon-reload
 # ensure our PATH is right
 . /etc/profile.d/apps-bin-path.sh
 
+
+# debug
+cat /etc/ssh/sshd_config
+id
+grep ubuntu /etc/passwd
+
+# ensure we can do a connect to localhost
+echo ubuntu:ubuntu|chpasswd
+sed -i 's/\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/sshd_config
+
+
+# ensure we can run spread
 export GOPATH=/tmp/go
 go get -u github.com/snapcore/spread/cmd/spread
 /tmp/go/bin/spread -v adhoc:
