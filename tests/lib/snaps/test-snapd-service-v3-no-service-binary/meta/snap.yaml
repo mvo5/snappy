@@ -1,0 +1,6 @@
+name: test-snapd-service
+version: 3.0
+apps:
+ service:
+  command: bin/no-such-file-or-directory
+

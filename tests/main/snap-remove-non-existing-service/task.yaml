@@ -1,0 +1,19 @@
+summary: Ensure remove a snap with a broken service file works
+
+environment:
+    BASE_SNAP_NAME: test-snapd-service
+    SNAP_NAME: ${BASE_SNAP_NAME}-v3-no-service-binary
+    SNAP_FILE: ${BASE_SNAP_NAME}_3.0_all.snap
+
+prepare: |
+    snapbuild $TESTSLIB/snaps/$SNAP_NAME  .
+
+execute: |
+    echo "When we install a snap that has a service that does not actually exists"
+    snap install --dangerous ${SNAP_FILE}
+    echo "The service is not working"
+    systemctl status snap.test-snapd-service.service.service|grep status=1
+    
+    echo "We can remove it again without breaking"
+    snap remove ${BASE_SNAP_NAME}
+
