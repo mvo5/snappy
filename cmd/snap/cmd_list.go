@@ -84,11 +84,15 @@ func listSnaps(names []string, all bool) error {
 	w := tabWriter()
 	defer w.Flush()
 
-	fmt.Fprintln(w, i18n.G("Name\tVersion\tRev\tDeveloper\tNotes"))
+	fmt.Fprintln(w, i18n.G("Name\tVersion\tRev\tDeveloper\tChannel\tNotes"))
 
 	for _, snap := range snaps {
+		name := snap.Name
+		if snap.Channel != "" && snap.Channel != snap.TrackingChannel {
+			name = fmt.Sprintf("%s (%s)", snap.Name, snap.Channel)
+		}
 		// TODO: make JailMode a flag in the snap itself
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", snap.Name, snap.Version, snap.Revision, snap.Developer, NotesFromLocal(snap))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", name, snap.Version, snap.Revision, snap.Developer, snap.TrackingChannel, NotesFromLocal(snap))
 	}
 
 	return nil
