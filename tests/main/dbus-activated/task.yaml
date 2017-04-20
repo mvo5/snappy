@@ -1,0 +1,18 @@
+summary: Test dbus activated snaps
+
+systems: [-ubuntu-core-16-64, -ubuntu-core-16-arm32, -ubuntu-core-16-arm64]
+
+prepare: |
+    apt install -y dbus-x11
+restore: |
+    killall dbus-daemon
+    apt-get autoremove -y dbus-x11
+execute: |
+    echo "Ensure we have a snap that is dbus service activated"
+    snap install --edge test-snapd-dbus-service
+    eval $(dbus-launch --auto-syntax)
+    echo "Then sending methods to it will wake it up"
+    dbus-send --print-reply --dest=io.snapcraft.SnapDbusService /io/snapcraft/SnapDbusService io.snapcraft.ExampleInterface.ExampleMethod | MATCH hello
+
+
+

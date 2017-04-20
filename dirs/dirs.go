@@ -59,10 +59,11 @@ var (
 
 	SnapStateFile string
 
-	SnapBinariesDir     string
-	SnapServicesDir     string
-	SnapDesktopFilesDir string
-	SnapBusPolicyDir    string
+	SnapBinariesDir                 string
+	SnapServicesDir                 string
+	SnapDesktopFilesDir             string
+	SnapDBusSessionServicesFilesDir string
+	SnapBusPolicyDir                string
 
 	SystemApparmorDir      string
 	SystemApparmorCacheDir string
@@ -138,6 +139,8 @@ func SetRootDir(rootdir string) {
 	SnapMetaDir = filepath.Join(rootdir, snappyDir, "meta")
 	SnapBlobDir = filepath.Join(rootdir, snappyDir, "snaps")
 	SnapDesktopFilesDir = filepath.Join(rootdir, snappyDir, "desktop", "applications")
+	SnapDBusSessionServicesFilesDir = filepath.Join(rootdir, snappyDir, "dbus/services")
+
 	SnapRunDir = filepath.Join(rootdir, "/run/snapd")
 	SnapRunNsDir = filepath.Join(SnapRunDir, "/ns")
 
