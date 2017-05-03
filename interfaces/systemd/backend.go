@@ -102,7 +102,7 @@ func (b *Backend) Remove(snapName string) error {
 		if err := systemd.Disable(service); err != nil {
 			logger.Noticef("cannot disable service %q: %s", service, err)
 		}
-		if err := systemd.Stop(service, 5*time.Second); err != nil {
+		if err := systemd.Stop(service, "", 5*time.Second); err != nil {
 			logger.Noticef("cannot stop service %q: %s", service, err)
 		}
 	}
@@ -148,7 +148,7 @@ func disableRemovedServices(systemd sysd.Systemd, dir, glob string, content map[
 			if err := systemd.Disable(service); err != nil {
 				logger.Noticef("cannot disable service %q: %s", service, err)
 			}
-			if err := systemd.Stop(service, 5*time.Second); err != nil {
+			if err := systemd.Stop(service, "", 5*time.Second); err != nil {
 				logger.Noticef("cannot stop service %q: %s", service, err)
 			}
 		}

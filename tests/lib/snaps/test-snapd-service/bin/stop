@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "stop. reason: $SNAP_STOP_REASON" >> /var/snap/test-snapd-service/common/log
+

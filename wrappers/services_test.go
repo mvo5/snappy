@@ -83,7 +83,7 @@ func (s *servicesTestSuite) TestAddSnapServicesAndRemove(c *C) {
 	}
 
 	sysdLog = nil
-	err = wrappers.StopSnapServices(info, &progress.NullProgress{})
+	err = wrappers.StopSnapServices(info, "", &progress.NullProgress{})
 	c.Assert(err, IsNil)
 	c.Assert(sysdLog, HasLen, 2)
 	c.Check(sysdLog, DeepEquals, [][]string{
@@ -130,7 +130,7 @@ apps:
 
 	svcFName := "snap.wat.wat.service"
 
-	err = wrappers.StopSnapServices(info, &progress.NullProgress{})
+	err = wrappers.StopSnapServices(info, "", &progress.NullProgress{})
 	c.Assert(err, IsNil)
 
 	c.Check(sysdLog, DeepEquals, [][]string{

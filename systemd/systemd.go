@@ -25,6 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -88,7 +90,7 @@ type Systemd interface {
 	Enable(service string) error
 	Disable(service string) error
 	Start(service string) error
-	Stop(service string, timeout time.Duration) error
+	Stop(service string, reason string, timeout time.Duration) error
 	Kill(service, signal string) error
 	Restart(service string, timeout time.Duration) error
 	Status(service string) (string, error)
@@ -277,7 +279,16 @@ func (s *systemd) ServiceStatus(serviceName string) (*ServiceStatus, error) {
 }
 
 // Stop the given service, and wait until it has stopped.
-func (s *systemd) Stop(serviceName string, timeout time.Duration) error {
+func (s *systemd) Stop(serviceName string, reason string, timeout time.Duration) error {
+	if reason != "" {
+		stopReasonEnv := filepath.Join(dirs.GlobalRootDir, fmt.Sprintf("/run/systemd/system/%s.d/restartreason.conf", serviceName))
+		os.MkdirAll(filepath.Dir(stopReasonEnv), 0755)
+		s := fmt.Sprintf("[Service]\nEnvironment=SNAP_STOP_REASON=%s\n", reason)
+		ioutil.WriteFile(stopReasonEnv, []byte(s), 0644)
+		//FIXME: cleanup *after* the unit actually stopped
+		//defer os.Remove(stopReasonEnv)
+	}
+
 	if _, err := SystemctlCmd("stop", serviceName); err != nil {
 		return err
 	}
@@ -324,7 +335,7 @@ func (s *systemd) Kill(serviceName, signal string) error {
 
 // Restart the service, waiting for it to stop before starting it again.
 func (s *systemd) Restart(serviceName string, timeout time.Duration) error {
-	if err := s.Stop(serviceName, timeout); err != nil {
+	if err := s.Stop(serviceName, "", timeout); err != nil {
 		return err
 	}
 	return s.Start(serviceName)

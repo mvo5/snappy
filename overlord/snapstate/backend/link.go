@@ -78,8 +78,8 @@ func (b Backend) StartSnapServices(info *snap.Info, meter progress.Meter) error 
 	return wrappers.StartSnapServices(info, meter)
 }
 
-func (b Backend) StopSnapServices(info *snap.Info, meter progress.Meter) error {
-	return wrappers.StopSnapServices(info, meter)
+func (b Backend) StopSnapServices(info *snap.Info, reason string, meter progress.Meter) error {
+	return wrappers.StopSnapServices(info, reason, meter)
 }
 
 func generateWrappers(s *snap.Info) error {

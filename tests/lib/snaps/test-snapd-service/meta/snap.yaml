@@ -5,4 +5,6 @@ apps:
   command: bin/start
   daemon: simple
   reload-command: bin/reload
+  stop-command: bin/stop
+
 

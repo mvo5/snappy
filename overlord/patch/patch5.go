@@ -61,7 +61,7 @@ func patch5(st *state.State) error {
 			continue
 		}
 
-		err = wrappers.StopSnapServices(info, log)
+		err = wrappers.StopSnapServices(info, "", log)
 		if err != nil {
 			return err
 		}

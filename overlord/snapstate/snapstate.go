@@ -119,6 +119,7 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 	if snapst.Active {
 		// unlink-current-snap (will stop services for copy-data)
 		stop := st.NewTask("stop-snap-services", fmt.Sprintf(i18n.G("Stop snap %q services"), snapsup.Name()))
+		stop.Set("stop-snap-services-reason", "refresh")
 		addTask(stop)
 		prev = stop
 
@@ -1109,6 +1110,7 @@ func Remove(st *state.State, name string, revision snap.Revision) (*state.TaskSe
 
 	if active { // unlink
 		stopSnapServices := st.NewTask("stop-snap-services", fmt.Sprintf(i18n.G("Stop snap %q services"), name))
+		stopSnapServices.Set("stop-snap-services-reason", "remove")
 		stopSnapServices.Set("snap-setup", snapsup)
 
 		removeAliases := st.NewTask("remove-aliases", fmt.Sprintf(i18n.G("Remove aliases for snap %q"), name))

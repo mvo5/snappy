@@ -105,7 +105,7 @@ func AddSnapServices(s *snap.Info, inter interacter) error {
 }
 
 // StopSnapServices stops service units for the applications from the snap which are services.
-func StopSnapServices(s *snap.Info, inter interacter) error {
+func StopSnapServices(s *snap.Info, reason string, inter interacter) error {
 	sysd := systemd.New(dirs.GlobalRootDir, inter)
 
 	for _, app := range s.Apps {
@@ -116,7 +116,7 @@ func StopSnapServices(s *snap.Info, inter interacter) error {
 		}
 		serviceName := filepath.Base(app.ServiceFile())
 		tout := serviceStopTimeout(app)
-		if err := sysd.Stop(serviceName, tout); err != nil {
+		if err := sysd.Stop(serviceName, reason, tout); err != nil {
 			if !systemd.IsTimeout(err) {
 				return err
 			}

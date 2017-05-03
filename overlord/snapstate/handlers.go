@@ -713,9 +713,12 @@ func (m *SnapManager) stopSnapServices(t *state.Task, _ *tomb.Tomb) error {
 		return err
 	}
 
+	var stopReason string
+	t.Get("stop-snap-services-reason", &stopReason)
+
 	pb := NewTaskProgressAdapterUnlocked(t)
 	st.Unlock()
-	err = m.backend.StopSnapServices(currentInfo, pb)
+	err = m.backend.StopSnapServices(currentInfo, stopReason, pb)
 	st.Lock()
 	return err
 }
