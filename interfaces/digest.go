@@ -17,16 +17,24 @@
  *
  */
 
-package seccomp
+package interfaces
 
-// MockTemplate replaces seccomp template.
-//
-// NOTE: The real seccomp template is long. For testing it is convenient for
-// replace it with a shorter snippet.
-func MockTemplate(fakeTemplate []byte) (restore func()) {
-	orig := defaultTemplate
-	defaultTemplate = fakeTemplate
-	return func() { defaultTemplate = orig }
+import (
+	"crypto/md5"
+	"encoding/hex"
+)
+
+var profileDigestInputs = []string{"seccomp: v2", "apparmor: v1"}
+
+// ProfileDigest outputs a digest that uniquely identifies what security
+// profiles this snapd understands. Everytime there is an incompatible
+// change in any of snapds format this digest will change. Later more
+// inputs (like what kernel version etc) may be added.
+func ProfileDigest() string {
+	h := md5.New()
+	for _, s := range profileDigestInputs {
+		h.Write([]byte(s))
+	}
+
+	return hex.EncodeToString(h.Sum(nil))
 }
-
-var SnapSeccompDir = snapSeccompDir

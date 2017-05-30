@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2016 Canonical Ltd
+ * Copyright (C) 2014-2015 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -17,16 +17,8 @@
  *
  */
 
-package seccomp
+package interfaces
 
-// MockTemplate replaces seccomp template.
-//
-// NOTE: The real seccomp template is long. For testing it is convenient for
-// replace it with a shorter snippet.
-func MockTemplate(fakeTemplate []byte) (restore func()) {
-	orig := defaultTemplate
-	defaultTemplate = fakeTemplate
-	return func() { defaultTemplate = orig }
+func AddMockProfileDigestInputs(s string) {
+	profileDigestInputs = append(profileDigestInputs, s)
 }
-
-var SnapSeccompDir = snapSeccompDir

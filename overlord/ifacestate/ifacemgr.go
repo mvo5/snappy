@@ -20,6 +20,9 @@
 package ifacestate
 
 import (
+	"io/ioutil"
+
+	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/interfaces"
 	"github.com/snapcore/snapd/interfaces/backends"
 	"github.com/snapcore/snapd/overlord/hookstate"
@@ -41,6 +44,11 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, extraInterfaces
 	// NOTE: hookManager is nil only when testing.
 	if hookManager != nil {
 		setupHooks(hookManager)
+	}
+
+	// write out profile-digest
+	if err := ioutil.WriteFile(dirs.SnapProfileDigestFile, []byte(interfaces.ProfileDigest()), 0644); err != nil {
+		return nil, err
 	}
 
 	runner := state.NewTaskRunner(s)

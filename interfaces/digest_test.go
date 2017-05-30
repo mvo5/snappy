@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2016 Canonical Ltd
+ * Copyright (C) 2014-2015 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -17,16 +17,22 @@
  *
  */
 
-package seccomp
+package interfaces_test
 
-// MockTemplate replaces seccomp template.
-//
-// NOTE: The real seccomp template is long. For testing it is convenient for
-// replace it with a shorter snippet.
-func MockTemplate(fakeTemplate []byte) (restore func()) {
-	orig := defaultTemplate
-	defaultTemplate = fakeTemplate
-	return func() { defaultTemplate = orig }
+import (
+	. "gopkg.in/check.v1"
+
+	"github.com/snapcore/snapd/interfaces"
+)
+
+type InterfacesDigestSuite struct{}
+
+var _ = Suite(&InterfacesDigestSuite{})
+
+func (ts *InterfacesDigestSuite) TestInterfaceDigest(c *C) {
+	ifDigest := interfaces.ProfileDigest()
+	c.Check(ifDigest, Equals, "aa08232bae087e737ce088e447481e4c")
+
+	interfaces.AddMockProfileDigestInputs("kernel: 4.42")
+	c.Check(interfaces.ProfileDigest(), Not(Equals), ifDigest)
 }
-
-var SnapSeccompDir = snapSeccompDir

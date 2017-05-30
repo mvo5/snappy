@@ -49,6 +49,9 @@
     /usr/lib/@{multiarch}/gconv/gconv-modules r,
     /usr/lib/@{multiarch}/gconv/gconv-modules.cache r,
 
+    # allow reading the profile-digest
+    /run/snapd.profile-digest r,
+    
     # priv dropping
     capability setuid,
     capability setgid,

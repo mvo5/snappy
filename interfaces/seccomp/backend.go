@@ -43,6 +43,10 @@ import (
 	"github.com/snapcore/snapd/snap"
 )
 
+func snapSeccompDir() string {
+	return fmt.Sprintf("%s.%s", dirs.SnapSeccompDir, interfaces.ProfileDigest())
+}
+
 // Backend is responsible for maintaining seccomp profiles for ubuntu-core-launcher.
 type Backend struct{}
 
@@ -72,7 +76,7 @@ func (b *Backend) Setup(snapInfo *snap.Info, opts interfaces.ConfinementOptions,
 	}
 
 	glob := interfaces.SecurityTagGlob(snapName)
-	dir := dirs.SnapSeccompDir
+	dir := snapSeccompDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("cannot create directory for seccomp profiles %q: %s", dir, err)
 	}
@@ -86,7 +90,7 @@ func (b *Backend) Setup(snapInfo *snap.Info, opts interfaces.ConfinementOptions,
 // Remove removes seccomp profiles of a given snap.
 func (b *Backend) Remove(snapName string) error {
 	glob := interfaces.SecurityTagGlob(snapName)
-	_, _, err := osutil.EnsureDirState(dirs.SnapSeccompDir, glob, nil)
+	_, _, err := osutil.EnsureDirState(snapSeccompDir(), glob, nil)
 	if err != nil {
 		return fmt.Errorf("cannot synchronize security files for snap %q: %s", snapName, err)
 	}

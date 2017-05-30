@@ -95,7 +95,7 @@ struct sc_map_list {
 	int count;
 };
 
-static char *filter_profile_dir = "/var/lib/snapd/seccomp/profiles/";
+static char *filter_profile_dir = "/var/lib/snapd/seccomp/profiles";
 static struct hsearch_data sc_map_htab;
 static struct sc_map_list sc_map_entries;
 
@@ -790,9 +790,37 @@ scmp_filter_ctx sc_prepare_seccomp_context(const char *filter_profile)
 		filter_profile_dir =
 		    secure_getenv("SNAPPY_LAUNCHER_SECCOMP_PROFILE_DIR");
 
+	// FIXME: doing puts snapd into the critical path, it means
+	//        that if snapd does not start at boot (like on fedora)
+	//        *every* snap will fail to start
+	// FIXME2: an alternative would be a one-shot systemd job
+	//         that just calls:
+	//         $ snap profile-digest >/run/snapd.profile-digest
+	// FIXME3: as long as we do not have *dynamic* inputs we
+        //         could generate the digest at build time
+
+	// wait up to 120sec for a profile to show up
+	struct stat st;
+	for (int i = 0; i < 120; i++) {
+		if (stat("/run/snapd.profile-digest", &st) == 0)
+			break;
+		sleep(1);
+	}
+	if (!S_ISREG(st.st_mode)) {
+		die("cannot read /run/snapd.profile-digest");
+	}
+
+	char profile_digest[128];
+	FILE *f1 = fopen("/run/snapd.profile-digest", "r");
+	if (f1 == NULL)
+		die("cannot read snap profile-digest");
+	if (fgets(profile_digest, sizeof profile_digest, f1) == NULL)
+		die("cannot read from snap profile-digest");
+	fclose(f1);
+
 	char profile_path[512];	// arbitrary path name limit
-	sc_must_snprintf(profile_path, sizeof(profile_path), "%s/%s",
-			 filter_profile_dir, filter_profile);
+	sc_must_snprintf(profile_path, sizeof(profile_path), "%s.%s/%s",
+			 filter_profile_dir, profile_digest, filter_profile);
 
 	f = fopen(profile_path, "r");
 	if (f == NULL) {

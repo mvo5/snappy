@@ -17,16 +17,28 @@
  *
  */
 
-package seccomp
+package main
 
-// MockTemplate replaces seccomp template.
-//
-// NOTE: The real seccomp template is long. For testing it is convenient for
-// replace it with a shorter snippet.
-func MockTemplate(fakeTemplate []byte) (restore func()) {
-	orig := defaultTemplate
-	defaultTemplate = fakeTemplate
-	return func() { defaultTemplate = orig }
+import (
+	"fmt"
+
+	"github.com/jessevdk/go-flags"
+
+	"github.com/snapcore/snapd/interfaces"
+)
+
+type cmdProfileDigest struct{}
+
+func init() {
+	cmd := addCommand("profile-digest", "internal", "internal", func() flags.Commander { return &cmdProfileDigest{} }, nil, nil)
+	cmd.hidden = true
 }
 
-var SnapSeccompDir = snapSeccompDir
+func (cmd cmdProfileDigest) Execute(args []string) error {
+	if len(args) > 0 {
+		return ErrExtraArgs
+	}
+	fmt.Fprintln(Stdout, interfaces.ProfileDigest())
+
+	return nil
+}
