@@ -19,6 +19,10 @@
 
 package main
 
+//#cgo pkg-config: libseccomp
+//
+//#cgo LDFLAGS: -Bstatic -lseccomp -Bdynamic
+//
 //#include <asm/ioctls.h>
 //#include <ctype.h>
 //#include <errno.h>
@@ -133,6 +137,8 @@ package main
 //
 import "C"
 
+//go:generate sh -c "(cd libseccomp.upstream && ./autogen.sh && ./configure --prefix=`pwd`/_build && make && make install)"
+
 import (
 	"bufio"
 	"bytes"
@@ -144,10 +150,7 @@ import (
 	"strings"
 	"syscall"
 
-	// FIXME: we want github.com/seccomp/libseccomp-golang but that
-	// will not work with trusty because libseccomp-golang checks
-	// for the seccomp version and errors if it find one < 2.2.0
-	"github.com/mvo5/libseccomp-golang"
+	"github.com/seccomp/libseccomp-golang"
 
 	"github.com/snapcore/snapd/arch"
 	"github.com/snapcore/snapd/osutil"

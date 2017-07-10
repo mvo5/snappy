@@ -11,6 +11,8 @@ export DH_GOLANG_GO_GENERATE=1
 export PATH:=${PATH}:${CURDIR}
 # make sure that correct go version is found on trusty
 export PATH:=/usr/lib/go-1.6/bin:${PATH}
+# ensure our embedded libseccomp is picked up
+export PKG_CONFIG_PATH=$(CURDIR)/cmd/snap-seccomp/libseccomp.upstream/
 
 include /etc/os-release
 
@@ -45,7 +47,7 @@ ifneq (,$(filter testkeys,$(DEB_BUILD_OPTIONS)))
 endif
 
 BUILT_USING_PACKAGES= libcap-dev libapparmor-dev libseccomp-dev
-BUILT_USING=$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W $(BUILT_USING_PACKAGES))
+BUILT_USING=$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W $(BUILT_USING_PACKAGES)), libseccomp (= 2.3.2.embedded)
 
 # export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 # DPKG_EXPORT_BUILDFLAGS = 1
@@ -91,13 +93,17 @@ endif
 	dh_clean
 	# XXX: hacky
 	$(MAKE) -C cmd distclean || true
+	$(MAKE) -C cmd/snap-seccomp/libseccomp.upstream/ distclean || true
+	rm -rf cmd/snap-seccomp/libseccomp.upstream/_build
 
 override_dh_auto_build:
 	# usually done via `go generate` but that is not supported on powerpc
 	./mkversion.sh
+	(cd cmd/snap-seccomp/libseccomp.upstream/ && ./autogen.sh && ./configure --prefix=$(CURDIR)/cmd/snap-seccomp/libseccomp.upstream/_build && make && make install)
 	# Build golang bits
 	mkdir -p _build/src/$(DH_GOPKG)/cmd/snap/test-data
 	cp -a cmd/snap/test-data/*.gpg _build/src/$(DH_GOPKG)/cmd/snap/test-data/
+	cp -a cmd/snap-seccomp/libseccomp.upstream/* _build/src/$(DH_GOPKG)/cmd/snap-seccomp/libseccomp.upstream
 	dh_auto_build -- $(BUILDFLAGS) $(TAGS) $(GCCGOFLAGS)
 	# Build C bits, sadly manually
 	cd cmd && ( autoreconf -i -f )
