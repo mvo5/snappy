@@ -101,7 +101,10 @@ func elfInterp(cmd string) (string, error) {
 // interpreter, and can't handle RPATH.
 func CommandFromCore(name string, cmdArgs ...string) (*exec.Cmd, error) {
 	root := filepath.Join(dirs.SnapMountDir, "/core/current")
+	return CommandFromCoreWithRoot(root, name, cmdArgs...)
+}
 
+func CommandFromCoreWithRoot(root, name string, cmdArgs ...string) (*exec.Cmd, error) {
 	cmdPath := filepath.Join(root, name)
 	interp, err := elfInterp(cmdPath)
 	if err != nil {
