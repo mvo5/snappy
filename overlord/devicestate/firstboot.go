@@ -203,7 +203,12 @@ func populateStateFromSeedImpl(st *state.State) ([]*state.TaskSet, error) {
 		return nil, fmt.Errorf("cannot proceed, no snaps to seed")
 	}
 
+	firstbootConnections := st.NewTask("firstboot-connections", i18n.G("Apply firstboot connections"))
 	ts := tsAll[len(tsAll)-1]
+	firstbootConnections.WaitAll(ts)
+	tsAll = append(tsAll, state.NewTaskSet(firstbootConnections))
+
+	ts = tsAll[len(tsAll)-1]
 	markSeeded.WaitAll(ts)
 	tsAll = append(tsAll, state.NewTaskSet(markSeeded))
 

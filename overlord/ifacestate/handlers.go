@@ -551,3 +551,72 @@ func (m *InterfaceManager) undoTransitionUbuntuCore(t *state.Task, _ *tomb.Tomb)
 
 	return m.transitionConnectionsCoreMigration(st, newName, oldName)
 }
+
+func (m *InterfaceManager) doFirstbootConnections(t *state.Task, _ *tomb.Tomb) error {
+	st := t.State()
+	st.Lock()
+	defer st.Unlock()
+
+	gadget, err := snapstate.GadgetInfo(st)
+	if err != nil {
+		return err
+	}
+	gadgetInfo, err := snap.ReadGadgetInfo(gadget, release.OnClassic)
+	if err != nil {
+		return err
+	}
+
+	conns, err := getConns(st)
+	if err != nil {
+		return err
+	}
+
+	connections := gadgetInfo.Connect
+	for _, connRefStr := range connections {
+		connRef, err := interfaces.ParseConnRef(connRefStr)
+		if err != nil {
+			return err
+		}
+
+		// FIXME: too much duplication from doConnect()
+		err = m.repo.Connect(connRef)
+		if err != nil {
+			return err
+		}
+
+		// FIXME: too much duplication from doConnect()
+		var plugSnapst snapstate.SnapState
+		if err := snapstate.Get(st, connRef.PlugRef.Snap, &plugSnapst); err != nil {
+			return err
+		}
+
+		var slotSnapst snapstate.SnapState
+		if err := snapstate.Get(st, connRef.SlotRef.Snap, &slotSnapst); err != nil {
+			return err
+		}
+
+		slotSnap, err := snapstate.CurrentInfo(st, connRef.SlotRef.Snap)
+		if err != nil {
+			return err
+		}
+		plugSnap, err := snapstate.CurrentInfo(st, connRef.PlugRef.Snap)
+		if err != nil {
+			return err
+		}
+
+		slotOpts := confinementOptions(slotSnapst.Flags)
+		if err := m.setupSnapSecurity(t, slotSnap, slotOpts); err != nil {
+			return err
+		}
+		plugOpts := confinementOptions(plugSnapst.Flags)
+		if err := m.setupSnapSecurity(t, plugSnap, plugOpts); err != nil {
+			return err
+		}
+
+		plug := m.repo.Plug(connRef.PlugRef.Snap, connRef.PlugRef.Name)
+		conns[connRef.ID()] = connState{Interface: plug.Interface}
+	}
+	setConns(st, conns)
+
+	return nil
+}

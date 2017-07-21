@@ -67,6 +67,8 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, extraInterfaces
 	// helper for ubuntu-core -> core
 	runner.AddHandler("transition-ubuntu-core", m.doTransitionUbuntuCore, m.undoTransitionUbuntuCore)
 
+	runner.AddHandler("firstboot-connections", m.doFirstbootConnections, nil)
+
 	return m, nil
 }
 

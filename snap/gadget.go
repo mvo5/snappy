@@ -33,6 +33,9 @@ type GadgetInfo struct {
 
 	// Default configuration for snaps (snap-id => key => value).
 	Defaults map[string]map[string]interface{} `yaml:"defaults,omitempty"`
+
+	// Default connections for snaps (connection reference)
+	Connect []string `yaml:"connect,omitempty"`
 }
 
 type GadgetVolume struct {
