@@ -15,6 +15,7 @@ etc/X11
 data/completion/snap /usr/share/bash-completion/completions
 data/completion/complete.sh /usr/lib/snapd/
 data/completion/etelpmoc.sh /usr/lib/snapd/
+data/completion/zzz-snap_completion.sh /etc/profile.d/
 # udev, must be installed before 80-udisks
 data/udev/rules.d/66-snapd-autoimport.rules /lib/udev/rules.d
 # snap/snapd version information

@@ -114,3 +114,5 @@ _complete_from_snap_maybe() {
 }
 
 complete -D -F _complete_from_snap_maybe
+# signal we are done
+export SNAP_COMPLETE=1
