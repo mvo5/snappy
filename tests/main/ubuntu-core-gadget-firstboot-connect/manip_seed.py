@@ -1,0 +1,1 @@
+../ubuntu-core-gadget-config-defaults/manip_seed.py
