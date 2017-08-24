@@ -34,6 +34,8 @@ type AtomicWriteFlags uint
 const (
 	// AtomicWriteFollow makes AtomicWriteFile follow symlinks
 	AtomicWriteFollow AtomicWriteFlags = 1 << iota
+	// AttomicChattrSync makes the target file "chattr +S"
+	AtomicChattrSync
 )
 
 // Allow disabling sync for testing. This brings massive improvements on
@@ -95,6 +97,28 @@ func AtomicWriteFileChown(filename string, data []byte, perm os.FileMode, flags 
 		}
 	} else if uid > -1 || gid > -1 {
 		return errors.New("internal error: AtomicWriteFileChown needs none or both of uid and gid set")
+	}
+
+	if flags&AtomicChattrSync != 0 {
+		// make file sync
+		attr, err := GetAttr(fd)
+		if err != nil {
+			return err
+		}
+		attr |= FS_SYNC_FL
+		if err := SetAttr(fd, attr); err != nil {
+			return err
+		}
+
+		// make dir sync as well
+		attr, err = GetAttr(dir)
+		if err != nil {
+			return err
+		}
+		attr |= FS_DIRSYNC_FL
+		if err := SetAttr(dir, attr); err != nil {
+			return err
+		}
 	}
 
 	if !snapdUnsafeIO {
