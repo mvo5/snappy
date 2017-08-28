@@ -1677,17 +1677,21 @@ func (s *interfaceManagerSuite) TestSetupProfilesDevModeMultiple(c *C) {
 	c.Assert(err, IsNil)
 	err = repo.AddSlot(&interfaces.Slot{
 		SlotInfo: &snap.SlotInfo{
-			Snap:      siC,
-			Name:      "slot",
-			Interface: "test",
+			snap.PlugSlotData{
+				Snap:      siC,
+				Name:      "slot",
+				Interface: "test",
+			},
 		},
 	})
 	c.Assert(err, IsNil)
 	err = repo.AddPlug(&interfaces.Plug{
 		PlugInfo: &snap.PlugInfo{
-			Snap:      siP,
-			Name:      "plug",
-			Interface: "test",
+			snap.PlugSlotData{
+				Snap:      siP,
+				Name:      "plug",
+				Interface: "test",
+			},
 		},
 	})
 	c.Assert(err, IsNil)
