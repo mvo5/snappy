@@ -29,6 +29,7 @@ import (
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/overlord/assertstate"
 	"github.com/snapcore/snapd/overlord/auth"
+	"github.com/snapcore/snapd/overlord/configstate/config"
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/release"
@@ -105,7 +106,7 @@ func canAutoRefresh(st *state.State) (bool, error) {
 
 	// Check model exists, for sanity. We always have a model, either
 	// seeded or a generic one that ships with snapd.
-	_, err := Model(st)
+	model, err := Model(st)
 	if err == state.ErrNoState {
 		return false, nil
 	}
@@ -119,6 +120,17 @@ func canAutoRefresh(st *state.State) (bool, error) {
 	}
 	if err != nil {
 		return false, err
+	}
+
+	if model.HeaderString("refresh-policy") == "permit-disable" {
+		var refreshSchedule string
+		tr := config.NewTransaction(st)
+		if err := tr.Get("core", "refresh.schedule", &refreshSchedule); err == nil {
+			if refreshSchedule == "disabled" {
+				return false, nil
+			}
+		}
+
 	}
 
 	return true, nil
