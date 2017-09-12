@@ -715,7 +715,6 @@ func sendStorePackages(route *mux.Route, meta *Meta, found []*snap.Info) Respons
 
 // plural!
 func getSnapsInfo(c *Command, r *http.Request, user *auth.UserState) Response {
-
 	if shouldSearchStore(r) {
 		logger.Noticef("Jumping to \"find\" to better support legacy request %q", r.URL)
 		return searchStore(c, r, user)

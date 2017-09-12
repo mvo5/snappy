@@ -34,6 +34,7 @@ import (
 
 	"github.com/coreos/go-systemd/activation"
 	"github.com/gorilla/mux"
+	"github.com/tylerb/gls"
 	"gopkg.in/tomb.v2"
 
 	"github.com/snapcore/snapd/client"
@@ -147,6 +148,8 @@ func (c *Command) canAccess(r *http.Request, user *auth.UserState) bool {
 }
 
 func (c *Command) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	gls.Set("LcMessages", r.Header.Get("X-Snapd-LcMessages"))
+
 	state := c.d.overlord.State()
 	state.Lock()
 	// TODO Look at the error and fail if there's an attempt to authenticate with invalid data.
@@ -157,7 +160,6 @@ func (c *Command) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Unauthorized("access denied").ServeHTTP(w, r)
 		return
 	}
-
 	var rspf ResponseFunc
 	var rsp = MethodNotAllowed("method %q not allowed", r.Method)
 

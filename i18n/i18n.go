@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/ojii/gettext.go"
+	"github.com/tylerb/gls"
 
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/osutil"
@@ -38,6 +39,7 @@ import (
 var (
 	TEXTDOMAIN   = "snappy"
 	locale       gettext.Catalog
+	localeStr    string
 	translations gettext.Translations
 )
 
@@ -82,25 +84,37 @@ func bindTextDomain(domain, dir string) {
 }
 
 func setLocale(loc string) {
+	locale = translations.Locale(LcMessages())
+}
+
+func LcMessages() string {
+	loc := os.Getenv("LC_MESSAGES")
 	if loc == "" {
-		loc = os.Getenv("LC_MESSAGES")
-		if loc == "" {
-			loc = os.Getenv("LANG")
-		}
+		loc = os.Getenv("LANG")
 	}
+
 	// de_DE.UTF-8, de_DE@euro all need to get simplified
 	loc = strings.Split(loc, "@")[0]
 	loc = strings.Split(loc, ".")[0]
-
-	locale = translations.Locale(loc)
+	return loc
 }
 
 // G is the shorthand for Gettext
 func G(msgid string) string {
+	lcMessage := gls.Get("LcMessages")
+	if s, ok := lcMessage.(string); ok {
+		setLocale(s)
+	}
+
 	return locale.Gettext(msgid)
 }
 
 // NG is the shorthand for NGettext
 func NG(msgid string, msgidPlural string, n uint32) string {
+	lcMessage := gls.Get("LcMessages")
+	if s, ok := lcMessage.(string); ok {
+		setLocale(s)
+	}
+
 	return locale.NGettext(msgid, msgidPlural, n)
 }

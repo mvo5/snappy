@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/snapcore/snapd/dirs"
+	"github.com/snapcore/snapd/i18n"
 	"github.com/snapcore/snapd/jsonutil"
 )
 
@@ -174,6 +175,7 @@ func (client *Client) raw(method, urlpath string, query url.Values, headers map[
 	if err != nil {
 		return nil, RequestError{err}
 	}
+	req.Header.Set("X-Snapd-LcMessages", i18n.LcMessages())
 
 	for key, value := range headers {
 		req.Header.Set(key, value)
