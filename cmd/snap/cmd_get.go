@@ -139,6 +139,66 @@ func flattenConfig(cfg map[string]interface{}, root bool) (values []ConfigValue)
 	return values
 }
 
+func (x *cmdGet) outputJson(conf map[string]interface{}) error {
+	bytes, err := json.MarshalIndent(conf, "", "\t")
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(Stdout, string(bytes))
+	return nil
+}
+
+func (x *cmdGet) outputList(conf map[string]interface{}, confKeys []string) error {
+	w := tabWriter()
+	defer w.Flush()
+
+	rootRequested := len(confKeys) == 0
+	fmt.Fprintf(w, "Key\tValue\n")
+	values := flattenConfig(conf, rootRequested)
+	for _, v := range values {
+		fmt.Fprintf(w, "%s\t%v\n", v.Path, v.Value)
+	}
+	return nil
+}
+
+func (x *cmdGet) outputDefault(conf map[string]interface{}, confKeys []string) error {
+	var confToPrint interface{} = conf
+
+	if len(confKeys) == 1 {
+		// if single key was requested, then just output the value unless it's a map,
+		// in which case it will be printed as a list below.
+		if _, ok := conf[confKeys[0]].(map[string]interface{}); !ok {
+			confToPrint = conf[confKeys[0]]
+		}
+	}
+
+	if _, ok := confToPrint.(map[string]interface{}); ok {
+		fmt.Fprintf(Stderr, i18n.G(`WARNING: The output of "snap get" will become a list with columns - use -d or -l to force the output format.\n`))
+	}
+
+	if x.Typed && confToPrint == nil {
+		fmt.Fprintln(Stdout, "null")
+		return nil
+	}
+
+	if s, ok := confToPrint.(string); ok && !x.Typed {
+		fmt.Fprintln(Stdout, s)
+		return nil
+	}
+
+	var bytes []byte
+	var err error
+	if confToPrint != nil {
+		bytes, err = json.MarshalIndent(confToPrint, "", "\t")
+		if err != nil {
+			return err
+		}
+	}
+	fmt.Fprintln(Stdout, string(bytes))
+	return nil
+}
+
 func (x *cmdGet) Execute(args []string) error {
 	if len(args) > 0 {
 		// TRANSLATORS: the %s is the list of extra arguments
@@ -163,52 +223,14 @@ func (x *cmdGet) Execute(args []string) error {
 	}
 
 	isTerminal := terminal.IsTerminal(int(os.Stdin.Fd()))
-
-	var confToPrint interface{} = conf
-	if !x.Document && !x.List && len(confKeys) == 1 {
-		// if single key was requested, then just output the value unless it's a map,
-		// in which case it will be printed as a list below.
-		if _, ok := conf[confKeys[0]].(map[string]interface{}); !ok {
-			confToPrint = conf[confKeys[0]]
-		}
+	switch {
+	case x.Document:
+		return x.outputJson(conf)
+	case x.List || isTerminal:
+		return x.outputList(conf, confKeys)
+	default:
+		return x.outputDefault(conf, confKeys)
 	}
 
-	if cfg, ok := confToPrint.(map[string]interface{}); ok && !x.Document {
-		// TODO: remove this conditional and the warning below after a transition period.
-		if isTerminal || x.List {
-			w := tabWriter()
-			defer w.Flush()
-
-			rootRequested := len(confKeys) == 0
-			fmt.Fprintf(w, "Key\tValue\n")
-			values := flattenConfig(cfg, rootRequested)
-			for _, v := range values {
-				fmt.Fprintf(w, "%s\t%v\n", v.Path, v.Value)
-			}
-			return nil
-		} else {
-			fmt.Fprintf(Stderr, i18n.G(`WARNING: The output of "snap get" will become a list with columns - use -d or -l to force the output format.\n`))
-		}
-	}
-
-	if x.Typed && confToPrint == nil {
-		fmt.Fprintln(Stdout, "null")
-		return nil
-	}
-
-	if s, ok := confToPrint.(string); ok && !x.Typed {
-		fmt.Fprintln(Stdout, s)
-		return nil
-	}
-
-	var bytes []byte
-	if confToPrint != nil {
-		bytes, err = json.MarshalIndent(confToPrint, "", "\t")
-		if err != nil {
-			return err
-		}
-	}
-
-	fmt.Fprintln(Stdout, string(bytes))
 	return nil
 }

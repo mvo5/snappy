@@ -92,11 +92,11 @@ func (s *SnapSuite) TestSnapGetTests(c *C) {
 
 		_, err := snapset.Parser().ParseArgs(strings.Fields(test.args))
 		if test.error != "" {
-			c.Check(err, ErrorMatches, test.error)
+			c.Check(err, ErrorMatches, test.error, Commentf("unexpected result for %q", test.args))
 		} else {
 			c.Check(err, IsNil)
-			c.Check(s.Stderr(), Equals, test.stderr)
-			c.Check(s.Stdout(), Equals, test.stdout)
+			c.Check(s.Stderr(), Equals, test.stderr, Commentf("unexpected result for %q", test.args))
+			c.Check(s.Stdout(), Equals, test.stdout, Commentf("unexpected result for %q", test.args))
 		}
 	}
 }
