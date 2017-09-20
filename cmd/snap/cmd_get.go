@@ -184,12 +184,9 @@ func (x *cmdGet) outputDefault(conf map[string]interface{}) error {
 	}
 
 	if _, ok := confToPrint.(map[string]interface{}); ok {
+		// XXX: this code needs a test
 		fmt.Fprintf(Stderr, i18n.G(`WARNING: The output of "snap get" will become a list with columns - use -d or -l to force the output format.\n`))
-	}
-
-	if x.Typed && confToPrint == nil {
-		fmt.Fprintln(Stdout, "null")
-		return nil
+		return x.outputJson(conf)
 	}
 
 	if s, ok := confToPrint.(string); ok && !x.Typed {
@@ -199,13 +196,14 @@ func (x *cmdGet) outputDefault(conf map[string]interface{}) error {
 
 	var bytes []byte
 	var err error
-	if confToPrint != nil {
+	if x.Typed || confToPrint != nil {
 		bytes, err = json.MarshalIndent(confToPrint, "", "\t")
 		if err != nil {
 			return err
 		}
 	}
 	fmt.Fprintln(Stdout, string(bytes))
+
 	return nil
 }
 
