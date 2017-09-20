@@ -149,11 +149,15 @@ func (x *cmdGet) outputJson(conf map[string]interface{}) error {
 	return nil
 }
 
-func (x *cmdGet) outputList(conf map[string]interface{}, confKeys []string) error {
+func (x *cmdGet) outputList(conf map[string]interface{}) error {
+	rootRequested := len(x.Positional.Keys) == 0
+	if rootRequested && len(conf) == 0 {
+		return fmt.Errorf("snap %q has no configuration", x.Positional.Snap)
+	}
+
 	w := tabWriter()
 	defer w.Flush()
 
-	rootRequested := len(confKeys) == 0
 	fmt.Fprintf(w, "Key\tValue\n")
 	values := flattenConfig(conf, rootRequested)
 	for _, v := range values {
@@ -162,7 +166,13 @@ func (x *cmdGet) outputList(conf map[string]interface{}, confKeys []string) erro
 	return nil
 }
 
-func (x *cmdGet) outputDefault(conf map[string]interface{}, confKeys []string) error {
+func (x *cmdGet) outputDefault(conf map[string]interface{}) error {
+	confKeys := x.Positional.Keys
+	rootRequested := len(confKeys) == 0
+	if rootRequested && len(conf) == 0 {
+		return fmt.Errorf("snap %q has no configuration", x.Positional.Snap)
+	}
+
 	var confToPrint interface{} = conf
 
 	if len(confKeys) == 1 {
@@ -227,9 +237,9 @@ func (x *cmdGet) Execute(args []string) error {
 	case x.Document:
 		return x.outputJson(conf)
 	case x.List || isTerminal:
-		return x.outputList(conf, confKeys)
+		return x.outputList(conf)
 	default:
-		return x.outputDefault(conf, confKeys)
+		return x.outputDefault(conf)
 	}
 
 	return nil
