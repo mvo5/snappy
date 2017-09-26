@@ -376,3 +376,73 @@ slots:
 func (s *ContentSuite) TestInterfaces(c *C) {
 	c.Check(builtin.Interfaces(), testutil.DeepContains, s.iface)
 }
+
+func (s *ContentSuite) TestSanitizeSlotNewSyntaxSimple(c *C) {
+	const mockSnapYaml = `name: content-slot-snap
+version: 1.0
+slots:
+ content-slot:
+  interface: content
+  content: mycont
+  target: import
+  source:
+   read:
+    - a
+    - b
+`
+	info := snaptest.MockInfo(c, mockSnapYaml, nil)
+	slot := &interfaces.Slot{SlotInfo: info.Slots["content-slot"]}
+	c.Assert(slot.Sanitize(s.iface), IsNil)
+}
+
+func (s *ContentSuite) TestConnectedPlugSnippetSharingSnapNewSyntax(c *C) {
+	const consumerYaml = `name: consumer 
+plugs:
+ content:
+  target: $SNAP/import
+apps:
+ app:
+  command: foo
+`
+	consumerInfo := snaptest.MockInfo(c, consumerYaml, &snap.SideInfo{Revision: snap.R(7)})
+	plug := &interfaces.Plug{PlugInfo: consumerInfo.Plugs["content"]}
+	const producerYaml = `name: producer
+slots:
+ content:
+  source:
+   read:
+    - $SNAP/export-a
+    - $SNAP/export-b
+`
+	producerInfo := snaptest.MockInfo(c, producerYaml, &snap.SideInfo{Revision: snap.R(5)})
+	slot := &interfaces.Slot{SlotInfo: producerInfo.Slots["content"]}
+
+	spec := &mount.Specification{}
+	c.Assert(spec.AddConnectedPlug(s.iface, plug, nil, slot, nil), IsNil)
+	expectedMnt := []mount.Entry{
+		{
+			Name:    filepath.Join(dirs.CoreSnapMountDir, "producer/5/export-a"),
+			Dir:     filepath.Join(dirs.CoreSnapMountDir, "consumer/7/import/export-a"),
+			Options: []string{"bind", "ro"},
+		},
+		{
+			Name:    filepath.Join(dirs.CoreSnapMountDir, "producer/5/export-b"),
+			Dir:     filepath.Join(dirs.CoreSnapMountDir, "consumer/7/import/export-b"),
+			Options: []string{"bind", "ro"},
+		},
+	}
+	c.Assert(spec.MountEntries(), DeepEquals, expectedMnt)
+
+	apparmorSpec := &apparmor.Specification{}
+	err := apparmorSpec.AddConnectedPlug(s.iface, plug, nil, slot, nil)
+	c.Assert(err, IsNil)
+	c.Assert(apparmorSpec.SecurityTags(), DeepEquals, []string{"snap.consumer.app"})
+	expected := fmt.Sprintf(`
+# In addition to the bind mount, add any AppArmor rules so that
+# snaps may directly access the slot implementation's files
+# read-only.
+%[1]s/producer/5/export-a/** mrkix,
+%[1]s/producer/5/export-b/** mrkix,
+`, dirs.CoreSnapMountDir)
+	c.Assert(apparmorSpec.SnippetForTag("snap.consumer.app"), Equals, expected)
+}

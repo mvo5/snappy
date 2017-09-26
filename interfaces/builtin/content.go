@@ -68,6 +68,12 @@ func cleanSubPath(path string) bool {
 	return filepath.Clean(path) == path && path != ".." && !strings.HasPrefix(path, "../")
 }
 
+// legacy returns true if the slot is legacy mode
+func legacy(slot *interfaces.Slot) bool {
+	_, ok := slot.Attrs["source"].(map[string]interface{})
+	return !ok
+}
+
 func (iface *contentInterface) SanitizeSlot(slot *interfaces.Slot) error {
 	content, ok := slot.Attrs["content"].(string)
 	if !ok || len(content) == 0 {
@@ -78,7 +84,6 @@ func (iface *contentInterface) SanitizeSlot(slot *interfaces.Slot) error {
 		slot.Attrs["content"] = slot.Name
 	}
 
-	// check that we have either a read or write path
 	rpath := iface.path(slot, "read")
 	wpath := iface.path(slot, "write")
 	if len(rpath) == 0 && len(wpath) == 0 {
@@ -124,16 +129,30 @@ func (iface *contentInterface) path(slot *interfaces.Slot, name string) []string
 		panic("internal error, path can only be used with read/write")
 	}
 
-	paths, ok := slot.Attrs[name].([]interface{})
+	if legacy(slot) {
+		paths, ok := slot.Attrs[name].([]interface{})
+		if !ok {
+			return nil
+		}
+		out := make([]string, len(paths))
+		for i, p := range paths {
+			out[i], ok = p.(string)
+			if !ok {
+				return nil
+			}
+		}
+		return out
+	}
+
+	// new style
+	source, ok := slot.Attrs["source"].(map[string]interface{})
 	if !ok {
 		return nil
 	}
-
-	out := make([]string, len(paths))
-	for i, p := range paths {
-		out[i], ok = p.(string)
-		if !ok {
-			return nil
+	var out []string
+	if path, ok := source[name].([]interface{}); ok {
+		for _, s := range path {
+			out = append(out, s.(string))
 		}
 	}
 	return out
@@ -165,9 +184,13 @@ func mountEntry(plug *interfaces.Plug, slot *interfaces.Slot, relSrc string, ext
 	options := make([]string, 0, len(extraOptions)+1)
 	options = append(options, "bind")
 	options = append(options, extraOptions...)
+	target := resolveSpecialVariable(plug.Attrs["target"].(string), plug.Snap)
+	if !legacy(slot) {
+		target = filepath.Join(target, filepath.Base(relSrc))
+	}
 	return mount.Entry{
 		Name:    resolveSpecialVariable(relSrc, slot.Snap),
-		Dir:     resolveSpecialVariable(plug.Attrs["target"].(string), plug.Snap),
+		Dir:     target,
 		Options: options,
 	}
 }
@@ -226,6 +249,7 @@ func (iface *contentInterface) MountConnectedPlug(spec *mount.Specification, plu
 			return err
 		}
 	}
+
 	return nil
 }
 
