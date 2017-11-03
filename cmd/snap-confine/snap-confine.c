@@ -18,7 +18,9 @@
 #include "config.h"
 #endif
 
+#include <fcntl.h>
 #include <glob.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,6 +96,10 @@ void sc_maybe_fixup_udev()
 
 int main(int argc, char **argv)
 {
+	int strace_fd = open("/usr/bin/strace", O_RDONLY);
+	if (strace_fd < 0)
+		die("cannot open strace");
+
 	// Use our super-defensive parser to figure out what we've been asked to do.
 	struct sc_error *err = NULL;
 	struct sc_args *args SC_CLEANUP(sc_cleanup_args) = NULL;
@@ -161,9 +167,12 @@ int main(int argc, char **argv)
 		// id is non-root.  This protects against, for example, unprivileged
 		// users trying to leverage the snap-confine in the core snap to
 		// escalate privileges.
+#if 0 //FIXME: strace needs a lot of extra things in apparmor
+           // FIXME2: also ensure ptrace,process_vm_readv are available
 		die("snap-confine has elevated permissions and is not confined"
 		    " but should be. Refusing to continue to avoid"
 		    " permission escalation attacks");
+#endif
 	}
 	// TODO: check for similar situation and linux capabilities.
 	if (geteuid() == 0) {
@@ -286,27 +295,57 @@ int main(int argc, char **argv)
 		// for compatibility, if facing older snapd.
 		setenv("SNAP_CONTEXT", snap_context, 1);
 	}
-	// Permanently drop if not root
-	if (geteuid() == 0) {
-		// Note that we do not call setgroups() here because its ok
-		// that the user keeps the groups he already belongs to
-		if (setgid(real_gid) != 0)
-			die("setgid failed");
-		if (setuid(real_uid) != 0)
-			die("setuid failed");
 
-		if (real_gid != 0 && (getuid() == 0 || geteuid() == 0))
-			die("permanently dropping privs did not work");
-		if (real_uid != 0 && (getgid() == 0 || getegid() == 0))
-			die("permanently dropping privs did not work");
+	pid_t pid = fork();
+	if (pid < 0) {
+		die("cannot fork");
 	}
-	// and exec the new executable
-	argv[0] = (char *)executable;
-	debug("execv(%s, %s...)", executable, argv[0]);
-	for (int i = 1; i < argc; ++i) {
-		debug(" argv[%i] = %s", i, argv[i]);
+	if (pid == 0) {
+		printf("child: %d\n", getpid());
+		// Permanently drop if not root
+		if (geteuid() == 0) {
+			// Note that we do not call setgroups() here because its ok
+			// that the user keeps the groups he already belongs to
+			if (setgid(real_gid) != 0)
+				die("setgid failed");
+			if (setuid(real_uid) != 0)
+				die("setuid failed");
+
+			if (real_gid != 0 && (getuid() == 0 || geteuid() == 0))
+				die("permanently dropping privs did not work");
+			if (real_uid != 0 && (getgid() == 0 || getegid() == 0))
+				die("permanently dropping privs did not work");
+		}
+		// and exec the new executable
+		argv[0] = (char *)executable;
+		debug("execv(%s, %s...)", executable, argv[0]);
+		for (int i = 1; i < argc; ++i) {
+			debug(" argv[%i] = %s", i, argv[i]);
+		}
+		execv(executable, (char *const *)&argv[0]);
+		die("execv failed");
+	} else {
+		int res = kill(pid, SIGSTOP);
+		if (res < 0)
+			die("cannot SIGSTOP");
+		printf("stopped %d\n", pid);
+
+		char pid_str[128];
+		sprintf(pid_str, "%d", pid);
+		char *args[] = {
+			"/usr/bin/strace",
+			"-e", "!select,_newselect,clock_gettime",
+			//"-e","mknod,mknodat,stat",
+			"-f",
+			"-vv",
+			"-p", pid_str,
+			NULL,
+		};
+		char *envp[] = { NULL };
+
+		kill(pid, SIGCONT);
+
+		fexecve(strace_fd, args, envp);
+		die("cannot execv");
 	}
-	execv(executable, (char *const *)&argv[0]);
-	perror("execv failed");
-	return 1;
 }
