@@ -71,6 +71,7 @@ backends:
                 workers: 4
             - fedora-25-64:
                 workers: 3
+                manual: true
             - opensuse-42.2-64:
                 workers: 2
     qemu:
