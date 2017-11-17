@@ -322,7 +322,7 @@ if CAPS_OVER_SETUID
 	setcap cap_sys_admin=pe $(DESTDIR)$(libexecdir)/snap-confine
 else
 # Ensure that snap-confine is +s (setuid)
-	chmod 4755 $(DESTDIR)$(libexecdir)/snap-confine
+	chmod 6755 $(DESTDIR)$(libexecdir)/snap-confine
 endif
 
 ##
