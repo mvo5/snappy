@@ -104,7 +104,6 @@ Requires:       %{name}-selinux = %{version}-%{release}
 
 %if ! 0%{?with_bundled}
 BuildRequires: golang(github.com/boltdb/bolt)
-BuildRequires: golang(github.com/cheggaaa/pb)
 BuildRequires: golang(github.com/coreos/go-systemd/activation)
 BuildRequires: golang(github.com/godbus/dbus)
 BuildRequires: golang(github.com/godbus/dbus/introspect)
@@ -193,7 +192,6 @@ BuildArch:     noarch
 %endif
 
 %if ! 0%{?with_bundled}
-Requires:      golang(github.com/cheggaaa/pb)
 Requires:      golang(github.com/coreos/go-systemd/activation)
 Requires:      golang(github.com/godbus/dbus)
 Requires:      golang(github.com/godbus/dbus/introspect)
@@ -218,7 +216,6 @@ Requires:      golang(gopkg.in/yaml.v2)
 # These Provides are unversioned because the sources in
 # the bundled tarball are unversioned (they go by git commit)
 # *sigh*... I hate golang...
-Provides:      bundled(golang(github.com/cheggaaa/pb))
 Provides:      bundled(golang(github.com/coreos/go-systemd/activation))
 Provides:      bundled(golang(github.com/godbus/dbus))
 Provides:      bundled(golang(github.com/godbus/dbus/introspect))
@@ -354,12 +351,6 @@ providing packages with %{import_path} prefix.
 %if ! 0%{?with_bundled}
 # Ensure there's no bundled stuff accidentally leaking in...
 rm -rf vendor/*
-
-# XXX: HACK: Fake that we have the right import path because bad testing
-# did not verify that this path was actually valid on all supported systems.
-mkdir -p vendor/gopkg.in/cheggaaa
-ln -s %{gopath}/src/github.com/cheggaaa/pb vendor/gopkg.in/cheggaaa/pb.v1
-
 %else
 # Unpack the vendor tarball too...
 %setup -q -T -D -b 1
