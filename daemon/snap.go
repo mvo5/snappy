@@ -326,7 +326,7 @@ func mapLocal(about aboutSnap) *client.Snap {
 
 	result := &client.Snap{
 		Description:      localSnap.Description(),
-		Developer:        about.publisher,
+		Publisher:        about.publisher,
 		Icon:             snapIcon(localSnap),
 		ID:               localSnap.SnapID,
 		InstallDate:      snapDate(localSnap),
@@ -377,7 +377,8 @@ func mapRemote(remoteSnap *snap.Info) *client.Snap {
 
 	result := &client.Snap{
 		Description:  remoteSnap.Description(),
-		Developer:    remoteSnap.Publisher,
+		Developer:    remoteSnap.Developer,
+		Publisher:    remoteSnap.Publisher,
 		DownloadSize: remoteSnap.Size,
 		Icon:         snapIcon(remoteSnap),
 		ID:           remoteSnap.SnapID,
