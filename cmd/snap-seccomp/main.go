@@ -19,124 +19,6 @@
 
 package main
 
-//#cgo CFLAGS: -D_FILE_OFFSET_BITS=64
-//#cgo pkg-config: --static --cflags libseccomp
-//#cgo LDFLAGS: -Wl,-Bstatic -lseccomp -Wl,-Bdynamic
-//
-//#include <asm/ioctls.h>
-//#include <ctype.h>
-//#include <errno.h>
-//#include <linux/can.h>
-//#include <linux/netlink.h>
-//#include <sched.h>
-//#include <search.h>
-//#include <stdbool.h>
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
-//#include <sys/prctl.h>
-//#include <sys/quota.h>
-//#include <sys/resource.h>
-//#include <sys/socket.h>
-//#include <sys/stat.h>
-//#include <sys/types.h>
-//#include <sys/utsname.h>
-//#include <termios.h>
-//#include <unistd.h>
-// //The XFS interface requires a 64 bit file system interface
-// //but we don't want to leak this anywhere else if not globally
-// //defined.
-//#ifndef _FILE_OFFSET_BITS
-//#define _FILE_OFFSET_BITS 64
-//#include <xfs/xqm.h>
-//#undef _FILE_OFFSET_BITS
-//#else
-//#include <xfs/xqm.h>
-//#endif
-//#include <seccomp.h>
-//#include <linux/sched.h>
-//#include <linux/seccomp.h>
-//#include <arpa/inet.h>
-//
-//#ifndef AF_IB
-//#define AF_IB 27
-//#define PF_IB AF_IB
-//#endif				// AF_IB
-//
-//#ifndef AF_MPLS
-//#define AF_MPLS 28
-//#define PF_MPLS AF_MPLS
-//#endif				// AF_MPLS
-//
-//#ifndef PR_CAP_AMBIENT
-//#define PR_CAP_AMBIENT 47
-//#define PR_CAP_AMBIENT_IS_SET    1
-//#define PR_CAP_AMBIENT_RAISE     2
-//#define PR_CAP_AMBIENT_LOWER     3
-//#define PR_CAP_AMBIENT_CLEAR_ALL 4
-//#endif				// PR_CAP_AMBIENT
-//
-//#ifndef PR_SET_THP_DISABLE
-//#define PR_SET_THP_DISABLE 41
-//#endif				// PR_SET_THP_DISABLE
-//#ifndef PR_GET_THP_DISABLE
-//#define PR_GET_THP_DISABLE 42
-//#endif				// PR_GET_THP_DISABLE
-//
-//#ifndef PR_MPX_ENABLE_MANAGEMENT
-//#define PR_MPX_ENABLE_MANAGEMENT 43
-//#endif
-//
-//#ifndef PR_MPX_DISABLE_MANAGEMENT
-//#define PR_MPX_DISABLE_MANAGEMENT 44
-//#endif
-//
-// //FIXME: ARCH_BAD is defined as ~0 in libseccomp internally, however
-// //       this leads to a build failure on 14.04. the important part
-// //       is that its an invalid id for libseccomp.
-//
-//#define ARCH_BAD 0x7FFFFFFF
-//#ifndef SCMP_ARCH_AARCH64
-//#define SCMP_ARCH_AARCH64 ARCH_BAD
-//#endif
-//
-//#ifndef SCMP_ARCH_PPC
-//#define SCMP_ARCH_PPC ARCH_BAD
-//#endif
-//
-//#ifndef SCMP_ARCH_PPC64LE
-//#define SCMP_ARCH_PPC64LE ARCH_BAD
-//#endif
-//
-//#ifndef SCMP_ARCH_PPC64
-//#define SCMP_ARCH_PPC64 ARCH_BAD
-//#endif
-//
-//#ifndef SCMP_ARCH_S390X
-//#define SCMP_ARCH_S390X ARCH_BAD
-//#endif
-//
-//
-//typedef struct seccomp_data kernel_seccomp_data;
-//
-//__u32 htot32(__u32 arch, __u32 val)
-//{
-//	if (arch & __AUDIT_ARCH_LE)
-//		return htole32(val);
-//	else
-//		return htobe32(val);
-//}
-//
-//__u64 htot64(__u32 arch, __u64 val)
-//{
-//	if (arch & __AUDIT_ARCH_LE)
-//		return htole64(val);
-//	else
-//		return htobe64(val);
-//}
-//
-import "C"
-
 import (
 	"bufio"
 	"bytes"
@@ -148,12 +30,8 @@ import (
 	"strings"
 	"syscall"
 
-	// FIXME: we want github.com/seccomp/libseccomp-golang but that
-	// will not work with trusty because libseccomp-golang checks
-	// for the seccomp version and errors if it find one < 2.2.0
-	"github.com/mvo5/libseccomp-golang"
-
 	"github.com/snapcore/snapd/arch"
+	"github.com/snapcore/snapd/cmd/snap-seccomp/libseccomp"
 	"github.com/snapcore/snapd/osutil"
 )
 
@@ -166,84 +44,84 @@ var seccompResolver = map[string]uint64{
 	// policy (ie, if use AF_UNIX, don't need a corresponding PF_UNIX
 	// rule). See include/linux/socket.h
 	"AF_UNIX":       syscall.AF_UNIX,
-	"PF_UNIX":       C.PF_UNIX,
+	"PF_UNIX":       libseccomp.PF_UNIX,
 	"AF_LOCAL":      syscall.AF_LOCAL,
-	"PF_LOCAL":      C.PF_LOCAL,
+	"PF_LOCAL":      libseccomp.PF_LOCAL,
 	"AF_INET":       syscall.AF_INET,
-	"PF_INET":       C.PF_INET,
+	"PF_INET":       libseccomp.PF_INET,
 	"AF_INET6":      syscall.AF_INET6,
-	"PF_INET6":      C.PF_INET6,
+	"PF_INET6":      libseccomp.PF_INET6,
 	"AF_IPX":        syscall.AF_IPX,
-	"PF_IPX":        C.PF_IPX,
+	"PF_IPX":        libseccomp.PF_IPX,
 	"AF_NETLINK":    syscall.AF_NETLINK,
-	"PF_NETLINK":    C.PF_NETLINK,
+	"PF_NETLINK":    libseccomp.PF_NETLINK,
 	"AF_X25":        syscall.AF_X25,
-	"PF_X25":        C.PF_X25,
+	"PF_X25":        libseccomp.PF_X25,
 	"AF_AX25":       syscall.AF_AX25,
-	"PF_AX25":       C.PF_AX25,
+	"PF_AX25":       libseccomp.PF_AX25,
 	"AF_ATMPVC":     syscall.AF_ATMPVC,
-	"PF_ATMPVC":     C.PF_ATMPVC,
+	"PF_ATMPVC":     libseccomp.PF_ATMPVC,
 	"AF_APPLETALK":  syscall.AF_APPLETALK,
-	"PF_APPLETALK":  C.PF_APPLETALK,
+	"PF_APPLETALK":  libseccomp.PF_APPLETALK,
 	"AF_PACKET":     syscall.AF_PACKET,
-	"PF_PACKET":     C.PF_PACKET,
+	"PF_PACKET":     libseccomp.PF_PACKET,
 	"AF_ALG":        syscall.AF_ALG,
-	"PF_ALG":        C.PF_ALG,
+	"PF_ALG":        libseccomp.PF_ALG,
 	"AF_BRIDGE":     syscall.AF_BRIDGE,
-	"PF_BRIDGE":     C.PF_BRIDGE,
+	"PF_BRIDGE":     libseccomp.PF_BRIDGE,
 	"AF_NETROM":     syscall.AF_NETROM,
-	"PF_NETROM":     C.PF_NETROM,
+	"PF_NETROM":     libseccomp.PF_NETROM,
 	"AF_ROSE":       syscall.AF_ROSE,
-	"PF_ROSE":       C.PF_ROSE,
+	"PF_ROSE":       libseccomp.PF_ROSE,
 	"AF_NETBEUI":    syscall.AF_NETBEUI,
-	"PF_NETBEUI":    C.PF_NETBEUI,
+	"PF_NETBEUI":    libseccomp.PF_NETBEUI,
 	"AF_SECURITY":   syscall.AF_SECURITY,
-	"PF_SECURITY":   C.PF_SECURITY,
+	"PF_SECURITY":   libseccomp.PF_SECURITY,
 	"AF_KEY":        syscall.AF_KEY,
-	"PF_KEY":        C.PF_KEY,
+	"PF_KEY":        libseccomp.PF_KEY,
 	"AF_ASH":        syscall.AF_ASH,
-	"PF_ASH":        C.PF_ASH,
+	"PF_ASH":        libseccomp.PF_ASH,
 	"AF_ECONET":     syscall.AF_ECONET,
-	"PF_ECONET":     C.PF_ECONET,
+	"PF_ECONET":     libseccomp.PF_ECONET,
 	"AF_SNA":        syscall.AF_SNA,
-	"PF_SNA":        C.PF_SNA,
+	"PF_SNA":        libseccomp.PF_SNA,
 	"AF_IRDA":       syscall.AF_IRDA,
-	"PF_IRDA":       C.PF_IRDA,
+	"PF_IRDA":       libseccomp.PF_IRDA,
 	"AF_PPPOX":      syscall.AF_PPPOX,
-	"PF_PPPOX":      C.PF_PPPOX,
+	"PF_PPPOX":      libseccomp.PF_PPPOX,
 	"AF_WANPIPE":    syscall.AF_WANPIPE,
-	"PF_WANPIPE":    C.PF_WANPIPE,
+	"PF_WANPIPE":    libseccomp.PF_WANPIPE,
 	"AF_BLUETOOTH":  syscall.AF_BLUETOOTH,
-	"PF_BLUETOOTH":  C.PF_BLUETOOTH,
+	"PF_BLUETOOTH":  libseccomp.PF_BLUETOOTH,
 	"AF_RDS":        syscall.AF_RDS,
-	"PF_RDS":        C.PF_RDS,
+	"PF_RDS":        libseccomp.PF_RDS,
 	"AF_LLC":        syscall.AF_LLC,
-	"PF_LLC":        C.PF_LLC,
+	"PF_LLC":        libseccomp.PF_LLC,
 	"AF_TIPC":       syscall.AF_TIPC,
-	"PF_TIPC":       C.PF_TIPC,
+	"PF_TIPC":       libseccomp.PF_TIPC,
 	"AF_IUCV":       syscall.AF_IUCV,
-	"PF_IUCV":       C.PF_IUCV,
+	"PF_IUCV":       libseccomp.PF_IUCV,
 	"AF_RXRPC":      syscall.AF_RXRPC,
-	"PF_RXRPC":      C.PF_RXRPC,
+	"PF_RXRPC":      libseccomp.PF_RXRPC,
 	"AF_ISDN":       syscall.AF_ISDN,
-	"PF_ISDN":       C.PF_ISDN,
+	"PF_ISDN":       libseccomp.PF_ISDN,
 	"AF_PHONET":     syscall.AF_PHONET,
-	"PF_PHONET":     C.PF_PHONET,
+	"PF_PHONET":     libseccomp.PF_PHONET,
 	"AF_IEEE802154": syscall.AF_IEEE802154,
-	"PF_IEEE802154": C.PF_IEEE802154,
+	"PF_IEEE802154": libseccomp.PF_IEEE802154,
 	"AF_CAIF":       syscall.AF_CAIF,
-	"PF_CAIF":       C.AF_CAIF,
-	"AF_NFC":        C.AF_NFC,
-	"PF_NFC":        C.PF_NFC,
-	"AF_VSOCK":      C.AF_VSOCK,
-	"PF_VSOCK":      C.PF_VSOCK,
+	"PF_CAIF":       libseccomp.PF_CAIF,
+	"AF_NFC":        libseccomp.AF_NFC,
+	"PF_NFC":        libseccomp.PF_NFC,
+	"AF_VSOCK":      libseccomp.AF_VSOCK,
+	"PF_VSOCK":      libseccomp.PF_VSOCK,
 	// may not be defined in socket.h yet
-	"AF_IB":   C.AF_IB, // 27
-	"PF_IB":   C.PF_IB,
-	"AF_MPLS": C.AF_MPLS, // 28
-	"PF_MPLS": C.PF_MPLS,
+	"AF_IB":   libseccomp.AF_IB, // 27
+	"PF_IB":   libseccomp.PF_IB,
+	"AF_MPLS": libseccomp.AF_MPLS, // 28
+	"PF_MPLS": libseccomp.PF_MPLS,
 	"AF_CAN":  syscall.AF_CAN,
-	"PF_CAN":  C.PF_CAN,
+	"PF_CAN":  libseccomp.PF_CAN,
 
 	// man 2 socket - type
 	"SOCK_STREAM":    syscall.SOCK_STREAM,
@@ -254,67 +132,67 @@ var seccompResolver = map[string]uint64{
 	"SOCK_PACKET":    syscall.SOCK_PACKET,
 
 	// man 2 prctl
-	"PR_CAP_AMBIENT":              C.PR_CAP_AMBIENT,
-	"PR_CAP_AMBIENT_RAISE":        C.PR_CAP_AMBIENT_RAISE,
-	"PR_CAP_AMBIENT_LOWER":        C.PR_CAP_AMBIENT_LOWER,
-	"PR_CAP_AMBIENT_IS_SET":       C.PR_CAP_AMBIENT_IS_SET,
-	"PR_CAP_AMBIENT_CLEAR_ALL":    C.PR_CAP_AMBIENT_CLEAR_ALL,
-	"PR_CAPBSET_READ":             C.PR_CAPBSET_READ,
-	"PR_CAPBSET_DROP":             C.PR_CAPBSET_DROP,
-	"PR_SET_CHILD_SUBREAPER":      C.PR_SET_CHILD_SUBREAPER,
-	"PR_GET_CHILD_SUBREAPER":      C.PR_GET_CHILD_SUBREAPER,
-	"PR_SET_DUMPABLE":             C.PR_SET_DUMPABLE,
-	"PR_GET_DUMPABLE":             C.PR_GET_DUMPABLE,
-	"PR_SET_ENDIAN":               C.PR_SET_ENDIAN,
-	"PR_GET_ENDIAN":               C.PR_GET_ENDIAN,
-	"PR_SET_FPEMU":                C.PR_SET_FPEMU,
-	"PR_GET_FPEMU":                C.PR_GET_FPEMU,
-	"PR_SET_FPEXC":                C.PR_SET_FPEXC,
-	"PR_GET_FPEXC":                C.PR_GET_FPEXC,
-	"PR_SET_KEEPCAPS":             C.PR_SET_KEEPCAPS,
-	"PR_GET_KEEPCAPS":             C.PR_GET_KEEPCAPS,
-	"PR_MCE_KILL":                 C.PR_MCE_KILL,
-	"PR_MCE_KILL_GET":             C.PR_MCE_KILL_GET,
-	"PR_SET_MM":                   C.PR_SET_MM,
-	"PR_SET_MM_START_CODE":        C.PR_SET_MM_START_CODE,
-	"PR_SET_MM_END_CODE":          C.PR_SET_MM_END_CODE,
-	"PR_SET_MM_START_DATA":        C.PR_SET_MM_START_DATA,
-	"PR_SET_MM_END_DATA":          C.PR_SET_MM_END_DATA,
-	"PR_SET_MM_START_STACK":       C.PR_SET_MM_START_STACK,
-	"PR_SET_MM_START_BRK":         C.PR_SET_MM_START_BRK,
-	"PR_SET_MM_BRK":               C.PR_SET_MM_BRK,
-	"PR_SET_MM_ARG_START":         C.PR_SET_MM_ARG_START,
-	"PR_SET_MM_ARG_END":           C.PR_SET_MM_ARG_END,
-	"PR_SET_MM_ENV_START":         C.PR_SET_MM_ENV_START,
-	"PR_SET_MM_ENV_END":           C.PR_SET_MM_ENV_END,
-	"PR_SET_MM_AUXV":              C.PR_SET_MM_AUXV,
-	"PR_SET_MM_EXE_FILE":          C.PR_SET_MM_EXE_FILE,
-	"PR_MPX_ENABLE_MANAGEMENT":    C.PR_MPX_ENABLE_MANAGEMENT,
-	"PR_MPX_DISABLE_MANAGEMENT":   C.PR_MPX_DISABLE_MANAGEMENT,
-	"PR_SET_NAME":                 C.PR_SET_NAME,
-	"PR_GET_NAME":                 C.PR_GET_NAME,
-	"PR_SET_NO_NEW_PRIVS":         C.PR_SET_NO_NEW_PRIVS,
-	"PR_GET_NO_NEW_PRIVS":         C.PR_GET_NO_NEW_PRIVS,
-	"PR_SET_PDEATHSIG":            C.PR_SET_PDEATHSIG,
-	"PR_GET_PDEATHSIG":            C.PR_GET_PDEATHSIG,
-	"PR_SET_PTRACER":              C.PR_SET_PTRACER,
-	"PR_SET_SECCOMP":              C.PR_SET_SECCOMP,
-	"PR_GET_SECCOMP":              C.PR_GET_SECCOMP,
-	"PR_SET_SECUREBITS":           C.PR_SET_SECUREBITS,
-	"PR_GET_SECUREBITS":           C.PR_GET_SECUREBITS,
-	"PR_SET_THP_DISABLE":          C.PR_SET_THP_DISABLE,
-	"PR_TASK_PERF_EVENTS_DISABLE": C.PR_TASK_PERF_EVENTS_DISABLE,
-	"PR_TASK_PERF_EVENTS_ENABLE":  C.PR_TASK_PERF_EVENTS_ENABLE,
-	"PR_GET_THP_DISABLE":          C.PR_GET_THP_DISABLE,
-	"PR_GET_TID_ADDRESS":          C.PR_GET_TID_ADDRESS,
-	"PR_SET_TIMERSLACK":           C.PR_SET_TIMERSLACK,
-	"PR_GET_TIMERSLACK":           C.PR_GET_TIMERSLACK,
-	"PR_SET_TIMING":               C.PR_SET_TIMING,
-	"PR_GET_TIMING":               C.PR_GET_TIMING,
-	"PR_SET_TSC":                  C.PR_SET_TSC,
-	"PR_GET_TSC":                  C.PR_GET_TSC,
-	"PR_SET_UNALIGN":              C.PR_SET_UNALIGN,
-	"PR_GET_UNALIGN":              C.PR_GET_UNALIGN,
+	"PR_CAP_AMBIENT":              libseccomp.PR_CAP_AMBIENT,
+	"PR_CAP_AMBIENT_RAISE":        libseccomp.PR_CAP_AMBIENT_RAISE,
+	"PR_CAP_AMBIENT_LOWER":        libseccomp.PR_CAP_AMBIENT_LOWER,
+	"PR_CAP_AMBIENT_IS_SET":       libseccomp.PR_CAP_AMBIENT_IS_SET,
+	"PR_CAP_AMBIENT_CLEAR_ALL":    libseccomp.PR_CAP_AMBIENT_CLEAR_ALL,
+	"PR_CAPBSET_READ":             libseccomp.PR_CAPBSET_READ,
+	"PR_CAPBSET_DROP":             libseccomp.PR_CAPBSET_DROP,
+	"PR_SET_CHILD_SUBREAPER":      libseccomp.PR_SET_CHILD_SUBREAPER,
+	"PR_GET_CHILD_SUBREAPER":      libseccomp.PR_GET_CHILD_SUBREAPER,
+	"PR_SET_DUMPABLE":             libseccomp.PR_SET_DUMPABLE,
+	"PR_GET_DUMPABLE":             libseccomp.PR_GET_DUMPABLE,
+	"PR_SET_ENDIAN":               libseccomp.PR_SET_ENDIAN,
+	"PR_GET_ENDIAN":               libseccomp.PR_GET_ENDIAN,
+	"PR_SET_FPEMU":                libseccomp.PR_SET_FPEMU,
+	"PR_GET_FPEMU":                libseccomp.PR_GET_FPEMU,
+	"PR_SET_FPEXC":                libseccomp.PR_SET_FPEXC,
+	"PR_GET_FPEXC":                libseccomp.PR_GET_FPEXC,
+	"PR_SET_KEEPCAPS":             libseccomp.PR_SET_KEEPCAPS,
+	"PR_GET_KEEPCAPS":             libseccomp.PR_GET_KEEPCAPS,
+	"PR_MCE_KILL":                 libseccomp.PR_MCE_KILL,
+	"PR_MCE_KILL_GET":             libseccomp.PR_MCE_KILL_GET,
+	"PR_SET_MM":                   libseccomp.PR_SET_MM,
+	"PR_SET_MM_START_CODE":        libseccomp.PR_SET_MM_START_CODE,
+	"PR_SET_MM_END_CODE":          libseccomp.PR_SET_MM_END_CODE,
+	"PR_SET_MM_START_DATA":        libseccomp.PR_SET_MM_START_DATA,
+	"PR_SET_MM_END_DATA":          libseccomp.PR_SET_MM_END_DATA,
+	"PR_SET_MM_START_STACK":       libseccomp.PR_SET_MM_START_STACK,
+	"PR_SET_MM_START_BRK":         libseccomp.PR_SET_MM_START_BRK,
+	"PR_SET_MM_BRK":               libseccomp.PR_SET_MM_BRK,
+	"PR_SET_MM_ARG_START":         libseccomp.PR_SET_MM_ARG_START,
+	"PR_SET_MM_ARG_END":           libseccomp.PR_SET_MM_ARG_END,
+	"PR_SET_MM_ENV_START":         libseccomp.PR_SET_MM_ENV_START,
+	"PR_SET_MM_ENV_END":           libseccomp.PR_SET_MM_ENV_END,
+	"PR_SET_MM_AUXV":              libseccomp.PR_SET_MM_AUXV,
+	"PR_SET_MM_EXE_FILE":          libseccomp.PR_SET_MM_EXE_FILE,
+	"PR_MPX_ENABLE_MANAGEMENT":    libseccomp.PR_MPX_ENABLE_MANAGEMENT,
+	"PR_MPX_DISABLE_MANAGEMENT":   libseccomp.PR_MPX_DISABLE_MANAGEMENT,
+	"PR_SET_NAME":                 libseccomp.PR_SET_NAME,
+	"PR_GET_NAME":                 libseccomp.PR_GET_NAME,
+	"PR_SET_NO_NEW_PRIVS":         libseccomp.PR_SET_NO_NEW_PRIVS,
+	"PR_GET_NO_NEW_PRIVS":         libseccomp.PR_GET_NO_NEW_PRIVS,
+	"PR_SET_PDEATHSIG":            libseccomp.PR_SET_PDEATHSIG,
+	"PR_GET_PDEATHSIG":            libseccomp.PR_GET_PDEATHSIG,
+	"PR_SET_PTRACER":              libseccomp.PR_SET_PTRACER,
+	"PR_SET_SECCOMP":              libseccomp.PR_SET_SECCOMP,
+	"PR_GET_SECCOMP":              libseccomp.PR_GET_SECCOMP,
+	"PR_SET_SECUREBITS":           libseccomp.PR_SET_SECUREBITS,
+	"PR_GET_SECUREBITS":           libseccomp.PR_GET_SECUREBITS,
+	"PR_SET_THP_DISABLE":          libseccomp.PR_SET_THP_DISABLE,
+	"PR_TASK_PERF_EVENTS_DISABLE": libseccomp.PR_TASK_PERF_EVENTS_DISABLE,
+	"PR_TASK_PERF_EVENTS_ENABLE":  libseccomp.PR_TASK_PERF_EVENTS_ENABLE,
+	"PR_GET_THP_DISABLE":          libseccomp.PR_GET_THP_DISABLE,
+	"PR_GET_TID_ADDRESS":          libseccomp.PR_GET_TID_ADDRESS,
+	"PR_SET_TIMERSLACK":           libseccomp.PR_SET_TIMERSLACK,
+	"PR_GET_TIMERSLACK":           libseccomp.PR_GET_TIMERSLACK,
+	"PR_SET_TIMING":               libseccomp.PR_SET_TIMING,
+	"PR_GET_TIMING":               libseccomp.PR_GET_TIMING,
+	"PR_SET_TSC":                  libseccomp.PR_SET_TSC,
+	"PR_GET_TSC":                  libseccomp.PR_GET_TSC,
+	"PR_SET_UNALIGN":              libseccomp.PR_SET_UNALIGN,
+	"PR_GET_UNALIGN":              libseccomp.PR_GET_UNALIGN,
 
 	// man 2 getpriority
 	"PRIO_PROCESS": syscall.PRIO_PROCESS,
@@ -333,20 +211,20 @@ var seccompResolver = map[string]uint64{
 	"TIOCSTI": syscall.TIOCSTI,
 
 	// man 2 quotactl (with what Linux supports)
-	"Q_SYNC":      C.Q_SYNC,
-	"Q_QUOTAON":   C.Q_QUOTAON,
-	"Q_QUOTAOFF":  C.Q_QUOTAOFF,
-	"Q_GETFMT":    C.Q_GETFMT,
-	"Q_GETINFO":   C.Q_GETINFO,
-	"Q_SETINFO":   C.Q_SETINFO,
-	"Q_GETQUOTA":  C.Q_GETQUOTA,
-	"Q_SETQUOTA":  C.Q_SETQUOTA,
-	"Q_XQUOTAON":  C.Q_XQUOTAON,
-	"Q_XQUOTAOFF": C.Q_XQUOTAOFF,
-	"Q_XGETQUOTA": C.Q_XGETQUOTA,
-	"Q_XSETQLIM":  C.Q_XSETQLIM,
-	"Q_XGETQSTAT": C.Q_XGETQSTAT,
-	"Q_XQUOTARM":  C.Q_XQUOTARM,
+	"Q_SYNC":      libseccomp.Q_SYNC,
+	"Q_QUOTAON":   libseccomp.Q_QUOTAON,
+	"Q_QUOTAOFF":  libseccomp.Q_QUOTAOFF,
+	"Q_GETFMT":    libseccomp.Q_GETFMT,
+	"Q_GETINFO":   libseccomp.Q_GETINFO,
+	"Q_SETINFO":   libseccomp.Q_SETINFO,
+	"Q_GETQUOTA":  libseccomp.Q_GETQUOTA,
+	"Q_SETQUOTA":  libseccomp.Q_SETQUOTA,
+	"Q_XQUOTAON":  libseccomp.Q_XQUOTAON,
+	"Q_XQUOTAOFF": libseccomp.Q_XQUOTAOFF,
+	"Q_XGETQUOTA": libseccomp.Q_XGETQUOTA,
+	"Q_XSETQLIM":  libseccomp.Q_XSETQLIM,
+	"Q_XGETQSTAT": libseccomp.Q_XGETQSTAT,
+	"Q_XQUOTARM":  libseccomp.Q_XQUOTARM,
 
 	// man 2 mknod
 	"S_IFREG":  syscall.S_IFREG,
@@ -359,7 +237,7 @@ var seccompResolver = map[string]uint64{
 	"NETLINK_ROUTE":          syscall.NETLINK_ROUTE,
 	"NETLINK_USERSOCK":       syscall.NETLINK_USERSOCK,
 	"NETLINK_FIREWALL":       syscall.NETLINK_FIREWALL,
-	"NETLINK_SOCK_DIAG":      C.NETLINK_SOCK_DIAG,
+	"NETLINK_SOCK_DIAG":      libseccomp.NETLINK_SOCK_DIAG,
 	"NETLINK_NFLOG":          syscall.NETLINK_NFLOG,
 	"NETLINK_XFRM":           syscall.NETLINK_XFRM,
 	"NETLINK_SELINUX":        syscall.NETLINK_SELINUX,
@@ -374,36 +252,36 @@ var seccompResolver = map[string]uint64{
 	"NETLINK_GENERIC":        syscall.NETLINK_GENERIC,
 	"NETLINK_SCSITRANSPORT":  syscall.NETLINK_SCSITRANSPORT,
 	"NETLINK_ECRYPTFS":       syscall.NETLINK_ECRYPTFS,
-	"NETLINK_RDMA":           C.NETLINK_RDMA,
-	"NETLINK_CRYPTO":         C.NETLINK_CRYPTO,
-	"NETLINK_INET_DIAG":      C.NETLINK_INET_DIAG, // synonymous with NETLINK_SOCK_DIAG
+	"NETLINK_RDMA":           libseccomp.NETLINK_RDMA,
+	"NETLINK_CRYPTO":         libseccomp.NETLINK_CRYPTO,
+	"NETLINK_INET_DIAG":      libseccomp.NETLINK_INET_DIAG, // synonymous with NETLINK_SOCK_DIAG
 }
 
 const (
-	SeccompRetAllow = C.SECCOMP_RET_ALLOW
-	SeccompRetKill  = C.SECCOMP_RET_KILL
+	SeccompRetAllow = libseccomp.SECCOMP_RET_ALLOW
+	SeccompRetKill  = libseccomp.SECCOMP_RET_KILL
 )
 
 // UbuntuArchToScmpArch takes a dpkg architecture and converts it to
 // the seccomp.ScmpArch as used in the libseccomp-golang library
-func UbuntuArchToScmpArch(ubuntuArch string) seccomp.ScmpArch {
+func UbuntuArchToScmpArch(ubuntuArch string) libseccomp.ScmpArch {
 	switch ubuntuArch {
 	case "amd64":
-		return seccomp.ArchAMD64
+		return libseccomp.ArchAMD64
 	case "arm64":
-		return seccomp.ArchARM64
+		return libseccomp.ArchARM64
 	case "armhf":
-		return seccomp.ArchARM
+		return libseccomp.ArchARM
 	case "i386":
-		return seccomp.ArchX86
+		return libseccomp.ArchX86
 	case "powerpc":
-		return seccomp.ArchPPC
+		return libseccomp.ArchPPC
 	case "ppc64":
-		return seccomp.ArchPPC64
+		return libseccomp.ArchPPC64
 	case "ppc64el":
-		return seccomp.ArchPPC64LE
+		return libseccomp.ArchPPC64LE
 	case "s390x":
-		return seccomp.ArchS390X
+		return libseccomp.ArchS390X
 	}
 	panic(fmt.Sprintf("cannot map ubuntu arch %q to a seccomp arch", ubuntuArch))
 }
@@ -414,38 +292,23 @@ func UbuntuArchToScmpArch(ubuntuArch string) seccomp.ScmpArch {
 func ScmpArchToSeccompNativeArch(scmpArch seccomp.ScmpArch) uint32 {
 	switch scmpArch {
 	case seccomp.ArchAMD64:
-		return C.SCMP_ARCH_X86_64
+		return libseccomp.SCMP_ARCH_X86_64
 	case seccomp.ArchARM64:
-		return C.SCMP_ARCH_AARCH64
+		return libseccomp.SCMP_ARCH_AARCH64
 	case seccomp.ArchARM:
-		return C.SCMP_ARCH_ARM
+		return libseccomp.SCMP_ARCH_ARM
 	case seccomp.ArchPPC64:
-		return C.SCMP_ARCH_PPC64
+		return libseccomp.SCMP_ARCH_PPC64
 	case seccomp.ArchPPC64LE:
-		return C.SCMP_ARCH_PPC64LE
+		return libseccomp.SCMP_ARCH_PPC64LE
 	case seccomp.ArchPPC:
-		return C.SCMP_ARCH_PPC
+		return libseccomp.SCMP_ARCH_PPC
 	case seccomp.ArchS390X:
-		return C.SCMP_ARCH_S390X
+		return libseccomp.SCMP_ARCH_S390X
 	case seccomp.ArchX86:
-		return C.SCMP_ARCH_X86
+		return libseccomp.SCMP_ARCH_X86
 	}
 	panic(fmt.Sprintf("cannot map scmpArch %q to a native seccomp arch", scmpArch))
-}
-
-// important for unit testing
-type SeccompData C.kernel_seccomp_data
-
-func (sc *SeccompData) SetNr(nr seccomp.ScmpSyscall) {
-	sc.nr = C.int(C.htot32(C.__u32(sc.arch), C.__u32(nr)))
-}
-func (sc *SeccompData) SetArch(arch uint32) {
-	sc.arch = C.htot32(C.__u32(arch), C.__u32(arch))
-}
-func (sc *SeccompData) SetArgs(args [6]uint64) {
-	for i := range args {
-		sc.args[i] = C.htot64(sc.arch, C.__u64(args[i]))
-	}
 }
 
 func readNumber(token string) (uint64, error) {
