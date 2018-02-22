@@ -727,7 +727,7 @@ func (x *cmdRefresh) Execute([]string) error {
 		return x.listRefresh()
 	}
 
-	if len(x.Positional.Snaps) == 0 && os.Getenv("SNAP_REFRESH_FROM_TIMER") == "1" {
+	if len(x.Positional.Snaps) == 0 && os.Getenv("SNAP_REFRESH_FROM_EMERGENCY_TIMER") == "1" {
 		fmt.Fprintf(Stdout, "Ignoring `snap refresh` from the systemd timer")
 		return nil
 	}
