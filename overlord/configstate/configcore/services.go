@@ -36,23 +36,36 @@ func (l *sysdLogger) Notify(status string) {
 	fmt.Fprintf(Stderr, "sysd: %s\n", status)
 }
 
-// switchDisableSSHService handles the special case of disabling/enabling ssh
-// service on core devices.
-func switchDisableSSHService(serviceName, value string) error {
-	sysd := systemd.New(dirs.GlobalRootDir, &sysdLogger{})
-	sshCanary := filepath.Join(dirs.GlobalRootDir, "/etc/ssh/sshd_not_to_be_run")
-
+// createOrRemoveServiceDisableFile creates or removes a stamp file to indicate
+// if a service should be disabled
+func createOrRemoveServiceDisableFile(serviceName, path, msg, value string) error {
 	switch value {
 	case "true":
-		if err := ioutil.WriteFile(sshCanary, []byte("SSH has been disabled by snapd system configuration\n"), 0644); err != nil {
+		return ioutil.WriteFile(path, []byte(msg+"\n"), 0644)
+	case "false":
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
+		return nil
+	default:
+		return fmt.Errorf("option %q has invalid value %q", serviceName, value)
+	}
+}
+
+// switchDisableSSHService handles the special case of disabling/enabling ssh
+// service on core devices.
+func switchDisableSSHService(name, value string) error {
+	sysd := systemd.New(dirs.GlobalRootDir, &sysdLogger{})
+	sshCanary := filepath.Join(dirs.GlobalRootDir, "/etc/ssh/sshd_not_to_be_run")
+	if err := createOrRemoveServiceDisableFile(name, sshCanary, "SSH has been disabled by snapd system configuration", value); err != nil {
+		return err
+	}
+
+	serviceName := name + ".service"
+	switch value {
+	case "true":
 		return sysd.Stop(serviceName, 5*time.Minute)
 	case "false":
-		err := os.Remove(sshCanary)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
 		// Unmask both sshd.service and ssh.service and ignore the
 		// errors, if any. This undoes the damage done by earlier
 		// versions of snapd.
@@ -64,13 +77,7 @@ func switchDisableSSHService(serviceName, value string) error {
 	}
 }
 
-// switchDisableTypicalService switches a service in/out of disabled state
-// where "true" means disabled and "false" means enabled.
-func switchDisableService(serviceName, value string) error {
-	if serviceName == "ssh.service" {
-		return switchDisableSSHService(serviceName, value)
-	}
-
+func switchGenericSystemdService(serviceName, value string) error {
 	sysd := systemd.New(dirs.GlobalRootDir, &sysdLogger{})
 
 	switch value {
@@ -95,19 +102,31 @@ func switchDisableService(serviceName, value string) error {
 	}
 }
 
+// switchDisableService switches a service in/out of disabled state
+// where "true" means disabled and "false" means enabled.
+func switchDisableService(name, value string) error {
+	switch name {
+	case "ssh":
+		return switchDisableSSHService(name, value)
+	case "console-conf":
+		disableStampPath := filepath.Join(dirs.GlobalRootDir, "/var/lib/console-conf/complete")
+		return createOrRemoveServiceDisableFile(name, disableStampPath, "console-conf has been disabled by snapd system configuration", value)
+	case "rsyslog":
+		return switchGenericSystemdService(name+".service", value)
+	default:
+		return fmt.Errorf("trying to disable unsupported service %q", name)
+	}
+}
+
 // services that can be disabled
 func handleServiceDisableConfiguration(tr Conf) error {
-	var services = []struct{ configName, systemdName string }{
-		{"ssh", "ssh.service"},
-		{"rsyslog", "rsyslog.service"},
-	}
-	for _, service := range services {
-		output, err := coreCfg(tr, fmt.Sprintf("service.%s.disable", service.configName))
+	for _, service := range []string{"ssh", "rsyslog", "console-conf"} {
+		output, err := coreCfg(tr, fmt.Sprintf("service.%s.disable", service))
 		if err != nil {
 			return err
 		}
 		if output != "" {
-			if err := switchDisableService(service.systemdName, output); err != nil {
+			if err := switchDisableService(service, output); err != nil {
 				return err
 			}
 		}

@@ -20,8 +20,9 @@
 package configcore
 
 var (
-	UpdatePiConfig       = updatePiConfig
-	SwitchHandlePowerKey = switchHandlePowerKey
-	SwitchDisableService = switchDisableService
-	UpdateKeyValueStream = updateKeyValueStream
+	UpdatePiConfig              = updatePiConfig
+	SwitchHandlePowerKey        = switchHandlePowerKey
+	SwitchDisableService        = switchDisableService
+	SwitchGenericSystemdService = switchGenericSystemdService
+	UpdateKeyValueStream        = updateKeyValueStream
 )
