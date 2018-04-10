@@ -1637,8 +1637,7 @@ var download = func(ctx context.Context, name, sha3_384, downloadURL string, use
 		switch resp.StatusCode {
 		case 200, 206: // OK, Partial Content
 		case 402: // Payment Required
-
-			return fmt.Errorf("please buy %s before installing it.", name)
+			return fmt.Errorf("please buy %s before installing it, see 'snap help buy'", name)
 		default:
 			return &DownloadError{Code: resp.StatusCode, URL: resp.Request.URL}
 		}
