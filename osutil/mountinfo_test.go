@@ -104,11 +104,27 @@ func (s *mountinfoSuite) TestParseMountInfoEntry3(c *C) {
 	c.Assert(entry.SuperOptions, DeepEquals, map[string]string{"rw ": "", "errors": "continue"})
 }
 
+func (s *mountinfoSuite) TestParseMountInfoEntryLP1763266(c *C) {
+	entry, err := osutil.ParseMountInfoEntry(
+		"28 1 8:4 / / rw,relatime shared:1 - bcachefs /dev/nvme0n1p6:/dev/sda4:/dev/sdb4 rw,errors=continue,background_compression=zstd,foreground_target=ssd,background_target=rotational,promote_target=invalid group 2,fix_errors")
+	c.Assert(err, IsNil)
+	c.Assert(entry.MountOptions, DeepEquals, map[string]string{"rw": "", "relatime": ""})
+	c.Assert(entry.OptionalFields, DeepEquals, []string{"shared:1"})
+	c.Assert(entry.FsType, Equals, "bcachefs")
+	c.Assert(entry.SuperOptions, DeepEquals, map[string]string{
+		"rw":                     "",
+		"errors":                 "continue",
+		"background_compression": "zstd",
+		"foreground_target":      "ssd",
+		"background_target":      "rotational",
+		"promote_target":         "invalid group 2",
+		"fix_errors":             "",
+	})
+}
+
 // Check that various malformed entries are detected.
-func (s *mountinfoSuite) TestParseMountInfoEntry4(c *C) {
+func (s *mountinfoSuite) TestParseMountInfoEntryUnhappy(c *C) {
 	var err error
-	_, err = osutil.ParseMountInfoEntry("36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue foo")
-	c.Assert(err, ErrorMatches, "incorrect number of tail fields, expected 3 but found 4")
 	_, err = osutil.ParseMountInfoEntry("36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root")
 	c.Assert(err, ErrorMatches, "incorrect number of tail fields, expected 3 but found 2")
 	_, err = osutil.ParseMountInfoEntry("36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3")

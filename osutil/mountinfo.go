@@ -139,7 +139,7 @@ func ParseMountInfoEntry(s string) (*MountInfoEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse mount ID: %q", fields[0])
 	}
-	// Parse ParentID (decimal number).
+	// Parse ParentID (decimal number).1763266
 	e.ParentID, err = strconv.Atoi(fields[1])
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse parent mount ID: %q", fields[1])
@@ -175,14 +175,19 @@ func ParseMountInfoEntry(s string) (*MountInfoEntry, error) {
 	for j := range e.OptionalFields {
 		e.OptionalFields[j] = unescape(e.OptionalFields[j])
 	}
-	// Parse the last three fixed fields.
+	// Parse the last three fixed fields. The last field may contain spaces
+	// so we need to merge it again.
 	tailFields := fields[i+1:]
-	if len(tailFields) != 3 {
+	if len(tailFields) < 3 {
 		return nil, fmt.Errorf("incorrect number of tail fields, expected 3 but found %d", len(tailFields))
 	}
 	e.FsType = unescape(tailFields[0])
 	e.MountSource = unescape(tailFields[1])
-	e.SuperOptions = parseMountOpts(unescape(tailFields[2]))
+	superOptions := tailFields[2]
+	if len(tailFields) > 3 {
+		superOptions = strings.Join(tailFields[2:], " ")
+	}
+	e.SuperOptions = parseMountOpts(unescape(superOptions))
 	return &e, nil
 }
 
