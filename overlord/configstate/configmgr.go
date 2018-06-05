@@ -40,6 +40,7 @@ func Init(hookManager *hookstate.HookManager) {
 	// Most configuration is handled via the "configure" hook of the
 	// snaps. However some configuration is internally handled
 	hookManager.Register(regexp.MustCompile("^configure$"), newConfigureHandler)
+
 	// Ensure that we run configure for the core snap internally.
 	// Note that we use the func() indirection so that mocking configcoreRun
 	// in tests works correctly.
@@ -49,4 +50,12 @@ func Init(hookManager *hookstate.HookManager) {
 		ctx.Unlock()
 		return configcoreRun(tr)
 	})
+	// same as above for snapd
+	hookManager.RegisterHijack("configure", "snapd", func(ctx *hookstate.Context) error {
+		ctx.Lock()
+		tr := ContextTransaction(ctx)
+		ctx.Unlock()
+		return configcoreRun(tr)
+	})
+
 }

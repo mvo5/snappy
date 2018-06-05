@@ -134,16 +134,6 @@ func populateStateFromSeedImpl(st *state.State) ([]*state.TaskSet, error) {
 	// if there are snaps to seed, the snapd snap (if available) and
 	// the base (core or model.Base) needs to go first.
 	if len(seed.Snaps) != 0 {
-		if _, ok := seeding["snapd"]; ok {
-			snapdSeed := seeding["snapd"]
-			ts, err := installSeedSnap(st, snapdSeed, snapstate.Flags{SkipConfigure: true})
-			if err != nil {
-				return nil, err
-			}
-			tsAll = append(tsAll, ts)
-			alreadySeeded["snapd"] = true
-		}
-
 		baseSeed := seeding[baseSnap]
 		if baseSeed == nil {
 			return nil, fmt.Errorf("cannot proceed without seeding %q", baseSnap)
@@ -160,6 +150,22 @@ func populateStateFromSeedImpl(st *state.State) ([]*state.TaskSet, error) {
 	}
 
 	last := 0
+	if _, ok := seeding["snapd"]; ok {
+		snapdSeed := seeding["snapd"]
+		ts, err := installSeedSnap(st, snapdSeed, snapstate.Flags{SkipConfigure: true})
+		if err != nil {
+			return nil, err
+		}
+		ts.WaitAll(tsAll[last])
+		tsAll = append(tsAll, ts)
+		alreadySeeded["snapd"] = true
+
+		confFlags := snapstate.UseConfigDefaults | snapstate.IgnoreHookError | snapstate.TrackHookError
+		configTs := snapstate.ConfigureSnap(st, "snapd", confFlags)
+		configTs.WaitAll(configTss[last])
+		configTss = append(configTss, configTs)
+		last++
+	}
 	if kernelName := model.Kernel(); kernelName != "" {
 		kernelSeed := seeding[kernelName]
 		if kernelSeed == nil {

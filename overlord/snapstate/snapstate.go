@@ -1900,11 +1900,21 @@ func ConfigDefaults(st *state.State, snapName string) (map[string]interface{}, e
 		return nil, err
 	}
 
-	core, err := CoreInfo(st)
-	if err != nil {
+	model, err := Model(st)
+	if err != nil && err != state.ErrNoState {
 		return nil, err
 	}
-	isCoreDefaults := core.Name() == snapName
+
+	var isCoreDefaults bool
+	if model.Base() == "" {
+		core, err := CoreInfo(st)
+		if err != nil {
+			return nil, err
+		}
+		isCoreDefaults = core.Name() == snapName
+	} else {
+		isCoreDefaults = (snapName == "snapd")
+	}
 
 	si := snapst.CurrentSideInfo()
 	// core snaps can be addressed even without a snap-id via the special

@@ -351,6 +351,11 @@ defaults:
        pc-kernel-cfg: pc-kernel_cfg_defl
     pc-snap-id:
        pc-cfg: pc_cfg_defl
+    core18-snap-id:
+       core18-cfg: core18_cfg_defl
+    snapd-snap-id:
+       snapd-cfg: snapd_cfg_defl
+
 `
 	}
 
@@ -1074,13 +1079,13 @@ type: base`
 	snapdYaml := `name: snapd
 version: 1.0
 `
-	snapdFname, snapdDecl, snapdRev := s.makeAssertedSnap(c, snapdYaml, nil, snap.R(2), "canonical")
+	snapdFname, snapdDecl, snapdRev := s.makeAssertedSnap(c, snapdYaml, files, snap.R(2), "canonical")
 	writeAssertionsToFile("snapd.asserts", []asserts.Assertion{snapdRev, snapdDecl})
 
 	return core18Fname, snapdFname
 }
 
-func (s *FirstBootTestSuite) TestPopulateFromSeedWithBaseHappy(c *C) {
+func (s *FirstBootTestSuite) TestPopulateFromSeedConfigureWithBaseHappy(c *C) {
 	bootloader := boottest.NewMockBootloader("mock", c.MkDir())
 	partition.ForceBootloader(bootloader)
 	defer partition.ForceBootloader(nil)
@@ -1089,7 +1094,7 @@ func (s *FirstBootTestSuite) TestPopulateFromSeedWithBaseHappy(c *C) {
 		"snap_kernel": "pc-kernel_1.snap",
 	})
 
-	_, kernelFname, gadgetFname := s.makeCoreSnaps(c, false)
+	_, kernelFname, gadgetFname := s.makeCoreSnaps(c, true)
 	core18Fname, snapdFname := s.makeCore18Snaps(c)
 
 	devAcct := assertstest.NewAccount(s.storeSigning, "developer", map[string]interface{}{
@@ -1140,6 +1145,27 @@ snaps:
 
 	c.Assert(chg.Err(), IsNil)
 
+	var configured []string
+	hookInvoke := func(ctx *hookstate.Context, tomb *tomb.Tomb) ([]byte, error) {
+		ctx.Lock()
+		defer ctx.Unlock()
+		// we have a gadget at this point(s)
+		_, err := snapstate.GadgetInfo(st)
+		c.Check(err, IsNil)
+		configured = append(configured, ctx.SnapName())
+		return nil, nil
+	}
+
+	rhk := hookstate.MockRunHook(hookInvoke)
+	defer rhk()
+
+	// ensure we have something that captures the core config
+	restore := configstate.MockConfigcoreRun(func(configcore.Conf) error {
+		configured = append(configured, "configcore")
+		return nil
+	})
+	defer restore()
+
 	// avoid device reg
 	chg1 := st.NewChange("become-operational", "init device")
 	chg1.SetStatus(state.DoingStatus)
@@ -1158,25 +1184,39 @@ snaps:
 
 	state.Lock()
 	defer state.Unlock()
-	// check snapd, core18, kernel, gadget
-	_, err = snapstate.CurrentInfo(state, "snapd")
-	c.Check(err, IsNil)
+	tr := config.NewTransaction(state)
+	var val string
+
+	c.Check(configured, DeepEquals, []string{"core18", "configcore", "pc-kernel", "pc"})
+
+	// check core18, snapd, kernel, gadget
 	_, err = snapstate.CurrentInfo(state, "core18")
+	c.Assert(err, IsNil)
+	err = tr.Get("core18", "core18-cfg", &val)
 	c.Check(err, IsNil)
+	c.Check(val, Equals, "core18_cfg_defl")
+
 	_, err = snapstate.CurrentInfo(state, "pc-kernel")
+	c.Assert(err, IsNil)
+	err = tr.Get("pc-kernel", "pc-kernel-cfg", &val)
 	c.Check(err, IsNil)
+	c.Check(val, Equals, "pc-kernel_cfg_defl")
+
 	_, err = snapstate.CurrentInfo(state, "pc")
+	c.Assert(err, IsNil)
+	err = tr.Get("pc", "pc-cfg", &val)
 	c.Check(err, IsNil)
+	c.Check(val, Equals, "pc_cfg_defl")
+
+	_, err = snapstate.CurrentInfo(state, "snapd")
+	c.Assert(err, IsNil)
+	err = tr.Get("snapd", "snapd-cfg", &val)
+	c.Check(err, IsNil)
+	c.Check(val, Equals, "snapd_cfg_defl")
 
 	// and ensure state is now considered seeded
 	var seeded bool
 	err = state.Get("seeded", &seeded)
-	c.Assert(err, IsNil)
+	c.Check(err, IsNil)
 	c.Check(seeded, Equals, true)
-
-	// check we set seed-time
-	var seedTime time.Time
-	err = state.Get("seed-time", &seedTime)
-	c.Assert(err, IsNil)
-	c.Check(seedTime.IsZero(), Equals, false)
 }
