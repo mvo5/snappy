@@ -22,6 +22,7 @@ package snapstate
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -821,17 +822,46 @@ func (m *SnapManager) doLinkSnap(t *state.Task, _ *tomb.Tomb) error {
 	return nil
 }
 
+var osReadlink = os.Readlink
+
 // maybeRestart will schedule a reboot or restart as needed for the just linked
-// snap with info if it's a core or kernel snap.
+// snap with info if it's a core or snapd or kernel snap.
 func maybeRestart(t *state.Task, info *snap.Info) {
 	st := t.State()
-	if release.OnClassic && info.Type == snap.TypeOS {
-		t.Logf("Requested daemon restart.")
-		st.RequestRestart(state.RestartDaemon)
+
+	// Sanity check: we only need to restart with:
+	// kernel/os or the snapd snap
+	if info.Type != snap.TypeOS && info.Type != snap.TypeKernel && info.Name() != "snapd" {
+		return
 	}
+
+	// On a core system we may need a full reboot, if so, there
+	// is no need to also restart snapd, that will happen anyway
 	if !release.OnClassic && boot.KernelOsBaseRebootRequired(info) {
 		t.Logf("Requested system restart.")
 		st.RequestRestart(state.RestartSystem)
+		return
+	}
+
+	// Check on both core and classic if the current running snapd
+	// needs a restart.
+	//
+	// - On classic this can happen because the snapd is re-execing
+	//   into {core,snapd}.
+	// - On core this can happen when the snapd snap is in use
+	//
+	// We check by looking where snapd was started from.
+	exe, err := osReadlink("/proc/self/exe")
+	if err != nil {
+		logger.Noticef("cannot read /proc/self/exe: %v", err)
+		return
+	}
+	// chop off the revision
+	snapRoot := filepath.Clean(filepath.Join(info.MountDir(), "..")) + "/"
+	// check if
+	if strings.HasPrefix(exe, snapRoot) {
+		t.Logf("Requested daemon restart.")
+		st.RequestRestart(state.RestartDaemon)
 	}
 }
 

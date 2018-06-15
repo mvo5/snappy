@@ -189,6 +189,14 @@ func MockIsOnMeteredConnection(mock func() (bool, error)) func() {
 	}
 }
 
+func MockOsReadlink(f func(string) (string, error)) func() {
+	old := osReadlink
+	osReadlink = f
+	return func() {
+		osReadlink = old
+	}
+}
+
 func ByKindOrder(snaps ...*snap.Info) []*snap.Info {
 	sort.Sort(byKind(snaps))
 	return snaps

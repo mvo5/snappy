@@ -27,6 +27,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/overlord/snapstate"
@@ -81,6 +82,9 @@ func (s *linkSnapSuite) SetUpTest(c *C) {
 	s.reset = func() {
 		resetReadInfo()
 		dirs.SetRootDir("/")
+	}
+	snapstate.Model = func(*state.State) (*asserts.Model, error) {
+		return nil, nil
 	}
 }
 
@@ -326,6 +330,11 @@ func (s *linkSnapSuite) TestDoLinkSnapSuccessCoreRestarts(c *C) {
 	restore := release.MockOnClassic(true)
 	defer restore()
 
+	restore = snapstate.MockOsReadlink(func(string) (string, error) {
+		return filepath.Join(dirs.SnapMountDir, "/core/33/usr/lib/snapd/snapd"), nil
+	})
+	defer restore()
+
 	s.state.Lock()
 	si := &snap.SideInfo{
 		RealName: "core",
@@ -352,6 +361,48 @@ func (s *linkSnapSuite) TestDoLinkSnapSuccessCoreRestarts(c *C) {
 	typ, err := snapst.Type()
 	c.Check(err, IsNil)
 	c.Check(typ, Equals, snap.TypeOS)
+
+	c.Check(t.Status(), Equals, state.DoneStatus)
+	c.Check(s.stateBackend.restartRequested, DeepEquals, []state.RestartType{state.RestartDaemon})
+	c.Check(t.Log(), HasLen, 1)
+	c.Check(t.Log()[0], Matches, `.*INFO Requested daemon restart\.`)
+}
+
+func (s *linkSnapSuite) TestDoLinkSnapSuccessSnapdRestarts(c *C) {
+	restore := release.MockOnClassic(true)
+	defer restore()
+
+	restore = snapstate.MockOsReadlink(func(string) (string, error) {
+		return filepath.Join(dirs.SnapMountDir, "/snapd/22/usr/lib/snapd/snapd"), nil
+	})
+	defer restore()
+
+	s.state.Lock()
+	si := &snap.SideInfo{
+		RealName: "snapd",
+		Revision: snap.R(22),
+	}
+	t := s.state.NewTask("link-snap", "test")
+	t.Set("snap-setup", &snapstate.SnapSetup{
+		SideInfo: si,
+	})
+	s.state.NewChange("dummy", "...").AddTask(t)
+
+	s.state.Unlock()
+
+	s.snapmgr.Ensure()
+	s.snapmgr.Wait()
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	var snapst snapstate.SnapState
+	err := snapstate.Get(s.state, "snapd", &snapst)
+	c.Assert(err, IsNil)
+
+	typ, err := snapst.Type()
+	c.Check(err, IsNil)
+	c.Check(typ, Equals, snap.TypeApp)
 
 	c.Check(t.Status(), Equals, state.DoneStatus)
 	c.Check(s.stateBackend.restartRequested, DeepEquals, []state.RestartType{state.RestartDaemon})
@@ -451,6 +502,11 @@ func (s *linkSnapSuite) TestDoUndoUnlinkCurrentSnapCore(c *C) {
 	restore := release.MockOnClassic(true)
 	defer restore()
 
+	restore = snapstate.MockOsReadlink(func(string) (string, error) {
+		return filepath.Join(dirs.SnapMountDir, "/core/2/usr/lib/snapd/snapd"), nil
+	})
+	defer restore()
+
 	s.state.Lock()
 	defer s.state.Unlock()
 	si1 := &snap.SideInfo{
@@ -503,6 +559,11 @@ func (s *linkSnapSuite) TestDoUndoLinkSnapCoreClassic(c *C) {
 
 	s.state.Lock()
 	defer s.state.Unlock()
+
+	restore = snapstate.MockOsReadlink(func(string) (string, error) {
+		return filepath.Join(dirs.SnapMountDir, "/core/1/usr/lib/snapd/snapd"), nil
+	})
+	defer restore()
 
 	// no previous core snap and an error on link, in this
 	// case we need to restart on classic back into the distro
