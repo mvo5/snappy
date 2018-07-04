@@ -86,7 +86,7 @@ execute: |
             slot_iface=":browser-support"
         fi
 
-        CONNECTED_PATTERN="$slot_iface +$CONSUMER_SNAP"
+        CONNECTED_PATTERN="$slot_iface +.*$CONSUMER_SNAP"
         DISCONNECTED_PATTERN="$slot_iface +-"
 
         # Skip any interfaces that core doesn't ship
