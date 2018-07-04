@@ -34,7 +34,10 @@ import (
 	"github.com/snapcore/snapd/overlord/state"
 )
 
-var catalogRefreshDelay = 24 * time.Hour
+var (
+	catalogRefreshDelay        = 24 * time.Hour
+	catalogRefreshStartupDelay = 1 * time.Minute
+)
 
 type catalogRefresh struct {
 	state *state.State
@@ -58,7 +61,10 @@ func (r *catalogRefresh) Ensure() error {
 
 	theStore := Store(r.state)
 	now := time.Now()
-	needsRefresh := r.nextCatalogRefresh.IsZero() || r.nextCatalogRefresh.Before(now)
+	if r.nextCatalogRefresh.IsZero() {
+		r.nextCatalogRefresh = now.Add(catalogRefreshStartupDelay)
+	}
+	needsRefresh := r.nextCatalogRefresh.Before(now)
 
 	if !needsRefresh {
 		return nil
