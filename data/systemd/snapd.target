@@ -1,0 +1,5 @@
+[Unit]
+Description=Snapd fully seeded target
+Requires=basic.target
+After=basic.target
+AllowIsolate=yes

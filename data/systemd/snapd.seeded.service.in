@@ -9,5 +9,5 @@ ExecStart=@bindir@/snap wait system seed.loaded
 RemainAfterExit=true
 
 [Install]
-WantedBy=multi-user.target cloud-final.service
+WantedBy=snapd.target
 

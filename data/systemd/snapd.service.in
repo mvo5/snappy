@@ -13,4 +13,4 @@ Restart=always
 Type=notify
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=snapd.target
