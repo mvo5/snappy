@@ -1647,7 +1647,7 @@ func splitQS(qs string) []string {
 
 func getSnapConf(c *Command, r *http.Request, user *auth.UserState) Response {
 	vars := muxVars(r)
-	snapName := configstate.RemapSnapFromRequest(vars["name"])
+	snapName := snap.ConfigRemapSnapFromRequest(vars["name"])
 
 	keys := splitQS(r.URL.Query().Get("keys"))
 
@@ -1698,7 +1698,7 @@ func getSnapConf(c *Command, r *http.Request, user *auth.UserState) Response {
 
 func setSnapConf(c *Command, r *http.Request, user *auth.UserState) Response {
 	vars := muxVars(r)
-	snapName := configstate.RemapSnapFromRequest(vars["name"])
+	snapName := snap.ConfigRemapSnapFromRequest(vars["name"])
 
 	var patchValues map[string]interface{}
 	if err := jsonutil.DecodeWithNumber(r.Body, &patchValues); err != nil {
@@ -1764,7 +1764,7 @@ func getInterfaces(c *Command, r *http.Request, user *auth.UserState) Response {
 		plugs := make([]*plugJSON, 0, len(info.Plugs))
 		for _, plug := range info.Plugs {
 			plugs = append(plugs, &plugJSON{
-				Snap:  ifacestate.RemapSnapToResponse(plug.Snap.InstanceName()),
+				Snap:  snap.IfaceRemapSnapToResponse(plug.Snap.InstanceName()),
 				Name:  plug.Name,
 				Attrs: plug.Attrs,
 				Label: plug.Label,
@@ -1773,7 +1773,7 @@ func getInterfaces(c *Command, r *http.Request, user *auth.UserState) Response {
 		slots := make([]*slotJSON, 0, len(info.Slots))
 		for _, slot := range info.Slots {
 			slots = append(slots, &slotJSON{
-				Snap:  ifacestate.RemapSnapToResponse(slot.Snap.InstanceName()),
+				Snap:  snap.IfaceRemapSnapToResponse(slot.Snap.InstanceName()),
 				Name:  slot.Name,
 				Attrs: slot.Attrs,
 				Label: slot.Label,
@@ -1799,8 +1799,8 @@ func getLegacyConnections(c *Command, r *http.Request, user *auth.UserState) Res
 	slotConns := map[string][]interfaces.PlugRef{}
 
 	for _, cref := range ifaces.Connections {
-		plugRef := interfaces.PlugRef{Snap: ifacestate.RemapSnapToResponse(cref.PlugRef.Snap), Name: cref.PlugRef.Name}
-		slotRef := interfaces.SlotRef{Snap: ifacestate.RemapSnapToResponse(cref.SlotRef.Snap), Name: cref.SlotRef.Name}
+		plugRef := interfaces.PlugRef{Snap: snap.IfaceRemapSnapToResponse(cref.PlugRef.Snap), Name: cref.PlugRef.Name}
+		slotRef := interfaces.SlotRef{Snap: snap.IfaceRemapSnapToResponse(cref.SlotRef.Snap), Name: cref.SlotRef.Name}
 		plugID := plugRef.String()
 		slotID := slotRef.String()
 		plugConns[plugID] = append(plugConns[plugID], slotRef)
@@ -1812,7 +1812,7 @@ func getLegacyConnections(c *Command, r *http.Request, user *auth.UserState) Res
 		for _, app := range plug.Apps {
 			apps = append(apps, app.Name)
 		}
-		plugRef := interfaces.PlugRef{Snap: ifacestate.RemapSnapToResponse(plug.Snap.InstanceName()), Name: plug.Name}
+		plugRef := interfaces.PlugRef{Snap: snap.IfaceRemapSnapToResponse(plug.Snap.InstanceName()), Name: plug.Name}
 		pj := &plugJSON{
 			Snap:        plugRef.Snap,
 			Name:        plugRef.Name,
@@ -1829,7 +1829,7 @@ func getLegacyConnections(c *Command, r *http.Request, user *auth.UserState) Res
 		for _, app := range slot.Apps {
 			apps = append(apps, app.Name)
 		}
-		slotRef := interfaces.SlotRef{Snap: ifacestate.RemapSnapToResponse(slot.Snap.InstanceName()), Name: slot.Name}
+		slotRef := interfaces.SlotRef{Snap: snap.IfaceRemapSnapToResponse(slot.Snap.InstanceName()), Name: slot.Name}
 		sj := &slotJSON{
 			Snap:        slotRef.Snap,
 			Name:        slotRef.Name,
@@ -1896,10 +1896,10 @@ func changeInterfaces(c *Command, r *http.Request, user *auth.UserState) Respons
 	defer st.Unlock()
 
 	for i := range a.Plugs {
-		a.Plugs[i].Snap = ifacestate.RemapSnapFromRequest(a.Plugs[i].Snap)
+		a.Plugs[i].Snap = snap.IfaceRemapSnapFromRequest(a.Plugs[i].Snap)
 	}
 	for i := range a.Slots {
-		a.Slots[i].Snap = ifacestate.RemapSnapFromRequest(a.Slots[i].Snap)
+		a.Slots[i].Snap = snap.IfaceRemapSnapFromRequest(a.Slots[i].Snap)
 	}
 
 	switch a.Action {

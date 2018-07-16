@@ -3667,14 +3667,14 @@ func snapList(rawSnaps interface{}) []map[string]interface{} {
 
 // inverseCaseMapper implements SnapMapper to use lower case internally and upper case externally.
 type inverseCaseMapper struct {
-	ifacestate.IdentityMapper // Embed the identity mapper to reuse empty state mapping functions.
+	snap.IdentityMapper // Embed the identity mapper to reuse empty state mapping functions.
 }
 
-func (m *inverseCaseMapper) RemapSnapFromRequest(snapName string) string {
+func (m *inverseCaseMapper) IfaceRemapSnapFromRequest(snapName string) string {
 	return strings.ToLower(snapName)
 }
 
-func (m *inverseCaseMapper) RemapSnapToResponse(snapName string) string {
+func (m *inverseCaseMapper) IfaceRemapSnapToResponse(snapName string) string {
 	return strings.ToUpper(snapName)
 }
 
@@ -3684,7 +3684,7 @@ func (s *apiSuite) TestInterfacesLegacy(c *check.C) {
 	restore := builtin.MockInterface(&ifacetest.TestInterface{InterfaceName: "test"})
 	defer restore()
 	// Install an inverse case mapper to exercise the interface mapping at the same time.
-	restore = ifacestate.MockSnapMapper(&inverseCaseMapper{})
+	restore = snap.MockSnapMapper(&inverseCaseMapper{})
 	defer restore()
 
 	d := s.daemon(c)
@@ -3747,7 +3747,7 @@ func (s *apiSuite) TestInterfacesModern(c *check.C) {
 	restore := builtin.MockInterface(&ifacetest.TestInterface{InterfaceName: "test"})
 	defer restore()
 	// Install an inverse case mapper to exercise the interface mapping at the same time.
-	restore = ifacestate.MockSnapMapper(&inverseCaseMapper{})
+	restore = snap.MockSnapMapper(&inverseCaseMapper{})
 	defer restore()
 
 	d := s.daemon(c)
@@ -3808,7 +3808,7 @@ func (s *apiSuite) TestConnectPlugSuccess(c *check.C) {
 	restore := builtin.MockInterface(&ifacetest.TestInterface{InterfaceName: "test"})
 	defer restore()
 	// Install an inverse case mapper to exercise the interface mapping at the same time.
-	restore = ifacestate.MockSnapMapper(&inverseCaseMapper{})
+	restore = snap.MockSnapMapper(&inverseCaseMapper{})
 	defer restore()
 
 	d := s.daemon(c)
@@ -4023,7 +4023,7 @@ func (s *apiSuite) testDisconnect(c *check.C, plugSnap, plugName, slotSnap, slot
 	restore := builtin.MockInterface(&ifacetest.TestInterface{InterfaceName: "test"})
 	defer restore()
 	// Install an inverse case mapper to exercise the interface mapping at the same time.
-	restore = ifacestate.MockSnapMapper(&inverseCaseMapper{})
+	restore = snap.MockSnapMapper(&inverseCaseMapper{})
 	defer restore()
 	d := s.daemon(c)
 
