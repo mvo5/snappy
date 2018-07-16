@@ -108,13 +108,6 @@ func (m *CoreCoreSystemMapper) ConfigRemapSnapFromRequest(snapName string) strin
 	return snapName
 }
 
-func (m *CoreCoreSystemMapper) ConfigIfaceRemapSnapToResponse(snapName string) string {
-	if snapName == "core" {
-		return "system"
-	}
-	return snapName
-}
-
 // CoreSnapdSystemMapper implements SnapMapper and makes implicit slots
 // appear to be on "core" in the state and on "system" in the API while they
 // are on "snapd" in memory.
@@ -149,13 +142,6 @@ func (m *CoreSnapdSystemMapper) IfaceRemapSnapToState(snapName string) string {
 func (m *CoreSnapdSystemMapper) ConfigRemapSnapFromRequest(snapName string) string {
 	if snapName == "system" {
 		return "core"
-	}
-	return snapName
-}
-
-func (m *CoreSnapdSystemMapper) ConfigIfaceRemapSnapToResponse(snapName string) string {
-	if snapName == "core" {
-		return "system"
 	}
 	return snapName
 }
