@@ -209,3 +209,52 @@ func (s *storeChannelSuite) TestMatch(c *C) {
 		c.Check(req.Match(&c1).String(), Equals, t.res)
 	}
 }
+
+func (s *storeChannelSuite) TestParseSnapWithChannelHappy(c *C) {
+	tests := []struct {
+		inp string
+		swc *snap.InstanceNameWithChannel
+	}{
+		{
+			"foo",
+			&snap.InstanceNameWithChannel{
+				"foo",
+				snap.Channel{},
+			},
+		},
+		{
+			"foo=stable",
+			&snap.InstanceNameWithChannel{
+				"foo",
+				snap.Channel{
+					Architecture: arch.UbuntuArchitecture(),
+					Name:         "stable",
+					Risk:         "stable",
+				},
+			},
+		},
+	}
+
+	for _, t := range tests {
+		swc, err := snap.ParseInstanceNameWithChannel(t.inp)
+		c.Assert(err, IsNil)
+
+		c.Check(swc, DeepEquals, t.swc)
+	}
+}
+
+func (s *storeChannelSuite) TestParseInstanceNameWithChannelError(c *C) {
+	tests := []struct {
+		inp      string
+		errMatch string
+	}{
+		{"x--x", `invalid snap name: \"x--x\"`},
+		{"x_x_x", `invalid instance key: \"x_x\"`},
+		{"foo=x/x/x", `invalid risk in channel name: x/x/x`},
+	}
+
+	for _, t := range tests {
+		_, err := snap.ParseInstanceNameWithChannel(t.inp)
+		c.Assert(err, ErrorMatches, t.errMatch)
+	}
+}

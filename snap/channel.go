@@ -169,3 +169,29 @@ func (c *Channel) Match(c1 *Channel) ChannelMatch {
 		Risk:         requestedRiskLevel >= rl1,
 	}
 }
+
+// InstanceNameWithChannel represents a snap that comes from a specific channel
+// or track.
+type InstanceNameWithChannel struct {
+	InstanceName string
+	Channel      Channel
+}
+
+// ParseInstanceNameWithChannel parses a string lile
+// "snap_instance=channel" and returns a InstanceNameWithChannel struct on
+// success. An error is returned on failure.
+func ParseInstanceNameWithChannel(s string) (*InstanceNameWithChannel, error) {
+	l := strings.SplitN(s, "=", 2)
+	swc := &InstanceNameWithChannel{InstanceName: l[0]}
+	if err := ValidateInstanceName(swc.InstanceName); err != nil {
+		return nil, err
+	}
+	if len(l) > 1 {
+		ch, err := ParseChannel(l[1], "")
+		if err != nil {
+			return nil, err
+		}
+		swc.Channel = ch
+	}
+	return swc, nil
+}
