@@ -525,8 +525,12 @@ func (s *hookManagerSuite) TestHookTaskCanKillHook(c *C) {
 	defer cmd.Restore()
 
 	s.se.Ensure()
+	readyForWait := make(chan struct{})
 	completed := make(chan struct{})
 	go func() {
+		<-readyForWait
+		// wait will take the se.mgrLock so when it runs in parallel
+		// with Ensure it dead-locks
 		s.se.Wait()
 		close(completed)
 	}()
@@ -537,6 +541,7 @@ func (s *hookManagerSuite) TestHookTaskCanKillHook(c *C) {
 	s.change.Abort()
 	s.state.Unlock()
 	s.se.Ensure()
+	close(readyForWait)
 	<-completed
 
 	s.state.Lock()
