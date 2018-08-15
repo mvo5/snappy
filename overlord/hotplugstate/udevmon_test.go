@@ -17,12 +17,12 @@
  *
  */
 
-package overlord_test
+package hotplugstate_test
 
 import (
 	"github.com/snapcore/snapd/interfaces/hotplug"
 	"github.com/snapcore/snapd/osutil/udev/netlink"
-	"github.com/snapcore/snapd/overlord"
+	"github.com/snapcore/snapd/overlord/hotplugstate"
 
 	. "gopkg.in/check.v1"
 
@@ -34,7 +34,7 @@ type udevMonitorSuite struct{}
 var _ = Suite(&udevMonitorSuite{})
 
 func (s *udevMonitorSuite) TestSmoke(c *C) {
-	mon := overlord.NewUDevMonitor(nil, nil)
+	mon := hotplugstate.NewUDevMonitor(nil, nil)
 	c.Assert(mon, NotNil)
 	c.Assert(mon.Connect(), IsNil)
 	c.Assert(mon.Run(), IsNil)
@@ -52,9 +52,9 @@ func (s *udevMonitorSuite) TestDiscovery(c *C) {
 		removeCalled = true
 		remInfo = inf
 	}
-	mon := overlord.NewUDevMonitor(addedCb, removedCb)
+	mon := hotplugstate.NewUDevMonitor(addedCb, removedCb)
 	c.Assert(mon, NotNil)
-	udevmon, _ := mon.(*overlord.UDevMonitor)
+	udevmon, _ := mon.(*hotplugstate.UDevMonitor)
 
 	// stop channels are normally created by netlink crawler/monitor, but since
 	// we don't create them with Connect(), they must be mocked.
@@ -62,8 +62,8 @@ func (s *udevMonitorSuite) TestDiscovery(c *C) {
 
 	event := make(chan netlink.UEvent)
 
-	overlord.MockUDevMonitorStopChannel(udevmon, mstop)
-	overlord.MockUDevMonitorChannel(udevmon, event)
+	hotplugstate.MockUDevMonitorStopChannel(udevmon, mstop)
+	hotplugstate.MockUDevMonitorChannel(udevmon, event)
 
 	c.Assert(udevmon.Run(), IsNil)
 

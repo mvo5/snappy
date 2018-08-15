@@ -17,7 +17,7 @@
  *
  */
 
-package overlord
+package hotplugstate
 
 import (
 	"fmt"

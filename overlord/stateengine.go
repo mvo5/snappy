@@ -47,6 +47,12 @@ type StateWaiterStopper interface {
 	Stop()
 }
 
+// StateStarter is implemented by StateManagers that have
+// activities that need to be started explicitely.
+type StateStarter interface {
+	Start() error
+}
+
 // StateEngine controls the dispatching of state changes to state managers.
 //
 // Most of the actual work performed by the state engine is in fact done
@@ -56,6 +62,7 @@ type StateWaiterStopper interface {
 type StateEngine struct {
 	state   *state.State
 	stopped bool
+	started bool
 	// managers in use
 	mgrLock  sync.Mutex
 	managers []StateManager
@@ -143,4 +150,21 @@ func (se *StateEngine) Stop() {
 		}
 	}
 	se.stopped = true
+}
+
+// Starts all managers current activities.
+func (se *StateEngine) Start() error {
+	se.mgrLock.Lock()
+	defer se.mgrLock.Unlock()
+	if se.started {
+		return nil
+	}
+	for _, m := range se.managers {
+		if starter, ok := m.(StateStarter); ok {
+			if err := starter.Start(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -45,6 +45,7 @@ import (
 	"github.com/snapcore/snapd/overlord/configstate/configcore"
 	"github.com/snapcore/snapd/overlord/devicestate"
 	"github.com/snapcore/snapd/overlord/hookstate"
+	"github.com/snapcore/snapd/overlord/hotplugstate"
 	"github.com/snapcore/snapd/overlord/ifacestate"
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
@@ -71,6 +72,7 @@ type FirstBootTestSuite struct {
 	overlord *overlord.Overlord
 
 	restoreOnClassic func()
+	restoreUDevMon   func()
 }
 
 var _ = Suite(&FirstBootTestSuite{})
@@ -107,6 +109,8 @@ func (s *FirstBootTestSuite) SetUpTest(c *C) {
 	s.brandPrivKey, _ = assertstest.GenerateKey(752)
 	s.brandSigning = assertstest.NewSigningDB("my-brand", s.brandPrivKey)
 
+	s.restoreUDevMon = hotplugstate.MockCreateUDevMonitor()
+
 	ovld, err := overlord.New()
 	c.Assert(err, IsNil)
 	s.overlord = ovld
@@ -125,6 +129,7 @@ func (s *FirstBootTestSuite) TearDownTest(c *C) {
 
 	s.restore()
 	s.restoreOnClassic()
+	s.restoreUDevMon()
 	dirs.SetRootDir("/")
 }
 

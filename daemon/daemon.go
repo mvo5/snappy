@@ -468,7 +468,9 @@ func (d *Daemon) Start() {
 	d.snapdServe = newShutdownServer(d.snapdListener, logit(d.router))
 
 	// the loop runs in its own goroutine
-	d.overlord.Loop()
+	if err := d.overlord.Loop(); err != nil {
+		return err
+	}
 
 	d.tomb.Go(func() error {
 		if d.snapListener != nil {

@@ -36,6 +36,7 @@ import (
 	"github.com/snapcore/snapd/overlord"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/overlord/hookstate"
+	"github.com/snapcore/snapd/overlord/hotplugstate"
 	"github.com/snapcore/snapd/overlord/patch"
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
@@ -54,6 +55,7 @@ func (ovs *overlordSuite) SetUpTest(c *C) {
 	dirs.SetRootDir(tmpdir)
 	dirs.SnapStateFile = filepath.Join(tmpdir, "test.json")
 	snapstate.CanAutoRefresh = nil
+	hotplugstate.MockCreateUDevMonitor()
 }
 
 func (ovs *overlordSuite) TearDownTest(c *C) {

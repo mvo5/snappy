@@ -39,6 +39,7 @@ import (
 	"github.com/snapcore/snapd/overlord/configstate"
 	"github.com/snapcore/snapd/overlord/devicestate"
 	"github.com/snapcore/snapd/overlord/hookstate"
+	"github.com/snapcore/snapd/overlord/hotplugstate"
 	"github.com/snapcore/snapd/overlord/ifacestate"
 	"github.com/snapcore/snapd/overlord/patch"
 	"github.com/snapcore/snapd/overlord/snapstate"
@@ -72,14 +73,15 @@ type Overlord struct {
 	// restarts
 	restartHandler func(t state.RestartType)
 	// managers
-	inited    bool
-	runner    *state.TaskRunner
-	snapMgr   *snapstate.SnapManager
-	assertMgr *assertstate.AssertManager
-	ifaceMgr  *ifacestate.InterfaceManager
-	hookMgr   *hookstate.HookManager
-	deviceMgr *devicestate.DeviceManager
-	cmdMgr    *cmdstate.CommandManager
+	inited     bool
+	runner     *state.TaskRunner
+	snapMgr    *snapstate.SnapManager
+	assertMgr  *assertstate.AssertManager
+	ifaceMgr   *ifacestate.InterfaceManager
+	hookMgr    *hookstate.HookManager
+	deviceMgr  *devicestate.DeviceManager
+	cmdMgr     *cmdstate.CommandManager
+	hotplugMgr *hotplugstate.HotplugManager
 }
 
 var storeNew = store.New
@@ -142,6 +144,8 @@ func New() (*Overlord, error) {
 
 	o.addManager(cmdstate.Manager(s, o.runner))
 
+	o.addManager(hotplugstate.Manager(s, ifaceMgr, o.runner))
+
 	configstateInit(hookMgr)
 
 	// the shared task runner should be added last!
@@ -177,6 +181,8 @@ func (o *Overlord) addManager(mgr StateManager) {
 		o.deviceMgr = x
 	case *cmdstate.CommandManager:
 		o.cmdMgr = x
+	case *hotplugstate.HotplugManager:
+		o.hotplugMgr = x
 	}
 	o.stateEng.AddManager(mgr)
 }
@@ -258,7 +264,10 @@ func (o *Overlord) SetRestartHandler(handleRestart func(t state.RestartType)) {
 }
 
 // Loop runs a loop in a goroutine to ensure the current state regularly through StateEngine Ensure.
-func (o *Overlord) Loop() {
+func (o *Overlord) Loop() error {
+	if err := o.stateEng.Start(); err != nil {
+		return err
+	}
 	o.ensureTimerSetup()
 	o.loopTomb.Go(func() error {
 		for {
@@ -279,6 +288,7 @@ func (o *Overlord) Loop() {
 			}
 		}
 	})
+	return nil
 }
 
 // Stop stops the ensure loop and the managers under the StateEngine.
