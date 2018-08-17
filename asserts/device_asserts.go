@@ -146,26 +146,26 @@ var _ consistencyChecker = (*Model)(nil)
 // limit model to only lowercase for now
 var validModel = regexp.MustCompile("^[a-zA-Z0-9](?:-?[a-zA-Z0-9])*$")
 
-func checkKernelHeader(headers map[string]interface{}) error {
-	_, ok := headers["kernel"]
+func checkSnapWithTrackHeader(header string, headers map[string]interface{}) error {
+	_, ok := headers[header]
 	if !ok {
 		return nil
 	}
-	kernel, ok := headers["kernel"].(string)
+	value, ok := headers[header].(string)
 	if !ok {
-		return fmt.Errorf(`"kernel" header must be a string`)
+		return fmt.Errorf(`%q header must be a string`, header)
 	}
-	l := strings.SplitN(kernel, "=", 2)
+	l := strings.SplitN(value, "=", 2)
 	if len(l) == 1 {
 		return nil
 	}
-	kernelTrack := l[1]
-	if strings.Count(kernelTrack, "/") != 0 {
-		return fmt.Errorf(`"kernel" channel selector must be a track name only`)
+	track := l[1]
+	if strings.Count(track, "/") != 0 {
+		return fmt.Errorf(`%q channel selector must be a track name only`, header)
 	}
 	channelRisks := []string{"stable", "candidate", "beta", "edge"}
-	if strutil.ListContains(channelRisks, kernelTrack) {
-		return fmt.Errorf(`"kernel" channel selector must be a track name`)
+	if strutil.ListContains(channelRisks, track) {
+		return fmt.Errorf(`%q channel selector must be a track name`, header)
 	}
 	return nil
 }
@@ -173,9 +173,6 @@ func checkKernelHeader(headers map[string]interface{}) error {
 func checkModel(headers map[string]interface{}) (string, error) {
 	s, err := checkStringMatches(headers, "model", validModel)
 	if err != nil {
-		return "", err
-	}
-	if err := checkKernelHeader(headers); err != nil {
 		return "", err
 	}
 
@@ -232,6 +229,13 @@ func assembleModel(assert assertionBase) (Assertion, error) {
 		return nil, err
 	}
 
+	if err := checkSnapWithTrackHeader("kernel", headers); err != nil {
+		return "", err
+	}
+	if err := checkSnapWithTrackHeader("gadget", headers); err != nil {
+		return "", err
+	}
+
 	classic, err := checkOptionalBool(assert.headers, "classic")
 	if err != nil {
 		return nil, err
@@ -257,12 +261,6 @@ func assembleModel(assert assertionBase) (Assertion, error) {
 		if _, err := checker(assert.headers, h); err != nil {
 			return nil, err
 		}
-	}
-
-	// kernel-track is optional but must be a string.
-	_, err = checkOptionalString(assert.headers, "kernel-track")
-	if err != nil {
-		return nil, err
 	}
 
 	// store is optional but must be a string, defaults to the ubuntu store
