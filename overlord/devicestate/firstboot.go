@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/snapasserts"
@@ -40,6 +41,22 @@ import (
 )
 
 var errNothingToDo = errors.New("nothing to do")
+
+var typeOrder = map[snap.Type]int{
+	snap.TypeApp:    90,
+	snap.TypeBase:   80,
+	snap.TypeGadget: 70,
+	snap.TypeKernel: 60,
+	snap.TypeOS:     50,
+}
+
+type byBase []*snap.SeedSnap
+
+func (r byBase) Len() int      { return len(r) }
+func (r byBase) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byBase) Less(i, j int) bool {
+	return typeOrder[r[i].Type] < typeOrder[r[j].Type]
+}
 
 func installSeedSnap(st *state.State, sn *snap.SeedSnap, flags snapstate.Flags) (*state.TaskSet, error) {
 	if sn.Classic {
@@ -206,6 +223,8 @@ func populateStateFromSeedImpl(st *state.State) ([]*state.TaskSet, error) {
 		last += len(configTss)
 	}
 
+	// ensure bases go first
+	sort.Stable(byBase(seed.Snaps))
 	for _, sn := range seed.Snaps {
 		if alreadySeeded[sn.Name] {
 			continue

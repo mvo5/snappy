@@ -1306,18 +1306,41 @@ func (s *FirstBootTestSuite) TestPopulateFromSeedWithBaseHappy(c *C) {
 		c.Assert(err, IsNil)
 	}
 
+	snapYaml := `name: snap-req-other-base
+version: 1.0
+base: other-base
+`
+	snapFname, snapDecl, snapRev := s.makeAssertedSnap(c, snapYaml, nil, snap.R(128), "developerid")
+	writeAssertionsToFile("snap-req-other-base.asserts", []asserts.Assertion{devAcct, snapRev, snapDecl})
+	baseYaml := `name: other-base
+version: 1.0
+type: base
+`
+	baseFname, baseDecl, baseRev := s.makeAssertedSnap(c, baseYaml, nil, snap.R(127), "developerid")
+	writeAssertionsToFile("other-base.asserts", []asserts.Assertion{devAcct, baseRev, baseDecl})
+
 	// create a seed.yaml
 	content := []byte(fmt.Sprintf(`
 snaps:
  - name: snapd
    file: %s
+   type: app
  - name: core18
    file: %s
+   type: base
  - name: pc-kernel
    file: %s
+   type: kernel
  - name: pc
    file: %s
-`, snapdFname, core18Fname, kernelFname, gadgetFname))
+   type: gadget
+ - name: snap-req-other-base
+   file: %s
+   type: app
+ - name: other-base
+   file: %s
+   type: base
+`, snapdFname, core18Fname, kernelFname, gadgetFname, snapFname, baseFname))
 	err = ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 

@@ -51,6 +51,8 @@ type SeedSnap struct {
 	Unasserted bool `yaml:"unasserted,omitempty"`
 
 	File string `yaml:"file"`
+
+	Type Type `yaml:"type"`
 }
 
 type Seed struct {
