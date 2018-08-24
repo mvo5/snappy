@@ -1,0 +1,5 @@
+name: test-snapd-python-hook
+version: 1.0
+base: core18
+summary: Basic snap with a python configure hook
+description: A basic snap with a configure hook in python
