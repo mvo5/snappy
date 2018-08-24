@@ -22,6 +22,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -433,6 +434,11 @@ fixed-width fonts, so it can be hard to tell.
 		}
 
 		if err != nil {
+			// check if we have selftest result data
+			if selftestMsg, err := ioutil.ReadFile(dirs.SelftestResult); err == nil {
+				fmt.Fprintf(Stderr, i18n.G("The snapd selftest failed with the following error:\n"))
+				fmt.Fprintf(Stderr, "%s", selftestMsg)
+			}
 			return err
 		}
 

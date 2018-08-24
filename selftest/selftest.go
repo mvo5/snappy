@@ -19,15 +19,37 @@
 
 package selftest
 
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
+	"github.com/snapcore/snapd/dirs"
+	"github.com/snapcore/snapd/logger"
+)
+
 var checks = []func() error{
 	trySquashfsMount,
+}
+
+func writeSelftestFailure() {
+	if err := os.MkdirAll(filepath.Dir(selftestPath), 0755); err != nil {
+		logger.Noticef("cannot create selftest result dir: %s", err)
+	}
+	if err := ioutil.WriteFile(dirs.SelftestResult, []byte(err.Error()), 0644); err != nil {
+		logger.Noticef("cannot write selftest result: %s", err)
+	}
 }
 
 func Run() error {
 	for _, f := range checks {
 		if err := f(); err != nil {
+			writeSelftestFailure()
 			return err
 		}
+	}
+	if err := os.Remove(dirs.SelftestResult); err != nil && os.IsNotExist(err) {
+		logger.Noticef("cannot remove selftest result: %s", err)
 	}
 
 	return nil

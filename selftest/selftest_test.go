@@ -20,6 +20,9 @@
 package selftest_test
 
 import (
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -57,13 +60,22 @@ func (s *selftestSuite) TestRunNotHappy(c *C) {
 
 	unhappyChecks = append(unhappyChecks, func() error {
 		unhappyCheckRan += 1
-		return nil
+		return fmt.Errorf("unhappy")
 	})
 
 	restore := selftest.MockChecks(unhappyChecks)
 	defer restore()
 
+	p := filepath.Join(c.MkDir(), "/run/snapd/selftest")
+	oldSelftestResult := dirs.SelftestResult
+	defer func() { dirs.SelftestResult = oldSelftestResult }()
+	dirs.SelftestResult = p
+
 	err := selftest.Run()
-	c.Check(err, IsNil)
+	c.Check(err, ErrorMatches, "unhappy")
 	c.Check(unhappyCheckRan, Equals, 1)
+
+	content, err := ioutil.ReadFile(p)
+	c.Assert(err, IsNil)
+	c.Check(string(content), Equals, "unhappy")
 }
