@@ -17,7 +17,7 @@
  *
  */
 
-package daemon
+package daemon_test
 
 import (
 	"fmt"
@@ -40,6 +40,7 @@ import (
 	"gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/client"
+	"github.com/snapcore/snapd/daemon"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/overlord/auth"
@@ -91,7 +92,7 @@ func (s *daemonSuite) TearDownSuite(c *check.C) {
 }
 
 // build a new daemon, with only a little of Init(), suitable for the tests
-func newTestDaemon(c *check.C) *Daemon {
+func newTestDaemon(c *check.C) *daemon.Daemon {
 	d, err := New()
 	c.Assert(err, check.IsNil)
 	d.addRoutes()
@@ -101,7 +102,7 @@ func newTestDaemon(c *check.C) *Daemon {
 
 // a Response suitable for testing
 type mockHandler struct {
-	cmd        *Command
+	cmd        *daemon.Command
 	lastMethod string
 }
 
@@ -109,8 +110,8 @@ func (mck *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mck.lastMethod = r.Method
 }
 
-func mkRF(c *check.C, cmd *Command, mck *mockHandler) ResponseFunc {
-	return func(innerCmd *Command, req *http.Request, user *auth.UserState) Response {
+func mkRF(c *check.C, cmd *daemon.Command, mck *mockHandler) daemon.ResponseFunc {
+	return func(innerCmd *daemon.Command, req *http.Request, user *auth.UserState) Response {
 		c.Assert(cmd, check.Equals, innerCmd)
 		return mck
 	}
@@ -154,7 +155,7 @@ func (s *daemonSuite) TestCommandRestartingState(c *check.C) {
 	d := newTestDaemon(c)
 
 	cmd := &Command{d: d}
-	cmd.GET = func(*Command, *http.Request, *auth.UserState) Response {
+	cmd.GET = func(*daemon.Command, *http.Request, *auth.UserState) Response {
 		return SyncResponse(nil, nil)
 	}
 	req, err := http.NewRequest("GET", "", nil)
@@ -408,7 +409,7 @@ func (l *witnessAcceptListener) Close() error {
 	return err
 }
 
-func (s *daemonSuite) markSeeded(d *Daemon) {
+func (s *daemonSuite) markSeeded(d *daemon.Daemon) {
 	st := d.overlord.State()
 	st.Lock()
 	st.Set("seeded", true)
@@ -718,7 +719,7 @@ func (s *daemonSuite) TestRebootHelper(c *check.C) {
 	}
 }
 
-func makeDaemonListeners(c *check.C, d *Daemon) {
+func makeDaemonListeners(c *check.C, d *daemon.Daemon) {
 	snapdL, err := net.Listen("tcp", "127.0.0.1:0")
 	c.Assert(err, check.IsNil)
 

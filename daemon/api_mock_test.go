@@ -17,7 +17,7 @@
  *
  */
 
-package daemon
+package daemon_test
 
 import (
 	. "gopkg.in/check.v1"
@@ -35,7 +35,7 @@ func (s *apiSuite) mockSnap(c *C, yamlText string) *snap.Info {
 
 	snapInfo := snaptest.MockSnap(c, yamlText, &snap.SideInfo{Revision: snap.R(1)})
 
-	st := s.d.overlord.State()
+	st := s.d.Overlord().State()
 
 	st.Lock()
 	defer st.Unlock()
@@ -55,7 +55,7 @@ func (s *apiSuite) mockSnap(c *C, yamlText string) *snap.Info {
 	})
 
 	// Put the snap into the interface repository
-	repo := s.d.overlord.InterfaceManager().Repository()
+	repo := s.d.Overlord().InterfaceManager().Repository()
 	err := repo.AddSnap(snapInfo)
 	c.Assert(err, IsNil)
 	return snapInfo
@@ -65,7 +65,7 @@ func (s *apiSuite) mockIface(c *C, iface interfaces.Interface) {
 	if s.d == nil {
 		panic("call s.daemon(c) in your test first")
 	}
-	err := s.d.overlord.InterfaceManager().Repository().AddInterface(iface)
+	err := s.d.Overlord().InterfaceManager().Repository().AddInterface(iface)
 	c.Assert(err, IsNil)
 }
 
