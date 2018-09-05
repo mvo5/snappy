@@ -27,6 +27,7 @@ import (
 
 	failure "github.com/snapcore/snapd/cmd/snap-failure"
 	"github.com/snapcore/snapd/dirs"
+	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/testutil"
 )
 
@@ -72,4 +73,12 @@ var _ = Suite(&failureSuite{})
 func (r *failureSuite) TestUnknownArg(c *C) {
 	err := failure.ParseArgs([]string{})
 	c.Check(err, ErrorMatches, "Please specify the snapd command")
+}
+
+func (r *failureSuite) TestRunOnClassic(c *C) {
+	restore := release.MockOnClassic(true)
+	defer restore()
+
+	failure.Main()
+	c.Check(r.Stdout(), Equals, "snap-failure does nothing on non Ubuntu Core systems")
 }

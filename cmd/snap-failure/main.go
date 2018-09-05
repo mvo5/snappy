@@ -28,6 +28,7 @@ import (
 	"github.com/jessevdk/go-flags"
 
 	"github.com/snapcore/snapd/logger"
+	"github.com/snapcore/snapd/release"
 )
 
 var (
@@ -54,6 +55,11 @@ func init() {
 }
 
 func main() {
+	if release.OnClassic {
+		fmt.Fprintf(Stdout, "snap-failure does nothing on non Ubuntu Core systems")
+		return
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintf(Stderr, "error: %v\n", err)
 		os.Exit(1)

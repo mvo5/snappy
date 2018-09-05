@@ -20,6 +20,7 @@
 package main
 
 var (
-	Run       = run
+	Main      = main
 	ParseArgs = parseArgs
+	Run       = run
 )
