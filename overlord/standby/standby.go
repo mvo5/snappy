@@ -1,5 +1,4 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
-
 /*
  * Copyright (C) 2018 Canonical Ltd
  *
@@ -17,62 +16,39 @@
  *
  */
 
-package idlestate
+package standby
 
 import (
-	"time"
-
-	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
+	"time"
 )
 
 var goSocketActivateWait = 5 * time.Second
 
-type ConnTracker interface {
-	NumActiveConns() int
+type Opinionator interface {
+	CanStandby() bool
 }
 
-// IdleManager tracks if snapd can go into socket activation mode
-type IdleManager struct {
+// StandbyHelper tracks if snapd can go into socket activation mode
+type StandbyHelper struct {
 	state     *state.State
 	startTime time.Time
+	opinions  []Opinionator
 
-	conntracker []ConnTracker
+	sleep time.Duration
 }
 
-// Manager returns a new IdleManager.
-func Manager(st *state.State) *IdleManager {
-	return &IdleManager{
-		state: st,
-	}
-}
-
-// canGoSocketActivated returns true if the main ensure loop can go into
+// CanStandby returns true if the main ensure loop can go into
 // "socket-activation" mode. This is only possible once seeding is done
 // and there are no snaps on the system. This is to reduce the memory
 // footprint on e.g. containers.
-func (m *IdleManager) CanGoSocketActivated() bool {
+func (m *StandbyHelper) CanStandby() bool {
 	st := m.state
 	st.Lock()
 	defer st.Unlock()
 
-	// check if there are snaps
-	if n, err := snapstate.NumSnaps(st); err != nil || n > 0 {
-		return false
-	}
-	// check if seeding is done
-	var seeded bool
-	if err := st.Get("seeded", &seeded); err != nil {
-		return false
-	}
-	if !seeded {
-		return false
-	}
 	// check if enough time has passed
 	if m.startTime.Add(goSocketActivateWait).After(time.Now()) {
-		// trigger another ensure run to avoid waiting the full 5min
-		// for a regular run
-		st.EnsureBefore(goSocketActivateWait)
 		return false
 	}
 	// check if there are any changes in flight
@@ -81,30 +57,40 @@ func (m *IdleManager) CanGoSocketActivated() bool {
 			return false
 		}
 	}
-	// check if there are any connections
-	for _, ct := range m.conntracker {
-		if ct.NumActiveConns() > 0 {
+	// check the voice of the crowd
+	for _, ct := range m.opinions {
+		if !ct.CanStandby() {
 			return false
 		}
 	}
-
 	return true
 }
 
-// Ensure is part of the overlord.StateManager interface.
-func (m *IdleManager) Ensure() error {
-	if m.startTime.IsZero() {
-		m.startTime = time.Now()
+func New() *StandbyHelper {
+	return &StandbyHelper{
+		startTime: time.Now(),
+		sleep:     goSocketActivateWait,
 	}
-	if m.CanGoSocketActivated() {
-		m.state.RequestRestart(state.RestartSocket)
-	}
-
-	return nil
 }
 
-func (m *IdleManager) AddConnTracker(ct ConnTracker) {
-	m.conntracker = append(m.conntracker, ct)
+func (m *StandbyHelper) Loop() {
+	go func() {
+		for {
+			if m.CanStandby() {
+				m.state.RequestRestart(state.RestartSocket)
+			}
+			return
+		}
+		// FIXME: very crude, just to give the idea
+		time.Sleep(m.sleep)
+		if m.sleep < 5*time.Minute {
+			m.sleep *= 2
+		}
+	}()
+}
+
+func (m *StandbyHelper) AddOpinion(opi Opinionator) {
+	m.opinions = append(m.opinions, opi)
 }
 
 func MockCanGoSocketActivateWait(d time.Duration) (restore func()) {
