@@ -36,7 +36,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -48,6 +47,7 @@ import (
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/strutil"
+	"github.com/snapcore/snapd/systemd"
 )
 
 var (
@@ -127,8 +127,8 @@ func (b *Backend) Setup(snapInfo *snap.Info, opts interfaces.ConfinementOptions,
 		out := filepath.Join(dirs.SnapSeccompDir, strings.TrimSuffix(baseName, ".src")+".bin")
 
 		seccompToBpf := seccompToBpfPath()
-		cmd := exec.Command(seccompToBpf, "compile", in, out)
-		if output, err := cmd.CombinedOutput(); err != nil {
+		output, err := systemd.RunWithOutput(seccompToBpf, "compile", in, out)
+		if err != nil {
 			return osutil.OutputErr(output, err)
 		}
 	}

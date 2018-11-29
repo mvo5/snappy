@@ -46,3 +46,10 @@ func MockJournalStdoutPath(path string) func() {
 		journalStdoutPath = oldPath
 	}
 }
+
+func MockStrutilMakeRandomString(f func(int) string) func() {
+	oldStrutilMakeRandomString := strutilMakeRandomString
+	strutilMakeRandomString = f
+	return func() { strutilMakeRandomString = oldStrutilMakeRandomString }
+
+}

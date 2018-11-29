@@ -29,10 +29,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/snapcore/snapd/osutil"
+	"github.com/snapcore/snapd/systemd"
 )
 
 type aaParserFlags int
@@ -65,7 +65,7 @@ func loadProfiles(fnames []string, cacheDir string, flags aaParserFlags) error {
 	}
 	args = append(args, fnames...)
 
-	output, err := exec.Command("apparmor_parser", args...).CombinedOutput()
+	output, err := systemd.RunWithOutput("apparmor_parser", args...)
 	if err != nil {
 		return fmt.Errorf("cannot load apparmor profiles: %s\napparmor_parser output:\n%s", err, string(output))
 	}
@@ -83,7 +83,7 @@ func unloadProfiles(names []string, cacheDir string) error {
 
 	args := []string{"--remove"}
 	args = append(args, names...)
-	output, err := exec.Command("apparmor_parser", args...).CombinedOutput()
+	output, err := systemd.RunWithOutput("apparmor_parser", args...)
 	if err != nil {
 		return fmt.Errorf("cannot unload apparmor profile: %s\napparmor_parser output:\n%s", err, string(output))
 	}
