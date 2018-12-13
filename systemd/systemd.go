@@ -337,6 +337,12 @@ func (s *systemd) IsEnabled(serviceName string) (bool, error) {
 
 // Stop the given service, and wait until it has stopped.
 func (s *systemd) Stop(serviceName string, timeout time.Duration) error {
+	// we only need to stop active units
+	_, err := systemctlCmd("--root", s.rootDir, "is-active", serviceName)
+	if err != nil {
+		return nil
+	}
+	// stop and wait for it to be really stopped
 	if _, err := systemctlCmd("stop", serviceName); err != nil {
 		return err
 	}

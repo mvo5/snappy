@@ -110,6 +110,7 @@ WantedBy=snapd.service
 	c.Check(s.sysdLog, DeepEquals, [][]string{
 		{"daemon-reload"},
 		{"--root", dirs.GlobalRootDir, "enable", "usr-lib-snapd.mount"},
+		{"--root", dirs.GlobalRootDir, "is-active", "usr-lib-snapd.mount"},
 		{"stop", "usr-lib-snapd.mount"},
 		{"show", "--property=ActiveState", "usr-lib-snapd.mount"},
 		{"start", "usr-lib-snapd.mount"},
@@ -117,6 +118,7 @@ WantedBy=snapd.service
 		{"--root", dirs.GlobalRootDir, "enable", "snapd.autoimport.service"},
 		{"--root", dirs.GlobalRootDir, "enable", "snapd.service"},
 		{"--root", dirs.GlobalRootDir, "enable", "snapd.system-shutdown.service"},
+		{"--root", dirs.GlobalRootDir, "is-active", "snapd.autoimport.service"},
 		{"stop", "snapd.autoimport.service"},
 		{"show", "--property=ActiveState", "snapd.autoimport.service"},
 		{"start", "snapd.autoimport.service"},

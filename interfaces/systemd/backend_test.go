@@ -93,6 +93,7 @@ func (s *backendSuite) TestInstallingSnapWritesStartsServices(c *C) {
 	c.Check(sysdLog, DeepEquals, [][]string{
 		{"daemon-reload"},
 		{"--root", dirs.GlobalRootDir, "enable", "snap.samba.interface.foo.service"},
+		{"--root", dirs.GlobalRootDir, "is-active", "snap.samba.interface.foo.service"},
 		{"stop", "snap.samba.interface.foo.service"},
 		{"show", "--property=ActiveState", "snap.samba.interface.foo.service"},
 		{"start", "snap.samba.interface.foo.service"},
@@ -114,6 +115,7 @@ func (s *backendSuite) TestRemovingSnapRemovesAndStopsServices(c *C) {
 		// the service was stopped
 		c.Check(s.systemctlArgs, DeepEquals, [][]string{
 			{"systemctl", "--root", dirs.GlobalRootDir, "disable", "snap.samba.interface.foo.service"},
+			{"systemctl", "--root", dirs.GlobalRootDir, "is-active", "snap.samba.interface.foo.service"},
 			{"systemctl", "stop", "snap.samba.interface.foo.service"},
 			{"systemctl", "show", "--property=ActiveState", "snap.samba.interface.foo.service"},
 			{"systemctl", "daemon-reload"},
@@ -148,6 +150,7 @@ func (s *backendSuite) TestSettingUpSecurityWithFewerServices(c *C) {
 	// The bar service should have been stopped
 	c.Check(s.systemctlArgs, DeepEquals, [][]string{
 		{"systemctl", "--root", dirs.GlobalRootDir, "disable", "snap.samba.interface.bar.service"},
+		{"systemctl", "--root", dirs.GlobalRootDir, "is-active", "snap.samba.interface.bar.service"},
 		{"systemctl", "stop", "snap.samba.interface.bar.service"},
 		{"systemctl", "show", "--property=ActiveState", "snap.samba.interface.bar.service"},
 		{"systemctl", "daemon-reload"},
