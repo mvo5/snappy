@@ -1,0 +1,10 @@
+summary: Check that we get performance data for firstboot
+
+systems: [ubuntu-core-*]
+
+execute: |
+    journalctl -u snapd > perf.log
+    MATCH "perf: " < perf.log
+
+    xxx
+    

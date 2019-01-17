@@ -38,11 +38,15 @@ import (
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/snap"
+	"github.com/snapcore/snapd/timeutil"
 )
 
 var errNothingToDo = errors.New("nothing to do")
 
 func installSeedSnap(st *state.State, sn *snap.SeedSnap, flags snapstate.Flags) (*state.TaskSet, *snap.Info, error) {
+	m := timeutil.NewMeasure(fmt.Sprintf("installing for %s", sn.File))
+	defer m.LogDone()
+
 	if sn.Classic {
 		flags.Classic = true
 	}
@@ -80,6 +84,9 @@ func trivialSeeding(st *state.State, markSeeded *state.Task) []*state.TaskSet {
 }
 
 func populateStateFromSeedImpl(st *state.State) ([]*state.TaskSet, error) {
+	m := timeutil.NewMeasure("populateStateFromSeed")
+	defer m.LogDone()
+
 	// check that the state is empty
 	var seeded bool
 	err := st.Get("seeded", &seeded)
