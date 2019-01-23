@@ -1,13 +1,28 @@
-snapd (2.37+gbp-1~1.gbpce8cd4) UNRELEASED; urgency=medium
+snapd (2.37-1) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @ce8cd433c893fe943d678919304c394ad07aec25 **
+  [ Michael Hudson-Doyle ]
+  * New upstream version.
+  * d/control: make myself Maintainer, use my Debian address, update Vcs-* to
+    point to salsa.
+  * Add new build-dependencies.
+  * d/watch: update to download new upstream-provided no-vendor tarballs.
+  * d/patches: refresh/drop.
+  * d/patches/no-snapfuse.patch: do not depend on snapfuse fork of squashfuse.
+  * d/patches/upstram-bolt.patch: use upstream version of boltdb.
+  * d/patches/systemd-activation-compat.patch: compatibility for the
+    newer go-systemd in debian
 
-  * new upstream release
-  * packaging: import debian-sid packaging
-  * debian: move symlink to packageing/debian-sid
-  * debian: release new 2.37-1 debian version
+  [ Ondřej Nový ]
+  * d/copyright: Use https protocol in Format field
+  * d/changelog: Remove trailing whitespaces
 
- -- Michael Vogt <mvo@ubuntu.com>  Thu, 17 Jan 2019 10:57:52 +0100
+  [ Zygmunt Krynicki ]
+  * Update unreleased package to 2.37
+  * Drop and recreate all patches
+  * Add patches for failing unit tests
+  * Reconcile packaging with snapd upstream
+
+ -- Zygmunt Bazyli Krynicki <me@zygoon.pl>  Tue, 22 Jan 2019 12:39:58 +0100
 
 snapd (2.30-5) unstable; urgency=medium
 
@@ -405,7 +420,7 @@ snapd (2.27.4-1) unstable; urgency=medium
 
 snapd (2.27.2-2) unstable; urgency=medium
 
-  * Fix re-exec test failure. 
+  * Fix re-exec test failure.
 
  -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 18 Aug 2017 11:37:47 +1200
 
@@ -778,7 +793,7 @@ snapd (2.26.4) xenial; urgency=medium
     - Disable "mknod |N" in the default seccomp template
       reasons outline in https://forum.snapcraft.io/t/snapd-2-25-blocked-because-of-revert-race-condition
     - errtracker: include bits of snap-confine apparmor profile
-    - errtracker: report if snapd did re-execute itself 
+    - errtracker: report if snapd did re-execute itself
 
  -- Michael Vogt <michael.vogt@ubuntu.com>  Thu, 01 Jun 2017 18:50:52 +0200
 
@@ -1221,7 +1236,7 @@ snapd (2.23.1) xenial; urgency=medium
     - interfaces: fix default content attribute value
     - tests: do not nuke the entire snapd.conf.d dir when changing
       store settings
-    - hookstate: run the right "snap" command in the hookmanager 
+    - hookstate: run the right "snap" command in the hookmanager
     - snapstate: revert PR#2958, run configure hook again everywhere
 
  -- Michael Vogt <michael.vogt@ubuntu.com>  Wed, 08 Mar 2017 14:29:56 +0100
@@ -1255,7 +1270,7 @@ snapd (2.23) xenial; urgency=medium
     - cmd/snap-update-ns: move test data and helpers to new module
     - vet: fix vet error on mount test.
     - tests: empty init (systemd) failover test
-    - cmd: add .indent.pro file to the tree 
+    - cmd: add .indent.pro file to the tree
     - interfaces: specs for apparmor, seccomp, udev
     - wrappers/services: RemainAfterExit=yes for oneshot daemons w/ stop
       cmds
@@ -1272,7 +1287,7 @@ snapd (2.23) xenial; urgency=medium
     - interfaces/builtin: add /boot/uboot/config.txt access to core-
       support
     - release: assume higher version of supported distros will still
-      work 
+      work
     - cmd/snap-update-ns: add compare function for mount entries
     - tests: enable docker test
     - tests: bail out if core snap is not installed
@@ -1327,7 +1342,7 @@ snapd (2.23) xenial; urgency=medium
     - tests: nested image testing
     - tests: add basic test for docker
     - hookstate,ifacestate: support snapctl set/get slot and plug attrs
-      (step 3) 
+      (step 3)
     - cmd/snap: add shell completion to connect
     - cmd: add functions to load/save fstab-like files
     - snap run: create "current" symlink in user data dir
@@ -1708,7 +1723,7 @@ snapd (2.21) xenial; urgency=medium
     - snap: provide friendlier `snap find` message when no snaps are
       found
     - tests: fix mkversions.sh failure on zesty
-    - spread: install build-essential unconditionally
+    - spread: install build-essentail unconditionally
     - spread: improve qemu ubuntu-14.04-{32,64} support
     - overlord/snapstate,daemon: implement GET /v2/aliases handling
     - store: retry user info request
@@ -2208,7 +2223,7 @@ snapd (2.16-1) unstable; urgency=medium
   * New upstream release.
   * Import gopkg.in/cheggaaa/pb.v1 rather than github.com/cheggaaa/pb.
   * Switch to unconditional conflict against `snap` (Closes: #826884)
-  * Update Vcs-Git and Vcs-Browser to point to alioth. 
+  * Update Vcs-Git and Vcs-Browser to point to alioth.
 
   [ Steve Langasek ]
   * Remove govendor from gbp.conf, and import Ubuntu tarball as our
