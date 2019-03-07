@@ -293,6 +293,26 @@ func CanManageRefreshes(st *state.State) bool {
 	return false
 }
 
+// splitTsAfterEdge takes a taskset ts and splits it into two tasksets
+// after the first occurance of the given task kind
+func splitTsAfterEdge(edge state.TaskSetEdge, ts *state.TaskSet) (*state.TaskSet, *state.TaskSet) {
+	tsBefore := state.NewTaskSet()
+	tsAfter := state.NewTaskSet()
+	edgeTask := ts.Edge(edge)
+	found := false
+	for _, t := range ts.Tasks() {
+		if !found {
+			tsBefore.AddTask(t)
+		} else {
+			tsAfter.AddTask(t)
+		}
+		if t == edgeTask {
+			found = true
+		}
+	}
+	return tsBefore, tsAfter
+}
+
 // Remodel takes a new model assertion and generates a change that
 // takes the device from the old to the new model or an error if the
 // transition is not possible.
@@ -303,9 +323,6 @@ func CanManageRefreshes(st *state.State) bool {
 // - Need new session/serial if changing store or model
 // - Check all relevant snaps exist in new store
 //   (need to check that even unchanged snaps are accessible)
-// - Download everything in a first phase of the change and "pin" cache
-//   files (also get assertions), which means also dealing with new bases
-//   and content providers
 func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	current, err := Model(st)
 	if err != nil {
@@ -314,9 +331,6 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	if current.Series() != new.Series() {
 		return nil, fmt.Errorf("cannot remodel to different series yet")
 	}
-	// FIXME: we need language in the model assertion to declare what
-	// transitions are ok before we allow remodel like this.
-	//
 	// Right now we only allow "remodel" to a different revision of
 	// the same model.
 	if current.BrandID() != new.BrandID() {
@@ -350,22 +364,17 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	}
 	userID := 0
 
+	// adjust kernel track
 	var tss []*state.TaskSet
-	addTss := func(ts *state.TaskSet) {
-		if len(tss) > 0 {
-			ts.WaitAll(tss[len(tss)-1])
-		}
-		tss = append(tss, ts)
-	}
 	// adjust tracks
 	if current.KernelTrack() != new.KernelTrack() {
 		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{})
 		if err != nil {
 			return nil, err
 		}
-		addTss(ts)
+		tss = append(tss, ts)
 	}
-	// adjust snaps
+	// add new required snaps
 	for _, snapName := range new.RequiredSnaps() {
 		_, err := snapstate.CurrentInfo(st, snapName)
 		// if the snap is not installed we need to install it now
@@ -374,9 +383,42 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 			if err != nil {
 				return nil, err
 			}
-			addTss(ts)
+			tss = append(tss, ts)
 		} else if err != nil {
 			return nil, err
+		}
+	}
+	// TODO: Validate that all bases and default-providers are part
+	//       of the install tasksets and error if not. If the
+	//       prereq task handler check starts adding installs into
+	//       our remodel change our carefully constructed wait chain
+	//       breaks down.
+
+	// Ensure all download/check tasks are run *before* the install
+	// tasks. During a remodel the network may not be available so
+	// we need to ensure we have everything local.
+	var prevDownload, prevInstall *state.TaskSet
+	var tssDownloads []*state.TaskSet
+	var tssInstalls []*state.TaskSet
+	for _, ts := range tss {
+		// make sure all downloads happen sequentially
+		tsDownload, tsInstall := splitTsAfterEdge(snapstate.DownloadAndChecksDoneEdge, ts)
+		if prevDownload != nil {
+			tsDownload.WaitAll(prevDownload)
+		}
+		// make sure all installs happen sequentially
+		if prevInstall != nil {
+			tsInstall.WaitAll(prevInstall)
+		}
+		prevDownload = tsDownload
+		prevInstall = tsInstall
+		tssDownloads = append(tssDownloads, tsDownload)
+		tssInstalls = append(tssInstalls, tsInstall)
+	}
+	// make sure all installs waits for all downloads
+	for _, tsDownload := range tssDownloads {
+		for _, tsInstall := range tssInstalls {
+			tsInstall.WaitAll(tsDownload)
 		}
 	}
 
