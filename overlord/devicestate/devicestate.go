@@ -303,9 +303,6 @@ func CanManageRefreshes(st *state.State) bool {
 // - Need new session/serial if changing store or model
 // - Check all relevant snaps exist in new store
 //   (need to check that even unchanged snaps are accessible)
-// - Download everything in a first phase of the change and "pin" cache
-//   files (also get assertions), which means also dealing with new bases
-//   and content providers
 func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	current, err := Model(st)
 	if err != nil {
@@ -351,19 +348,13 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	userID := 0
 
 	var tss []*state.TaskSet
-	addTss := func(ts *state.TaskSet) {
-		if len(tss) > 0 {
-			ts.WaitAll(tss[len(tss)-1])
-		}
-		tss = append(tss, ts)
-	}
 	// adjust tracks
 	if current.KernelTrack() != new.KernelTrack() {
 		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{})
 		if err != nil {
 			return nil, err
 		}
-		addTss(ts)
+		tss = append(tss, ts)
 	}
 	// adjust snaps
 	for _, snapName := range new.RequiredSnaps() {
@@ -374,10 +365,41 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 			if err != nil {
 				return nil, err
 			}
-			addTss(ts)
+			tss = append(tss, ts)
 		} else if err != nil {
 			return nil, err
 		}
+	}
+
+	// ensure wait-order is correct - first download, then install
+	for _, ts1 := range tss {
+		checkSnap := ts1.Edge(snapstate.CheckEdge)
+		for _, ts2 := range tss {
+			mountSnap := ts2.Edge(snapstate.MountEdge)
+			mountSnap.WaitFor(checkSnap)
+		}
+	}
+	// make the rest sequential
+	tasksAfter := func(ts *state.TaskSet, needle *state.Task) *state.TaskSet {
+		tsAfter := state.NewTaskSet()
+		foundNeedle := false
+		for _, t := range ts.Tasks() {
+			if foundNeedle {
+				tsAfter.AddTask(t)
+			}
+			if t == needle {
+				foundNeedle = true
+			}
+		}
+		return tsAfter
+	}
+	var prev *state.TaskSet
+	for _, ts := range tss {
+		tsAfter := tasksAfter(ts, ts.Edge(snapstate.CheckEdge))
+		if prev != nil {
+			tsAfter.WaitAll(prev)
+		}
+		prev = tsAfter
 	}
 
 	// Set the new model assertion - this *must* be the last thing done

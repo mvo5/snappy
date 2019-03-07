@@ -69,6 +69,11 @@ func isParallelInstallable(snapsup *SnapSetup) error {
 	return fmt.Errorf("cannot install snap of type %v as %q", snapsup.Type, snapsup.InstanceName())
 }
 
+var (
+	CheckEdge = state.TaskEdge("check-asserts")
+	MountEdge = state.TaskEdge("mount")
+)
+
 func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int, fromChange string) (*state.TaskSet, error) {
 	if snapsup.InstanceName() == "system" {
 		return nil, fmt.Errorf("cannot install reserved snap name 'system'")
@@ -124,7 +129,8 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 		snapsup.PlugsOnly = snapsup.PlugsOnly && (len(info.Slots) == 0)
 	}
 
-	ts := state.NewTaskSet()
+	tsEdges := map[state.TaskEdge]*state.Task{}
+	ts := state.NewTaskSetWithEdges(nil, tsEdges)
 
 	targetRevision := snapsup.Revision()
 	revisionStr := ""
@@ -163,6 +169,7 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 		checkAsserts := st.NewTask("validate-snap", fmt.Sprintf(i18n.G("Fetch and check assertions for snap %q%s"), snapsup.InstanceName(), revisionStr))
 		addTask(checkAsserts)
 		prev = checkAsserts
+		tsEdges[CheckEdge] = checkAsserts
 	}
 
 	// mount
@@ -170,6 +177,7 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 		mount := st.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mount snap %q%s"), snapsup.InstanceName(), revisionStr))
 		addTask(mount)
 		prev = mount
+		tsEdges[MountEdge] = mount
 	}
 
 	// run refresh hooks when updating existing snap, otherwise run install hook further down.

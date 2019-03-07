@@ -3126,12 +3126,13 @@ func makeModelAssertion(c *C, brandSigning *assertstest.SigningDB, modelExtra ma
 }
 
 func (ms *mgrsSuite) TestRemodelRequiredSnapsAdded(c *C) {
-	// make "foo" snap available in the store
-	ms.prereqSnapAssertions(c)
-	snapYamlContent := `name: foo
-version: 1.0`
-	snapPath, _ := ms.makeStoreTestSnap(c, snapYamlContent, "42")
-	ms.serveSnap(snapPath, "42")
+	for _, name := range []string{"foo", "bar", "baz"} {
+		ms.prereqSnapAssertions(c, map[string]interface{}{
+			"snap-name": name,
+		})
+		snapPath, _ := ms.makeStoreTestSnap(c, fmt.Sprintf("{name: %s, version: 1.0}", name), "1")
+		ms.serveSnap(snapPath, "1")
+	}
 
 	mockServer := ms.mockStore(c)
 	defer mockServer.Close()
@@ -3164,16 +3165,18 @@ version: 1.0`
 
 	// create a new model
 	newModel := makeModelAssertion(c, brandSigning, map[string]interface{}{
-		"required-snaps": []interface{}{"foo"},
+		"required-snaps": []interface{}{"foo", "bar", "baz"},
 		"revision":       "1",
 	})
 
 	tss, err := devicestate.Remodel(st, newModel)
 	c.Assert(err, IsNil)
 	chg := st.NewChange("install-snap", "...")
-	c.Check(tss, HasLen, 2)
+	c.Check(tss, HasLen, 4)
 	chg.AddAll(tss[0])
 	chg.AddAll(tss[1])
+	chg.AddAll(tss[2])
+	chg.AddAll(tss[3])
 
 	st.Unlock()
 	err = ms.o.Settle(settleTimeout)
@@ -3184,7 +3187,7 @@ version: 1.0`
 
 	info, err := snapstate.CurrentInfo(st, "foo")
 	c.Assert(err, IsNil)
-	c.Check(info.Revision, Equals, snap.R(42))
+	c.Check(info.Revision, Equals, snap.R(1))
 	c.Check(info.Version, Equals, "1.0")
 }
 
