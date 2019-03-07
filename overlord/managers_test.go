@@ -3125,6 +3125,13 @@ func makeModelAssertion(c *C, brandSigning *assertstest.SigningDB, modelExtra ma
 	return model.(*asserts.Model)
 }
 
+// byReadyTime sorts a list of tasks by their "ready" time
+type byReadyTime []*state.Task
+
+func (a byReadyTime) Len() int           { return len(a) }
+func (a byReadyTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byReadyTime) Less(i, j int) bool { return a[i].ReadyTime().Before(a[j].ReadyTime()) }
+
 func (ms *mgrsSuite) TestRemodelRequiredSnapsAdded(c *C) {
 	for _, name := range []string{"foo", "bar", "baz"} {
 		ms.prereqSnapAssertions(c, map[string]interface{}{
@@ -3189,6 +3196,43 @@ func (ms *mgrsSuite) TestRemodelRequiredSnapsAdded(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(info.Revision, Equals, snap.R(1))
 	c.Check(info.Version, Equals, "1.0")
+
+	// ensure sorting is correct
+	tasks := chg.Tasks()
+	sort.Sort(byReadyTime(tasks))
+	var i int
+	// first all downloads/checks in sequential order
+	for _, name := range []string{"foo", "bar", "baz"} {
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Ensure prerequisites for "%s" are available`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Download snap "%s" (1) from channel "stable"`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Fetch and check assertions for snap "%s" (1)`, name))
+		i++
+	}
+	// then all installs in sequential order
+	for _, name := range []string{"foo", "bar", "baz"} {
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Mount snap "%s" (1)`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Copy snap "%s" data`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Setup snap "%s" (1) security profiles`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Make snap "%s" (1) available to the system`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Automatically connect eligible plugs and slots of snap "%s"`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Set automatic aliases for snap "%s"`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Setup snap "%s" aliases`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Run install hook of "%s" snap if present`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Start snap "%s" (1) services`, name))
+		i++
+		c.Check(tasks[i].Summary(), Equals, fmt.Sprintf(`Run configure hook of "%s" snap if present`, name))
+		i++
+	}
 }
 
 func (ms *mgrsSuite) TestRemodelDifferentBase(c *C) {

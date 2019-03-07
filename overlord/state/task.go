@@ -465,30 +465,14 @@ func (t *Task) At(when time.Time) {
 	}
 }
 
-// TaskEdge a type query edges in a TaskSet
-type TaskEdge string
-
 // A TaskSet holds a set of tasks.
 type TaskSet struct {
 	tasks []*Task
-
-	tasksEdges map[TaskEdge]*Task
 }
 
 // NewTaskSet returns a new TaskSet comprising the given tasks.
 func NewTaskSet(tasks ...*Task) *TaskSet {
-	return &TaskSet{tasks, nil}
-}
-
-// NewTaskSetWithEdges returns a new TaskSet comprising the given tasks
-// and the given map of TaskEdges to tasks. The taskEdges
-func NewTaskSetWithEdges(tasks []*Task, te map[TaskEdge]*Task) *TaskSet {
-	return &TaskSet{tasks, te}
-}
-
-// Edge returns the task with the given TaskEdge
-func (ts TaskSet) Edge(e TaskEdge) *Task {
-	return ts.tasksEdges[e]
+	return &TaskSet{tasks}
 }
 
 // WaitFor registers a task as a requirement for the tasks in the set

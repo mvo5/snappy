@@ -293,6 +293,25 @@ func CanManageRefreshes(st *state.State) bool {
 	return false
 }
 
+// splitTsAfter takes a taskset ts and splits it into two tasksets after the
+// first occurance of the given task kind
+func splitTsAfter(kind string, ts *state.TaskSet) (*state.TaskSet, *state.TaskSet) {
+	tsBefore := state.NewTaskSet()
+	tsAfter := state.NewTaskSet()
+	found := false
+	for _, t := range ts.Tasks() {
+		if !found {
+			tsBefore.AddTask(t)
+		} else {
+			tsAfter.AddTask(t)
+		}
+		if t.Kind() == kind {
+			found = true
+		}
+	}
+	return tsBefore, tsAfter
+}
+
 // Remodel takes a new model assertion and generates a change that
 // takes the device from the old to the new model or an error if the
 // transition is not possible.
@@ -347,6 +366,7 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	}
 	userID := 0
 
+	// adjust kernel track
 	var tss []*state.TaskSet
 	// adjust tracks
 	if current.KernelTrack() != new.KernelTrack() {
@@ -356,7 +376,7 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 		}
 		tss = append(tss, ts)
 	}
-	// adjust snaps
+	// add new required snaps
 	for _, snapName := range new.RequiredSnaps() {
 		_, err := snapstate.CurrentInfo(st, snapName)
 		// if the snap is not installed we need to install it now
@@ -370,36 +390,32 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 			return nil, err
 		}
 	}
-
-	// ensure wait-order is correct - first download, then install
-	for _, ts1 := range tss {
-		checkSnap := ts1.Edge(snapstate.CheckEdge)
-		for _, ts2 := range tss {
-			mountSnap := ts2.Edge(snapstate.MountEdge)
-			mountSnap.WaitFor(checkSnap)
-		}
-	}
-	// make the rest sequential
-	tasksAfter := func(ts *state.TaskSet, needle *state.Task) *state.TaskSet {
-		tsAfter := state.NewTaskSet()
-		foundNeedle := false
-		for _, t := range ts.Tasks() {
-			if foundNeedle {
-				tsAfter.AddTask(t)
-			}
-			if t == needle {
-				foundNeedle = true
-			}
-		}
-		return tsAfter
-	}
-	var prev *state.TaskSet
+	// Ensure all download/check tasks are run *before* the install
+	// tasks. During a remodel the network may not be available so
+	// we need to ensure we have everything local.
+	var prevDownload, prevInstall *state.TaskSet
+	var tssDownloads []*state.TaskSet
+	var tssInstalls []*state.TaskSet
 	for _, ts := range tss {
-		tsAfter := tasksAfter(ts, ts.Edge(snapstate.CheckEdge))
-		if prev != nil {
-			tsAfter.WaitAll(prev)
+		// make sure all downloads happen sequentially
+		tsDownload, tsInstall := splitTsAfter("validate-snap", ts)
+		if prevDownload != nil {
+			tsDownload.WaitAll(prevDownload)
 		}
-		prev = tsAfter
+		// make sure all installs happen sequentially
+		if prevInstall != nil {
+			tsInstall.WaitAll(prevInstall)
+		}
+		prevDownload = tsDownload
+		prevInstall = tsInstall
+		tssDownloads = append(tssDownloads, tsDownload)
+		tssInstalls = append(tssInstalls, tsInstall)
+	}
+	// make sure all installs waits for all downloads
+	for _, tsDownload := range tssDownloads {
+		for _, tsInstall := range tssInstalls {
+			tsInstall.WaitAll(tsDownload)
+		}
 	}
 
 	// Set the new model assertion - this *must* be the last thing done

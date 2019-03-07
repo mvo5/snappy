@@ -2668,12 +2668,10 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnaps(c *C) {
 	s.state.Set("refresh-privacy-key", "some-privacy-key")
 
 	restore := devicestate.MockSnapstateInstall(func(st *state.State, name, channel string, revision snap.Revision, userID int, flags snapstate.Flags) (*state.TaskSet, error) {
-		tCheck := s.state.NewTask("fake-check", fmt.Sprintf("Check %s", name))
-		tMount := s.state.NewTask("fake-mount", fmt.Sprintf("Install %s", name))
-		ts := state.NewTaskSetWithEdges([]*state.Task{tCheck, tMount}, map[state.TaskEdge]*state.Task{
-			snapstate.CheckEdge: tCheck,
-			snapstate.MountEdge: tMount,
-		})
+		tDownload := s.state.NewTask("fake-download", fmt.Sprintf("Download %s", name))
+		tValidate := s.state.NewTask("validate-snap", fmt.Sprintf("Validate %s", name))
+		tInstall := s.state.NewTask("fake-install", fmt.Sprintf("Install %s", name))
+		ts := state.NewTaskSet(tDownload, tValidate, tInstall)
 		return ts, nil
 	})
 	defer restore()
@@ -2700,19 +2698,40 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnaps(c *C) {
 	tss, err := devicestate.Remodel(s.state, new)
 	c.Assert(err, IsNil)
 	c.Assert(tss, HasLen, 3)
-	c.Assert(tss[0].Tasks()[0].Kind(), Equals, "fake-check")
-	c.Assert(tss[0].Tasks()[0].Summary(), Equals, "Check new-required-snap-1")
-	c.Assert(tss[0].Tasks()[0].WaitTasks(), HasLen, 0)
 
-	c.Assert(tss[1].Tasks()[0].Kind(), Equals, "fake-check")
-	c.Assert(tss[1].Tasks()[0].Summary(), Equals, "Check new-required-snap-2")
-	// waits for first install
-	c.Assert(tss[1].Tasks()[0].WaitTasks(), DeepEquals, tss[0].Tasks())
+	// check the tasks
+	tDownloadSnap1 := tss[0].Tasks()[0]
+	c.Assert(tDownloadSnap1.Kind(), Equals, "fake-download")
+	c.Assert(tDownloadSnap1.Summary(), Equals, "Download new-required-snap-1")
+	c.Assert(tDownloadSnap1.WaitTasks(), HasLen, 0)
+	tValidateSnap1 := tss[0].Tasks()[1]
+	c.Assert(tValidateSnap1.Kind(), Equals, "validate-snap")
+	c.Assert(tValidateSnap1.Summary(), Equals, "Validate new-required-snap-1")
+	c.Assert(tDownloadSnap1.WaitTasks(), HasLen, 0)
+	tDownloadSnap2 := tss[1].Tasks()[0]
+	c.Assert(tDownloadSnap2.Kind(), Equals, "fake-download")
+	c.Assert(tDownloadSnap2.Summary(), Equals, "Download new-required-snap-2")
+	// check the ordering, download/validate everything first, then install
 
-	c.Assert(tss[2].Tasks()[0].Kind(), Equals, "set-model")
-	c.Assert(tss[2].Tasks()[0].Summary(), Equals, "Set new model assertion")
-	// waits for everything in the change
-	c.Assert(tss[2].Tasks()[0].WaitTasks(), DeepEquals, []*state.Task{tss[0].Tasks()[0], tss[0].Tasks()[1], tss[1].Tasks()[0], tss[1].Tasks()[1]})
+	// snap2 downloads wait for the downloads of snap1
+	c.Assert(tDownloadSnap2.WaitTasks(), DeepEquals, []*state.Task{
+		tDownloadSnap1, tValidateSnap1,
+	})
+	// snap-2 installs wait all downloads and the install of snap-1
+	tInstallSnap1 := tss[0].Tasks()[2]
+	tValidateSnap2 := tss[1].Tasks()[1]
+	tInstallSnap2 := tss[1].Tasks()[2]
+	c.Assert(tInstallSnap2.WaitTasks(), DeepEquals, []*state.Task{
+		tInstallSnap1,
+		tDownloadSnap1, tValidateSnap1,
+		tDownloadSnap2, tValidateSnap2,
+	})
+
+	tSetModel := tss[2].Tasks()[0]
+	c.Assert(tSetModel.Kind(), Equals, "set-model")
+	c.Assert(tSetModel.Summary(), Equals, "Set new model assertion")
+	// setModel waits for everything in the change
+	c.Assert(tSetModel.WaitTasks(), DeepEquals, []*state.Task{tDownloadSnap1, tValidateSnap1, tInstallSnap1, tDownloadSnap2, tValidateSnap2, tInstallSnap2})
 }
 
 func (s *deviceMgrSuite) TestRemodelSwitchKernelTrack(c *C) {
@@ -2722,23 +2741,19 @@ func (s *deviceMgrSuite) TestRemodelSwitchKernelTrack(c *C) {
 	s.state.Set("refresh-privacy-key", "some-privacy-key")
 
 	restore := devicestate.MockSnapstateInstall(func(st *state.State, name, channel string, revision snap.Revision, userID int, flags snapstate.Flags) (*state.TaskSet, error) {
-		tCheck := s.state.NewTask("fake-check", fmt.Sprintf("Install %s", name))
-		tMount := s.state.NewTask("fake-mount", fmt.Sprintf("Mount %s", name))
-		ts := state.NewTaskSetWithEdges([]*state.Task{tCheck, tMount}, map[state.TaskEdge]*state.Task{
-			snapstate.CheckEdge: tCheck,
-			snapstate.MountEdge: tMount,
-		})
+		tDownload := s.state.NewTask("fake-download", fmt.Sprintf("Download %s", name))
+		tValidate := s.state.NewTask("validate-snap", fmt.Sprintf("Validate %s", name))
+		tInstall := s.state.NewTask("fake-install", fmt.Sprintf("Install %s", name))
+		ts := state.NewTaskSet(tDownload, tValidate, tInstall)
 		return ts, nil
 	})
 	defer restore()
 
 	restore = devicestate.MockSnapstateUpdate(func(st *state.State, name, channel string, revision snap.Revision, userID int, flags snapstate.Flags) (*state.TaskSet, error) {
-		tCheck := s.state.NewTask("fake-check", fmt.Sprintf("Refresh %s to track %s", name, channel))
-		tMount := s.state.NewTask("fake-mount", fmt.Sprintf("Refresh %s", name))
-		ts := state.NewTaskSetWithEdges([]*state.Task{tCheck, tMount}, map[state.TaskEdge]*state.Task{
-			snapstate.CheckEdge: tCheck,
-			snapstate.MountEdge: tMount,
-		})
+		tDownload := s.state.NewTask("fake-download", fmt.Sprintf("Download %s to track %s", name, channel))
+		tValidate := s.state.NewTask("validate-snap", fmt.Sprintf("Validate %s", name))
+		tUpdate := s.state.NewTask("fake-update", fmt.Sprintf("Update %s to track %s", name, channel))
+		ts := state.NewTaskSet(tDownload, tValidate, tUpdate)
 		return ts, nil
 	})
 	defer restore()
@@ -2765,12 +2780,41 @@ func (s *deviceMgrSuite) TestRemodelSwitchKernelTrack(c *C) {
 	tss, err := devicestate.Remodel(s.state, new)
 	c.Assert(err, IsNil)
 	c.Assert(tss, HasLen, 3)
-	c.Assert(tss[0].Tasks()[0].Kind(), Equals, "fake-check")
-	c.Assert(tss[0].Tasks()[0].Summary(), Equals, "Refresh pc-kernel to track 18")
-
-	c.Assert(tss[1].Tasks()[0].Kind(), Equals, "fake-check")
-	c.Assert(tss[1].Tasks()[0].Summary(), Equals, "Install new-required-snap-1")
+	tDownloadKernel := tss[0].Tasks()[0]
+	c.Assert(tDownloadKernel.Kind(), Equals, "fake-download")
+	c.Assert(tDownloadKernel.Summary(), Equals, "Download pc-kernel to track 18")
+	tValidateKernel := tss[0].Tasks()[1]
+	c.Assert(tValidateKernel.Kind(), Equals, "validate-snap")
+	c.Assert(tValidateKernel.Summary(), Equals, "Validate pc-kernel")
+	tUpdateKernel := tss[0].Tasks()[2]
+	c.Assert(tUpdateKernel.Kind(), Equals, "fake-update")
+	c.Assert(tUpdateKernel.Summary(), Equals, "Update pc-kernel to track 18")
+	tDownloadSnap1 := tss[1].Tasks()[0]
+	c.Assert(tDownloadSnap1.Kind(), Equals, "fake-download")
+	c.Assert(tDownloadSnap1.Summary(), Equals, "Download new-required-snap-1")
+	tValidateSnap1 := tss[1].Tasks()[1]
+	c.Assert(tValidateSnap1.Kind(), Equals, "validate-snap")
+	c.Assert(tValidateSnap1.Summary(), Equals, "Validate new-required-snap-1")
+	tInstallSnap1 := tss[1].Tasks()[2]
+	c.Assert(tInstallSnap1.Kind(), Equals, "fake-install")
+	c.Assert(tInstallSnap1.Summary(), Equals, "Install new-required-snap-1")
 
 	c.Assert(tss[2].Tasks()[0].Kind(), Equals, "set-model")
 	c.Assert(tss[2].Tasks()[0].Summary(), Equals, "Set new model assertion")
+
+	// check the ordering
+	c.Assert(tDownloadSnap1.WaitTasks(), DeepEquals, []*state.Task{
+		tDownloadKernel, tValidateKernel,
+	})
+	// install snap-1 waits for all downloads plus kernel update
+	c.Assert(tInstallSnap1.WaitTasks(), DeepEquals, []*state.Task{
+		tUpdateKernel,
+		tDownloadKernel, tValidateKernel,
+		tDownloadSnap1, tValidateSnap1,
+	})
+	// update-kernel waits for all downloads
+	c.Assert(tUpdateKernel.WaitTasks(), DeepEquals, []*state.Task{
+		tDownloadKernel, tValidateKernel,
+		tDownloadSnap1, tValidateSnap1,
+	})
 }
