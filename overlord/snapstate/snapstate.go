@@ -50,6 +50,7 @@ import (
 // control flags for doInstall
 const (
 	skipConfigure = 1 << iota
+	skipDownloadAndValidate
 )
 
 // control flags for "Configure()"
@@ -67,6 +68,24 @@ func isParallelInstallable(snapsup *SnapSetup) error {
 		return nil
 	}
 	return fmt.Errorf("cannot install snap of type %v as %q", snapsup.Type, snapsup.InstanceName())
+}
+
+// downloadAndValidateSnap generates the right tasks to download and validate
+// a given snap
+func downloadAndValidateSnap(st *state.State, snapsup *SnapSetup) (*state.TaskSet, error) {
+	if snapsup.SnapPath != "" {
+		return nil, fmt.Errorf("internal error: cannot use acquireAndValidate with local path")
+	}
+
+	revisionStr := fmt.Sprintf(" (%s)", snapsup.Revision())
+	downloadSnap := st.NewTask("download-snap", fmt.Sprintf(i18n.G("Download snap %q%s from channel %q"), snapsup.InstanceName(), revisionStr, snapsup.Channel))
+	downloadSnap.Set("snap-setup", snapsup)
+
+	checkAsserts := st.NewTask("validate-snap", fmt.Sprintf(i18n.G("Fetch and check assertions for snap %q%s"), snapsup.InstanceName(), revisionStr))
+	checkAsserts.Set("snap-setup-task", downloadSnap.ID())
+	checkAsserts.WaitFor(downloadSnap)
+
+	return state.NewTaskSet(downloadSnap, checkAsserts), nil
 }
 
 func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int, fromChange string) (*state.TaskSet, error) {
@@ -135,40 +154,51 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 	// check if we already have the revision locally (alters tasks)
 	revisionIsLocal := snapst.LastIndex(targetRevision) >= 0
 
-	prereq := st.NewTask("prerequisites", fmt.Sprintf(i18n.G("Ensure prerequisites for %q are available"), snapsup.InstanceName()))
-	prereq.Set("snap-setup", snapsup)
-
+	var tasks []*state.Task
 	var prepare, prev *state.Task
-	fromStore := false
-	// if we have a local revision here we go back to that
-	if snapsup.SnapPath != "" || revisionIsLocal {
-		prepare = st.NewTask("prepare-snap", fmt.Sprintf(i18n.G("Prepare snap %q%s"), snapsup.SnapPath, revisionStr))
-	} else {
-		fromStore = true
-		prepare = st.NewTask("download-snap", fmt.Sprintf(i18n.G("Download snap %q%s from channel %q"), snapsup.InstanceName(), revisionStr, snapsup.Channel))
-	}
-	prepare.Set("snap-setup", snapsup)
-	prepare.WaitFor(prereq)
-
-	tasks := []*state.Task{prereq, prepare}
 	addTask := func(t *state.Task) {
 		t.Set("snap-setup-task", prepare.ID())
 		t.WaitFor(prev)
 		tasks = append(tasks, t)
 	}
-	prev = prepare
 
-	if fromStore {
-		// fetch and check assertions
-		checkAsserts := st.NewTask("validate-snap", fmt.Sprintf(i18n.G("Fetch and check assertions for snap %q%s"), snapsup.InstanceName(), revisionStr))
-		addTask(checkAsserts)
-		prev = checkAsserts
-	}
+	if flags&skipDownloadAndValidate == 0 {
+		prereq := st.NewTask("prerequisites", fmt.Sprintf(i18n.G("Ensure prerequisites for %q are available"), snapsup.InstanceName()))
+		prereq.Set("snap-setup", snapsup)
 
-	// mount
-	if !revisionIsLocal {
+		fromStore := false
+		// if we have a local revision here we go back to that
+		if snapsup.SnapPath != "" || revisionIsLocal {
+			prepare = st.NewTask("prepare-snap", fmt.Sprintf(i18n.G("Prepare snap %q%s"), snapsup.SnapPath, revisionStr))
+		} else {
+			fromStore = true
+			prepare = st.NewTask("download-snap", fmt.Sprintf(i18n.G("Download snap %q%s from channel %q"), snapsup.InstanceName(), revisionStr, snapsup.Channel))
+		}
+		prepare.Set("snap-setup", snapsup)
+		prepare.WaitFor(prereq)
+
+		tasks = []*state.Task{prereq, prepare}
+		prev = prepare
+
+		if fromStore {
+			// fetch and check assertions
+			checkAsserts := st.NewTask("validate-snap", fmt.Sprintf(i18n.G("Fetch and check assertions for snap %q%s"), snapsup.InstanceName(), revisionStr))
+			addTask(checkAsserts)
+			prev = checkAsserts
+		}
+
+		// mount
+		if !revisionIsLocal {
+			mount := st.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mount snap %q%s"), snapsup.InstanceName(), revisionStr))
+			addTask(mount)
+			prev = mount
+		}
+	} else {
 		mount := st.NewTask("mount-snap", fmt.Sprintf(i18n.G("Mount snap %q%s"), snapsup.InstanceName(), revisionStr))
-		addTask(mount)
+		snapsup.SnapPath = snapsup.MountFile()
+		mount.Set("snap-setup", &snapsup)
+		tasks = []*state.Task{mount}
+		prepare = mount
 		prev = mount
 	}
 
@@ -651,6 +681,10 @@ func Install(st *state.State, name, channel string, revision snap.Revision, user
 	if err := checkInstallPreconditions(st, info, flags, &snapst); err != nil {
 		return nil, err
 	}
+	var instFlags int
+	if flags.SkipDownloadAndValidate {
+		instFlags |= skipDownloadAndValidate
+	}
 
 	snapsup := &SnapSetup{
 		Channel:      channel,
@@ -668,7 +702,11 @@ func Install(st *state.State, name, channel string, revision snap.Revision, user
 		},
 	}
 
-	return doInstall(st, &snapst, snapsup, 0, "")
+	if flags.OnlyDownloadAndValidate {
+		return downloadAndValidateSnap(st, snapsup)
+	}
+
+	return doInstall(st, &snapst, snapsup, instFlags, "")
 }
 
 // InstallMany installs everything from the given list of names.

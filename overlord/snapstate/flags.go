@@ -60,6 +60,9 @@ type Flags struct {
 
 	// IsAutoRefresh is true if the snap is currently auto-refreshed
 	IsAutoRefresh bool `json:"is-auto-refresh,omitempty"`
+
+	SkipDownloadAndValidate bool `json:"skip-download-and-validate,omitempty"`
+	OnlyDownloadAndValidate bool `json:"only-download-and-validate,omitempty"`
 }
 
 // DevModeAllowed returns whether a snap can be installed with devmode confinement (either set or overridden)

@@ -3171,9 +3171,10 @@ version: 1.0`
 	tss, err := devicestate.Remodel(st, newModel)
 	c.Assert(err, IsNil)
 	chg := st.NewChange("install-snap", "...")
-	c.Check(tss, HasLen, 2)
+	c.Check(tss, HasLen, 3)
 	chg.AddAll(tss[0])
 	chg.AddAll(tss[1])
+	chg.AddAll(tss[2])
 
 	st.Unlock()
 	err = ms.o.Settle(settleTimeout)

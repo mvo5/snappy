@@ -303,9 +303,6 @@ func CanManageRefreshes(st *state.State) bool {
 // - Need new session/serial if changing store or model
 // - Check all relevant snaps exist in new store
 //   (need to check that even unchanged snaps are accessible)
-// - Download everything in a first phase of the change and "pin" cache
-//   files (also get assertions), which means also dealing with new bases
-//   and content providers
 func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	current, err := Model(st)
 	if err != nil {
@@ -357,20 +354,46 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 		}
 		tss = append(tss, ts)
 	}
-	// adjust tracks
+	// download adjusted kernel
 	if current.KernelTrack() != new.KernelTrack() {
-		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{})
+		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{OnlyDownloadAndValidate: true})
 		if err != nil {
 			return nil, err
 		}
 		addTss(ts)
 	}
-	// adjust snaps
+	// download new snaps
+	// TODO: ensure all prereqs are hanlded and self-contained
+	//       there will be no "prereq" tasks generated
 	for _, snapName := range new.RequiredSnaps() {
 		_, err := snapstate.CurrentInfo(st, snapName)
 		// if the snap is not installed we need to install it now
 		if _, ok := err.(*snap.NotInstalledError); ok {
-			ts, err := snapstateInstall(st, snapName, "", snap.R(0), userID, snapstate.Flags{})
+			ts, err := snapstateInstall(st, snapName, "", snap.R(0), userID, snapstate.Flags{OnlyDownloadAndValidate: true})
+			if err != nil {
+				return nil, err
+			}
+			addTss(ts)
+		} else if err != nil {
+			return nil, err
+		}
+	}
+
+	// install adjusted kernel
+	if current.KernelTrack() != new.KernelTrack() {
+		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{SkipDownloadAndValidate: true})
+		if err != nil {
+			return nil, err
+		}
+		addTss(ts)
+	}
+
+	// and install new snaps
+	for _, snapName := range new.RequiredSnaps() {
+		_, err := snapstate.CurrentInfo(st, snapName)
+		// if the snap is not installed we need to install it now
+		if _, ok := err.(*snap.NotInstalledError); ok {
+			ts, err := snapstateInstall(st, snapName, "", snap.R(0), userID, snapstate.Flags{SkipDownloadAndValidate: true})
 			if err != nil {
 				return nil, err
 			}

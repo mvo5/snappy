@@ -2695,7 +2695,7 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnaps(c *C) {
 	})
 	tss, err := devicestate.Remodel(s.state, new)
 	c.Assert(err, IsNil)
-	c.Assert(tss, HasLen, 3)
+	c.Assert(tss, HasLen, 5)
 	c.Assert(tss[0].Tasks()[0].Kind(), Equals, "fake-install")
 	c.Assert(tss[0].Tasks()[0].Summary(), Equals, "Install new-required-snap-1")
 	c.Assert(tss[0].Tasks()[0].WaitTasks(), HasLen, 0)
@@ -2705,10 +2705,12 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnaps(c *C) {
 	// waits for first install
 	c.Assert(tss[1].Tasks()[0].WaitTasks(), DeepEquals, tss[0].Tasks())
 
-	c.Assert(tss[2].Tasks()[0].Kind(), Equals, "set-model")
-	c.Assert(tss[2].Tasks()[0].Summary(), Equals, "Set new model assertion")
+	// FIXME: ...
+
+	c.Assert(tss[4].Tasks()[0].Kind(), Equals, "set-model")
+	c.Assert(tss[4].Tasks()[0].Summary(), Equals, "Set new model assertion")
 	// waits for everything in the change
-	c.Assert(tss[2].Tasks()[0].WaitTasks(), DeepEquals, []*state.Task{tss[0].Tasks()[0], tss[1].Tasks()[0]})
+	c.Assert(tss[4].Tasks()[0].WaitTasks(), DeepEquals, []*state.Task{tss[0].Tasks()[0], tss[1].Tasks()[0], tss[2].Tasks()[0], tss[3].Tasks()[0]})
 }
 
 func (s *deviceMgrSuite) TestRemodelSwitchKernelTrack(c *C) {
@@ -2752,13 +2754,13 @@ func (s *deviceMgrSuite) TestRemodelSwitchKernelTrack(c *C) {
 	})
 	tss, err := devicestate.Remodel(s.state, new)
 	c.Assert(err, IsNil)
-	c.Assert(tss, HasLen, 3)
+	c.Assert(tss, HasLen, 5)
 	c.Assert(tss[0].Tasks()[0].Kind(), Equals, "fake-update")
 	c.Assert(tss[0].Tasks()[0].Summary(), Equals, "Update pc-kernel to track 18")
 
 	c.Assert(tss[1].Tasks()[0].Kind(), Equals, "fake-install")
 	c.Assert(tss[1].Tasks()[0].Summary(), Equals, "Install new-required-snap-1")
 
-	c.Assert(tss[2].Tasks()[0].Kind(), Equals, "set-model")
-	c.Assert(tss[2].Tasks()[0].Summary(), Equals, "Set new model assertion")
+	c.Assert(tss[4].Tasks()[0].Kind(), Equals, "set-model")
+	c.Assert(tss[4].Tasks()[0].Summary(), Equals, "Set new model assertion")
 }
