@@ -77,6 +77,7 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 	if snapsup.InstanceName() == "system" {
 		return nil, fmt.Errorf("cannot install reserved snap name 'system'")
 	}
+
 	if snapsup.InstanceName() == "snapd" {
 		model, err := Model(st)
 		if err != nil && err != state.ErrNoState {
@@ -93,6 +94,7 @@ func doInstall(st *state.State, snapst *SnapState, snapsup *SnapSetup, flags int
 			}
 		}
 	}
+
 	if snapst.IsInstalled() && !snapst.Active {
 		return nil, fmt.Errorf("cannot update disabled snap %q", snapsup.InstanceName())
 	}
@@ -968,7 +970,7 @@ func doUpdate(ctx context.Context, st *state.State, names []string, updates []*s
 		updated = append(updated, name)
 	}
 
-	if len(updated) > 0 {
+	if len(updated) > 0 && !globalFlags.NoReRefresh {
 		// re-refresh will check the lanes to decide what to
 		// _actually_ re-refresh, but it'll be a subset of updated
 		// (and equal to updated if nothing goes wrong)
@@ -1299,6 +1301,7 @@ func Update(st *state.State, name, channel string, revision snap.Revision, userI
 	}
 	flat := state.NewTaskSet()
 	for _, ts := range tts {
+		// FIXME: ensure we copy over the edges of the taskset
 		flat.AddAll(ts)
 	}
 	return flat, nil

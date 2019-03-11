@@ -30,6 +30,7 @@ import (
 
 	"gopkg.in/tomb.v2"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/boot"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/i18n"
@@ -902,6 +903,24 @@ func (m *SnapManager) doLinkSnap(t *state.Task, _ *tomb.Tomb) (err error) {
 
 	// XXX: this block is slightly ugly, find a pattern when we have more examples
 	model, _ := Model(st)
+
+	// See if we have a new model and adjust boot code
+	// FIXME: butt-ugly
+	var modelass []byte
+	var ass asserts.Assertion
+	if err := t.Get("new-model", &modelass); err == nil {
+		ass, err = asserts.Decode(modelass)
+		if err != nil {
+			return err
+		}
+		newModel, ok := ass.(*asserts.Model)
+		if !ok {
+			return fmt.Errorf("internal error: new-model is not a model assertion but: %s", ass.Type().Name)
+		}
+		model = newModel
+	}
+	// -----------------
+
 	err = m.backend.LinkSnap(newInfo, model)
 	if err != nil {
 		pb := NewTaskProgressAdapterLocked(t)
@@ -2085,8 +2104,10 @@ func (m *SnapManager) doCheckReRefresh(t *state.Task, tomb *tomb.Tomb) error {
 	st.Lock()
 	defer st.Unlock()
 
+	// FIXME: re-refresh will have NumHaltTasks waiting on remodel
 	if numHaltTasks := t.NumHaltTasks(); numHaltTasks > 0 {
-		logger.Panicf("Re-refresh task has %d tasks waiting for it.", numHaltTasks)
+		logger.Noticef("ERROR Re-refresh task has %d tasks waiting for it.", numHaltTasks)
+		return nil
 	}
 
 	if !changeReadyUpToTask(t) {

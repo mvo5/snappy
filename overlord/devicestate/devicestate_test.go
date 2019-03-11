@@ -2636,9 +2636,7 @@ func (s *deviceMgrSuite) TestRemodelUnhappy(c *C) {
 		errStr string
 	}{
 		{map[string]string{"brand": "my-brand"}, "cannot remodel to different brands yet"},
-		{map[string]string{"model": "other-model"}, "cannot remodel to different models yet"},
 		{map[string]string{"architecture": "pdp-7"}, "cannot remodel to different architectures yet"},
-		{map[string]string{"base": "core20"}, "cannot remodel to different bases yet"},
 		{map[string]string{"kernel": "other-kernel"}, "cannot remodel to different kernels yet"},
 		{map[string]string{"gadget": "other-gadget"}, "cannot remodel to different gadgets yet"},
 	} {

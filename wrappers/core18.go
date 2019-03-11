@@ -127,7 +127,7 @@ func writeSnapdServicesOnCore(s *snap.Info, inter interacter) error {
 			Mode:    st.Mode(),
 		}
 	}
-	changed, removed, err := osutil.EnsureDirStateGlobs(dirs.SnapServicesDir, []string{"snapd.service", "snapd.socket", "snapd.*.service", "snapd.*.timer"}, snapdUnits)
+	changed, removed, err := osutil.EnsureDirStateGlobs(dirs.SnapServicesDir, []string{"snapd.socket", "snapd.service", "snapd.*.service", "snapd.*.timer"}, snapdUnits)
 	if err != nil {
 		// TODO: uhhhh, what do we do in this case?
 		return err
@@ -155,12 +155,26 @@ func writeSnapdServicesOnCore(s *snap.Info, inter interacter) error {
 
 	// enable/start all the new services
 	for _, unit := range changed {
+
+		fmt.Println("disabling unit", unit)
+
+		// for upgrades (from UC16) we need to disable first to
+		// ensure the links get updated from /lib/systemd/system
+		// to /etc/systemd/system
+		if err := sysd.Disable(unit); err != nil {
+			return err
+		}
+
+		fmt.Println("enabling unit ", unit)
+
 		if err := sysd.Enable(unit); err != nil {
 			return err
 		}
 	}
 
 	for _, unit := range changed {
+		fmt.Println("work on changed unit ", unit)
+
 		// Some units (like the snapd.system-shutdown.service) cannot
 		// be started. Others like "snapd.seeded.service" are started
 		// as dependencies of snapd.service.
@@ -200,6 +214,7 @@ func writeSnapdServicesOnCore(s *snap.Info, inter interacter) error {
 	// it has a "After=snapd.seeded.service" which means that on
 	// seeding a "systemctl start" that blocks would hang forever
 	// and we deadlock.
+
 	if err := sysd.StartNoBlock("snapd.autoimport.service"); err != nil {
 		return err
 	}

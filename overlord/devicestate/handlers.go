@@ -81,7 +81,7 @@ func (m *DeviceManager) doSetModel(t *state.Task, _ *tomb.Tomb) error {
 		return err
 	}
 
-	_, ok := ass.(*asserts.Model)
+	model, ok := ass.(*asserts.Model)
 	if !ok {
 		return fmt.Errorf("internal error: new-model is not a model assertion but: %s", ass.Type().Name)
 	}
@@ -91,9 +91,12 @@ func (m *DeviceManager) doSetModel(t *state.Task, _ *tomb.Tomb) error {
 		return err
 	}
 
-	// TODO: set device,model from the new model assertion
-	// return setDeviceFromModelAssertion(st, device, model)
-	return nil
+	// TODO: look at serial/keyid/sessionmacaroonq
+	device, err := auth.Device(st)
+	if err != nil {
+		return err
+	}
+	return setDeviceFromModelAssertion(st, device, model)
 }
 
 func useStaging() bool {

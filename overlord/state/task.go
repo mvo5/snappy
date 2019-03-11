@@ -524,6 +524,10 @@ func (ts *TaskSet) AddAll(anotherTs *TaskSet) {
 	for _, t := range anotherTs.tasks {
 		ts.AddTask(t)
 	}
+	// FIXME: how to make a sane API for edges copy?
+	for k, v := range anotherTs.edges {
+		ts.MarkEdge(v, k)
+	}
 }
 
 // JoinLane adds all the tasks in the current taskset to the given lane

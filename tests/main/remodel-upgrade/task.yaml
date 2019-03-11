@@ -1,0 +1,25 @@
+summary: |
+   Test remodel to a new ubuntu core model
+systems: [ubuntu-core-16-64]
+
+execute: |
+    
+    if [[ "$SPREAD_REBOOT" == 0 ]]; then
+        echo "Wait for first boot to be done"
+        while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+
+        # FIXME: rmeove this once we fix the restriction in doInstall()
+        echo "Ensure we allow the snapd snap (workaround for now)"
+        snap set core experimental.snapd-snap=true
+    
+        echo "We have the right model assertion for UC16"
+        snap debug get-model|MATCH "model: pc"
+        echo "Now we remodel to UC18"
+        snap known --remote model series=16 brand-id=canonical model=ubuntu-core-18-amd64 > uc18.model
+        snap remodel uc18.model
+        REBOOT
+    else
+        while ! snap changes | grep -q "Done.*Remodel device to ubuntu-core-18-amd64"; do sleep 1; done
+        echo "and we got the new model assertion"
+        snap debug get-model|MATCH "model: ubuntu-core-18-amd64"
+    fi

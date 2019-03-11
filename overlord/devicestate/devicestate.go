@@ -336,9 +336,6 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	if current.BrandID() != new.BrandID() {
 		return nil, fmt.Errorf("cannot remodel to different brands yet")
 	}
-	if current.Model() != new.Model() {
-		return nil, fmt.Errorf("cannot remodel to different models yet")
-	}
 	if current.Store() != new.Store() {
 		return nil, fmt.Errorf("cannot remodel to different stores yet")
 	}
@@ -349,11 +346,6 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 		return nil, fmt.Errorf("cannot remodel to different architectures yet")
 	}
 
-	// calculate snap differences between the two models
-	// FIXME: this needs work to switch the base to boot as well
-	if current.Base() != new.Base() {
-		return nil, fmt.Errorf("cannot remodel to different bases yet")
-	}
 	// FIXME: we need to support this soon but right now only a single
 	// snap of type "gadget/kernel" is allowed so this needs work
 	if current.Kernel() != new.Kernel() {
@@ -363,11 +355,42 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 		return nil, fmt.Errorf("cannot remodel to different gadgets yet")
 	}
 	userID := 0
-
-	// adjust kernel track
 	var tss []*state.TaskSet
+
+	// install new base (if needed)
+	if current.Base() != new.Base() {
+		// install snapd snap if needed
+		if current.Base() == "" {
+			ts, err := snapstateInstall(st, "snapd", "", snap.R(0), userID, snapstate.Flags{})
+			if err != nil {
+				return nil, err
+			}
+			tss = append(tss, ts)
+		}
+		// now install the new base
+		ts, err := snapstateInstall(st, new.Base(), "", snap.R(0), userID, snapstate.Flags{})
+		if err != nil {
+			return nil, err
+		}
+		// FIXME: use edges? ament new-model data
+		for _, t := range ts.Tasks() {
+			if t.Kind() == "link-snap" {
+				t.Set("new-model", asserts.Encode(new))
+			}
+		}
+		tss = append(tss, ts)
+	}
+	// adjust kernel track
 	if current.KernelTrack() != new.KernelTrack() {
-		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{})
+		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{NoReRefresh: true})
+		if err != nil {
+			return nil, err
+		}
+		tss = append(tss, ts)
+	}
+	// adjust gadget track
+	if current.GadgetTrack() != new.GadgetTrack() {
+		ts, err := snapstateUpdate(st, new.Gadget(), new.GadgetTrack(), snap.R(0), userID, snapstate.Flags{NoReRefresh: true})
 		if err != nil {
 			return nil, err
 		}
