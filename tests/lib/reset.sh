@@ -147,6 +147,11 @@ reset_all_snap() {
     fi
 }
 
+if [ "$SPREAD_BACKEND" = autopkgtest ]; then
+    # no need to modify the host for the autopkgtest tests
+    exit 0
+fi
+
 if is_core_system; then
     reset_all_snap "$@"
 else
