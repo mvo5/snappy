@@ -37,6 +37,13 @@ elif apt -qq list snapd | grep -q -- -updates; then
 fi
 # ensure we always run from the deb that is currently tested
 export SNAP_REEXEC=0
+mkdir -p /etc/systemd/system/snapd.service.d
+cat <<EOF > /etc/systemd/system/snapd.service.d/no-reexec.conf
+[Service]
+Environment=SNAP_REEXEC=$SNAP_REEXEC
+EOF
+systemctl daemon-reload
+systemctl restart snapd
 
 # Spread will only buid with recent go
 snap install --classic go

@@ -569,11 +569,6 @@ restore_project() {
     rmdir /etc/systemd/journald.conf.d || true
 }
 
-if [ "$SPREAD_BACKEND" = autopkgtest ]; then
-    # no need to modify the host for the autopkgtest tests
-    exit 0
-fi
-
 case "$1" in
     --prepare-project)
         prepare_project

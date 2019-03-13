@@ -425,6 +425,11 @@ distro_query_package_info() {
 }
 
 distro_install_build_snapd(){
+    if [ "$SPREAD_BACKEND" = autopkgtest ]; then
+        # autopkgtest systems have the right snapd installed already
+        exit 0
+    fi
+
     if [ "$SRU_VALIDATION" = "1" ]; then
         apt install -y snapd
         cp /etc/apt/sources.list sources.list.back
