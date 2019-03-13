@@ -249,6 +249,12 @@ prepare_project() {
         exit 0
     fi
 
+    if [ "$SPREAD_BACKEND" = autopkgtest ]; then
+        # for autopkgtest we are done here, we want to use the disto
+        # package - autopkgtest already build/installed that for us
+        exit 0
+    fi
+
     if [ "$SPREAD_BACKEND" = qemu ]; then
         if [ -d /etc/apt/apt.conf.d ]; then
             # qemu images may be built with pre-baked proxy settings that can be wrong
@@ -501,7 +507,10 @@ restore_suite() {
     if is_classic_system; then
         # shellcheck source=tests/lib/pkgdb.sh
         . "$TESTSLIB"/pkgdb.sh
-        distro_purge_package snapd
+        if [ "$SPREAD_BACKEND" != autopkgtest ]; then
+            # autopkgtest already has the right snapd installed
+            distro_purge_package snapd
+        fi
         if [[ "$SPREAD_SYSTEM" != opensuse-* && "$SPREAD_SYSTEM" != arch-* ]]; then
             # A snap-confine package never existed on openSUSE or Arch
             distro_purge_package snap-confine

@@ -35,6 +35,8 @@ if apt -qq list snapd | grep -q -- -proposed; then
 elif apt -qq list snapd | grep -q -- -updates; then
     export SPREAD_CORE_CHANNEL=stable
 fi
+# ensure we always run from the deb that is currently tested
+export SNAP_REEXEC=0
 
 # Spread will only buid with recent go
 snap install --classic go

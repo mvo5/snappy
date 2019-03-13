@@ -206,7 +206,10 @@ EOF
 }
 
 prepare_classic() {
-    distro_install_build_snapd
+    if [ "$SPREAD_BACKEND" != autopkgtest ]; then
+        # in an autopkgtest run we already have the right deb installed
+        distro_install_build_snapd
+    fi
     if snap --version |MATCH unknown; then
         echo "Package build incorrect, 'snap --version' mentions 'unknown'"
         snap --version
@@ -260,16 +263,18 @@ prepare_classic() {
         # shellcheck disable=SC2086
         cache_snaps ${PRE_CACHE_SNAPS}
 
-        ! snap list | grep core || exit 1
-        # use parameterized core channel (defaults to edge) instead
-        # of a fixed one and close to stable in order to detect defects
-        # earlier
-        snap install --"$CORE_CHANNEL" core
-        snap list | grep core
+        if [ "$SPREAD_BACKEND" != autopkgtest ]; then
+            ! snap list | grep core || exit 1
+            # use parameterized core channel (defaults to edge) instead
+            # of a fixed one and close to stable in order to detect defects
+            # earlier
+            snap install --"$CORE_CHANNEL" core
+            snap list | grep core
 
-        systemctl stop snapd.{service,socket}
-        update_core_snap_for_classic_reexec
-        systemctl start snapd.{service,socket}
+            systemctl stop snapd.{service,socket}
+            update_core_snap_for_classic_reexec
+            systemctl start snapd.{service,socket}
+        fi
 
         disable_refreshes
 
