@@ -367,11 +367,6 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	if current.Base() != new.Base() {
 		return nil, fmt.Errorf("cannot remodel to different bases yet")
 	}
-	// FIXME: we need to support this soon but right now only a single
-	// snap of type "gadget/kernel" is allowed so this needs work
-	if current.Kernel() != new.Kernel() {
-		return nil, fmt.Errorf("cannot remodel to different kernels yet")
-	}
 	if current.Gadget() != new.Gadget() {
 		return nil, fmt.Errorf("cannot remodel to different gadgets yet")
 	}
@@ -381,6 +376,14 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	var tss []*state.TaskSet
 	if current.KernelTrack() != new.KernelTrack() {
 		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{NoReRefresh: true})
+		if err != nil {
+			return nil, err
+		}
+		tss = append(tss, ts)
+	}
+	// add new kernel
+	if current.Kernel() != new.Kernel() {
+		ts, err := snapstateInstall(st, new.Kernel(), "", snap.R(0), userID, snapstate.Flags{AllowKernelReplace: true})
 		if err != nil {
 			return nil, err
 		}
