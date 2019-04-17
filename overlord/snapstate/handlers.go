@@ -519,6 +519,13 @@ func (m *SnapManager) doMountSnap(t *state.Task, _ *tomb.Tomb) error {
 	if err != nil {
 		return err
 	}
+	st.Lock()
+	deviceCtx, err := DeviceCtx(t.State(), t, nil)
+	st.Unlock()
+	if err != nil {
+		return err
+	}
+
 	curInfo, err := snapst.CurrentInfo()
 	if err != nil && err != ErrNoCurrent {
 		return err
@@ -526,7 +533,7 @@ func (m *SnapManager) doMountSnap(t *state.Task, _ *tomb.Tomb) error {
 
 	m.backend.CurrentInfo(curInfo)
 
-	if err := checkSnap(st, snapsup.SnapPath, snapsup.InstanceName(), snapsup.SideInfo, curInfo, snapsup.Flags); err != nil {
+	if err := checkSnap(st, snapsup.SnapPath, snapsup.InstanceName(), snapsup.SideInfo, curInfo, snapsup.Flags, deviceCtx); err != nil {
 		return err
 	}
 

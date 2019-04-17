@@ -74,22 +74,13 @@ func (m *DeviceManager) doSetModel(t *state.Task, _ *tomb.Tomb) error {
 	st.Lock()
 	defer st.Unlock()
 
-	var modelass []byte
-	if err := t.Get("new-model", &modelass); err != nil {
-		return err
-	}
-
-	ass, err := asserts.Decode(modelass)
+	deviceCtx, err := snapstate.DeviceCtx(st, t, nil)
 	if err != nil {
 		return err
 	}
+	new := deviceCtx.Model()
 
-	new, ok := ass.(*asserts.Model)
-	if !ok {
-		return fmt.Errorf("internal error: new-model is not a model assertion but: %s", ass.Type().Name)
-	}
-
-	err = assertstate.Add(st, ass)
+	err = assertstate.Add(st, new)
 	if err != nil && !isSameAssertsRevision(err) {
 		return err
 	}

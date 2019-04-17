@@ -133,7 +133,7 @@ func canAutoRefresh(st *state.State) (bool, error) {
 	return true, nil
 }
 
-func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, flags snapstate.Flags) error {
+func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, flags snapstate.Flags, deviceCtx snapstate.DeviceContext) error {
 	kind := ""
 	var currentInfo func(*state.State) (*snap.Info, error)
 	var getName func(*asserts.Model) string
@@ -155,12 +155,9 @@ func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, flags sn
 		return nil
 	}
 
-	model, err := Model(st)
-	if err == state.ErrNoState {
+	model := deviceCtx.Model()
+	if model == nil {
 		return fmt.Errorf("cannot install %s without model assertion", kind)
-	}
-	if err != nil {
-		return err
 	}
 
 	if snapInfo.SnapID != "" {
@@ -348,7 +345,7 @@ func extractDownloadInstallEdgesFromTs(ts *state.TaskSet) (firstDl, lastDl, firs
 // - Need new session/serial if changing store or model
 // - Check all relevant snaps exist in new store
 //   (need to check that even unchanged snaps are accessible)
-func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
+func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 	var seeded bool
 	st.Get("seeded", &seeded)
 	if !seeded {
@@ -389,11 +386,6 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	if current.Base() != new.Base() {
 		return nil, fmt.Errorf("cannot remodel to different bases yet")
 	}
-	// FIXME: we need to support this soon but right now only a single
-	// snap of type "gadget/kernel" is allowed so this needs work
-	if current.Kernel() != new.Kernel() {
-		return nil, fmt.Errorf("cannot remodel to different kernels yet")
-	}
 	if current.Gadget() != new.Gadget() {
 		return nil, fmt.Errorf("cannot remodel to different gadgets yet")
 	}
@@ -403,6 +395,14 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	var tss []*state.TaskSet
 	if current.KernelTrack() != new.KernelTrack() {
 		ts, err := snapstateUpdate(st, new.Kernel(), new.KernelTrack(), snap.R(0), userID, snapstate.Flags{NoReRefresh: true})
+		if err != nil {
+			return nil, err
+		}
+		tss = append(tss, ts)
+	}
+	// add new kernel
+	if current.Kernel() != new.Kernel() {
+		ts, err := snapstateInstall(st, new.Kernel(), "", snap.R(0), userID, snapstate.Flags{})
 		if err != nil {
 			return nil, err
 		}
@@ -485,11 +485,22 @@ func Remodel(st *state.State, new *asserts.Model) ([]*state.TaskSet, error) {
 	// Set the new model assertion - this *must* be the last thing done
 	// by the change.
 	setModel := st.NewTask("set-model", i18n.G("Set new model assertion"))
-	setModel.Set("new-model", asserts.Encode(new))
 	for _, tsPrev := range tss {
 		setModel.WaitAll(tsPrev)
 	}
 	tss = append(tss, state.NewTaskSet(setModel))
 
-	return tss, nil
+	var msg string
+	if current.BrandID() == new.BrandID() && current.Model() == new.Model() {
+		msg = fmt.Sprintf(i18n.G("Refresh model assertion from revision %v to %v"), current.Revision(), new.Revision())
+	} else {
+		msg = fmt.Sprintf(i18n.G("Remodel device to %v/%v (%v)"), current.BrandID(), new.Model(), new.Revision())
+	}
+	chg := st.NewChange("remodel", msg)
+	for _, ts := range tss {
+		chg.AddAll(ts)
+	}
+	chg.Set("new-model", asserts.Encode(new))
+
+	return chg, nil
 }

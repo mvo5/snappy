@@ -43,7 +43,7 @@ func (s *apiSuite) TestPostRemodelUnhappy(c *check.C) {
 	c.Check(rsp.Result.(*errorResult).Message, check.Matches, "cannot decode new model assertion: .*")
 }
 
-func (s *apiSuite) testPostRemodel(c *check.C, newModel map[string]interface{}, expectedChgSummary string) {
+func (s *apiSuite) testPostRemodel(c *check.C, newModel map[string]interface{}) {
 	d := s.daemonWithOverlordMock(c)
 	st := d.overlord.State()
 	st.Lock()
@@ -51,9 +51,10 @@ func (s *apiSuite) testPostRemodel(c *check.C, newModel map[string]interface{}, 
 	st.Unlock()
 
 	var devicestateRemodelGotModel *asserts.Model
-	devicestateRemodel = func(st *state.State, nm *asserts.Model) ([]*state.TaskSet, error) {
+	devicestateRemodel = func(st *state.State, nm *asserts.Model) (*state.Change, error) {
 		devicestateRemodelGotModel = nm
-		return nil, nil
+		chg := st.NewChange("remodel", "...")
+		return chg, nil
 	}
 
 	// create a valid model assertion
@@ -74,7 +75,7 @@ func (s *apiSuite) testPostRemodel(c *check.C, newModel map[string]interface{}, 
 	st.Lock()
 	defer st.Unlock()
 	chg := st.Change(rsp.Change)
-	c.Check(chg.Summary(), check.Equals, expectedChgSummary)
+	c.Assert(chg, check.NotNil)
 }
 
 func (s *apiSuite) TestPostRemodelDifferentBrandModel(c *check.C) {
@@ -88,8 +89,7 @@ func (s *apiSuite) TestPostRemodelDifferentBrandModel(c *check.C) {
 		"kernel":       "pc-kernel",
 		"timestamp":    time.Now().Format(time.RFC3339),
 	}
-	expectedChgSummary := "Remodel device to my-brand/my-model (0)"
-	s.testPostRemodel(c, newModel, expectedChgSummary)
+	s.testPostRemodel(c, newModel)
 }
 
 func (s *apiSuite) TestPostRemodelSameBrandModelDifferentRev(c *check.C) {
@@ -99,6 +99,5 @@ func (s *apiSuite) TestPostRemodelSameBrandModelDifferentRev(c *check.C) {
 	}
 	newModel["revision"] = "2"
 
-	expectedChgSummary := "Refresh model assertion from revision 0 to 2"
-	s.testPostRemodel(c, newModel, expectedChgSummary)
+	s.testPostRemodel(c, newModel)
 }
