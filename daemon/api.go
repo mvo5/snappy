@@ -1045,7 +1045,7 @@ func snapInstallMany(inst *snapInstruction, st *state.State) (*snapInstructionRe
 			return nil, fmt.Errorf(i18n.G("cannot install snap with empty name"))
 		}
 	}
-	installed, tasksets, err := snapstateInstallMany(st, inst.Snaps, inst.userID)
+	installed, tasksets, err := snapstateInstallMany(context.TODO(), st, inst.Snaps, inst.userID)
 	if err != nil {
 		return nil, err
 	}

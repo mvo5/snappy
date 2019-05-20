@@ -719,7 +719,7 @@ func InstallUnderDeviceContext(st *state.State, name, channel string, revision s
 
 // InstallMany installs everything from the given list of names.
 // Note that the state must be locked by the caller.
-func InstallMany(st *state.State, names []string, userID int) ([]string, []*state.TaskSet, error) {
+func InstallMany(ctx context.Context, st *state.State, names []string, userID int) ([]string, []*state.TaskSet, error) {
 	// need to have a model set before trying to talk the store
 	deviceCtx, err := DevicePastSeeding(st, nil)
 	if err != nil {

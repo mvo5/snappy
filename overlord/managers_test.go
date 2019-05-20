@@ -1025,7 +1025,7 @@ func (ms *mgrsSuite) TestHappyRemoteInstallAndUpdateManyWithEpochBump(c *C) {
 	st.Lock()
 	defer st.Unlock()
 
-	affected, tasksets, err := snapstate.InstallMany(st, snapNames, 0)
+	affected, tasksets, err := snapstate.InstallMany(nil, st, snapNames, 0)
 	c.Assert(err, IsNil)
 	sort.Strings(affected)
 	c.Check(affected, DeepEquals, snapNames)
@@ -1106,7 +1106,7 @@ func (ms *mgrsSuite) TestHappyRemoteInstallAndUpdateManyWithEpochBumpAndOneFaili
 	st.Lock()
 	defer st.Unlock()
 
-	affected, tasksets, err := snapstate.InstallMany(st, snapNames, 0)
+	affected, tasksets, err := snapstate.InstallMany(nil, st, snapNames, 0)
 	c.Assert(err, IsNil)
 	sort.Strings(affected)
 	c.Check(affected, DeepEquals, snapNames)

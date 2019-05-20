@@ -3801,7 +3801,7 @@ func (s *apiSuite) TestRefreshMany1(c *check.C) {
 }
 
 func (s *apiSuite) TestInstallMany(c *check.C) {
-	snapstateInstallMany = func(s *state.State, names []string, userID int) ([]string, []*state.TaskSet, error) {
+	snapstateInstallMany = func(ctx context.Context, s *state.State, names []string, userID int) ([]string, []*state.TaskSet, error) {
 		c.Check(names, check.HasLen, 2)
 		t := s.NewTask("fake-install-2", "Install two")
 		return names, []*state.TaskSet{state.NewTaskSet(t)}, nil
@@ -3819,7 +3819,7 @@ func (s *apiSuite) TestInstallMany(c *check.C) {
 }
 
 func (s *apiSuite) TestInstallManyEmptyName(c *check.C) {
-	snapstateInstallMany = func(_ *state.State, _ []string, _ int) ([]string, []*state.TaskSet, error) {
+	snapstateInstallMany = func(_ context.Context, _ *state.State, _ []string, _ int) ([]string, []*state.TaskSet, error) {
 		return nil, nil, errors.New("should not be called")
 	}
 	d := s.daemon(c)
