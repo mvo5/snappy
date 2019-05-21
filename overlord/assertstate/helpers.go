@@ -38,6 +38,44 @@ func userFromUserID(st *state.State, userID int) (*auth.UserState, error) {
 	return auth.User(st, userID)
 }
 
+func doFetch(s *state.State, userID int, fetching func(asserts.Fetcher) error) error {
+	// TODO: once we have a bulk assertion retrieval endpoint this approach will change
+
+	user, err := userFromUserID(s, userID)
+	if err != nil {
+		return err
+	}
+
+	sto := snapstate.Store(s)
+
+	retrieve := func(ref *asserts.Ref) (asserts.Assertion, error) {
+		// TODO: ignore errors if already in db?
+		return sto.Assertion(ref.Type, ref.PrimaryKey, user)
+	}
+
+	f := newFetcher(s, retrieve)
+
+	s.Unlock()
+	err = fetching(f)
+	s.Lock()
+	if err != nil {
+		return err
+	}
+
+	// TODO: trigger w. caller a global sanity check if a is revoked
+	// (but try to save as much possible still),
+	// or err is a check error
+	return f.commit()
+}
+
+func findError(format string, ref *asserts.Ref, err error) error {
+	if asserts.IsNotFound(err) {
+		return fmt.Errorf(format, ref)
+	} else {
+		return fmt.Errorf(format+": %v", ref, err)
+	}
+}
+
 type fetcher struct {
 	db *asserts.Database
 	asserts.Fetcher
@@ -94,34 +132,4 @@ func (f *fetcher) commit() error {
 		return &commitError{errs: errs}
 	}
 	return nil
-}
-
-func doFetch(s *state.State, userID int, fetching func(asserts.Fetcher) error) error {
-	// TODO: once we have a bulk assertion retrieval endpoint this approach will change
-
-	user, err := userFromUserID(s, userID)
-	if err != nil {
-		return err
-	}
-
-	sto := snapstate.Store(s)
-
-	retrieve := func(ref *asserts.Ref) (asserts.Assertion, error) {
-		// TODO: ignore errors if already in db?
-		return sto.Assertion(ref.Type, ref.PrimaryKey, user)
-	}
-
-	f := newFetcher(s, retrieve)
-
-	s.Unlock()
-	err = fetching(f)
-	s.Lock()
-	if err != nil {
-		return err
-	}
-
-	// TODO: trigger w. caller a global sanity check if a is revoked
-	// (but try to save as much possible still),
-	// or err is a check error
-	return f.commit()
 }
