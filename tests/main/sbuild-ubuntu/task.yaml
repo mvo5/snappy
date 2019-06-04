@@ -8,15 +8,17 @@ kill-timeout: 30m
 systems: [ubuntu-1*-64, ubuntu-2*-64]
 
 execute: |
+    apt install sbuild
+
     echo "Create a sbuild env"
     . /etc/os-release
-    eatmydata sbuild-createchroot --include=eatmydata,ccache,gnupg "$UBUNTU_CODENAME" /srv/chroot/amd64-sbuild http://archive.ubuntu.com
+    eatmydata sbuild-createchroot --include=eatmydata,ccache,gnupg "$UBUNTU_CODENAME" /srv/chroot/amd64-sbuild http://archive.ubuntu.com/ubuntu
 
     echo "Allow test user to run sbuild"
     sbuild-adduser test
 
     echo "And build it normally"
-    su -c "sbuild -d $UBUNTU_CODENAME --run-autopkgtest $SPREAD_PATH/../*.dsc" test
+    su -c "sbuild -d $UBUNTU_CODENAME --run-autopkgtest $SPREAD_PATH/" test
 
 restore: |
     rm --recursive --one-file-system /srv/chroot/sid-amd64-sbuild
