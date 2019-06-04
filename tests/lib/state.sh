@@ -56,6 +56,7 @@ save_snapd_state() {
         snapd_env="/etc/environment /etc/systemd/system/snapd.service.d /etc/systemd/system/snapd.socket.d"
         snap_confine_profiles="$(ls /etc/apparmor.d/snap.core.* || true)"
 
+        mkdir -p "$SNAPD_STATE_PATH"
         # shellcheck disable=SC2086
         tar cf "$SNAPD_STATE_FILE" \
             /var/lib/snapd \
