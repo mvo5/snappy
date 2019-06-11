@@ -3499,6 +3499,14 @@ func (ms *mgrsSuite) TestRemodelSwitchToDifferentKernel(c *C) {
 	st.Lock()
 	defer st.Unlock()
 
+	siGadget := &snap.SideInfo{RealName: "pc", SnapID: fakeSnapID("pc"), Revision: snap.R(2)}
+	snapstate.Set(st, "pc", &snapstate.SnapState{
+		Active:   true,
+		Sequence: []*snap.SideInfo{siGadget},
+		Current:  snap.R(2),
+		SnapType: "gadget",
+	})
+
 	si := &snap.SideInfo{RealName: "pc-kernel", SnapID: fakeSnapID("pc-kernel"), Revision: snap.R(1)}
 	snapstate.Set(st, "pc-kernel", &snapstate.SnapState{
 		Active:   true,
@@ -3512,7 +3520,8 @@ func (ms *mgrsSuite) TestRemodelSwitchToDifferentKernel(c *C) {
 type: kernel
 version: 1.0`
 	ms.prereqSnapAssertions(c, map[string]interface{}{
-		"snap-name": "brand-kernel",
+		"snap-name":    "brand-kernel",
+		"publisher-id": "can0nical",
 	})
 	snapPath, _ := ms.makeStoreTestSnap(c, brandKernelYaml, "2")
 	ms.serveSnap(snapPath, "2")
@@ -3574,7 +3583,7 @@ version: 1.0`
 
 	// first all downloads/checks in sequential order
 	var i int
-	i += validateDownloadCheckTasks(c, tasks[i:], "brand-kernel", "2", "18")
+	i += validateDownloadCheckTasks(c, tasks[i:], "brand-kernel", "2", "stable")
 	i += validateDownloadCheckTasks(c, tasks[i:], "foo", "1", "stable")
 
 	// then all installs in sequential order

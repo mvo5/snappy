@@ -491,11 +491,6 @@ func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 	if current.Base() != new.Base() {
 		return nil, fmt.Errorf("cannot remodel to different bases yet")
 	}
-	// FIXME: we need to support this soon but right now only a single
-	// snap of type "gadget/kernel" is allowed so this needs work
-	if current.Kernel() != new.Kernel() {
-		return nil, fmt.Errorf("cannot remodel to different kernels yet")
-	}
 	if current.Gadget() != new.Gadget() {
 		return nil, fmt.Errorf("cannot remodel to different gadgets yet")
 	}

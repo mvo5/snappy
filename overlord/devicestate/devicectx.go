@@ -30,6 +30,9 @@ func DeviceCtx(st *state.State, task *state.Task, providedDeviceCtx snapstate.De
 	if providedDeviceCtx != nil {
 		return providedDeviceCtx, nil
 	}
+	if remodelCtx, err := remodelCtxFromTask(task); err == nil {
+		return remodelCtx, nil
+	}
 	modelAs, err := findModel(st)
 	if err != nil {
 		return nil, err
