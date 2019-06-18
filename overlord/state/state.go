@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/snapcore/snapd/logger"
+	"github.com/snapcore/snapd/osutil"
 )
 
 // A Backend is used by State to checkpoint on every unlock operation
@@ -111,8 +112,9 @@ type State struct {
 
 	cache map[interface{}]interface{}
 
-	restarting RestartType
-	restartLck sync.Mutex
+	restarting    RestartType
+	restartBootId string
+	restartLck    sync.Mutex
 }
 
 // New returns a new empty state.
@@ -166,6 +168,8 @@ type marshalledState struct {
 	LastChangeId int `json:"last-change-id"`
 	LastTaskId   int `json:"last-task-id"`
 	LastLaneId   int `json:"last-lane-id"`
+
+	RestartBootId string `json:"restart-boot-id"`
 }
 
 // MarshalJSON makes State a json.Marshaller
@@ -180,6 +184,8 @@ func (s *State) MarshalJSON() ([]byte, error) {
 		LastTaskId:   s.lastTaskId,
 		LastChangeId: s.lastChangeId,
 		LastLaneId:   s.lastLaneId,
+
+		RestartBootId: s.restartBootId,
 	})
 }
 
@@ -198,6 +204,13 @@ func (s *State) UnmarshalJSON(data []byte) error {
 	s.lastChangeId = unmarshalled.LastChangeId
 	s.lastTaskId = unmarshalled.LastTaskId
 	s.lastLaneId = unmarshalled.LastLaneId
+	s.restartBootId = unmarshalled.RestartBootId
+	// clear bootid if needed
+	if bootid, err := osutil.BootID(); err == nil {
+		if s.restartBootId != bootid {
+			s.restartBootId = ""
+		}
+	}
 	// backlink state again
 	for _, t := range s.tasks {
 		t.state = s
@@ -259,6 +272,11 @@ func (s *State) RequestRestart(t RestartType) {
 	if s.backend != nil {
 		s.restartLck.Lock()
 		s.restarting = t
+		if t == RestartSystem {
+			if bootid, err := osutil.BootID(); err == nil {
+				s.restartBootId = bootid
+			}
+		}
 		s.restartLck.Unlock()
 		s.backend.RequestRestart(t)
 	}
@@ -268,6 +286,12 @@ func (s *State) RequestRestart(t RestartType) {
 func (s *State) Restarting() (bool, RestartType) {
 	s.restartLck.Lock()
 	defer s.restartLck.Unlock()
+	// checks if we have a pending system restart
+	if s.restarting == RestartUnset {
+		if bootid, err := osutil.BootID(); err == nil {
+			return s.restartBootId == bootid, s.restarting
+		}
+	}
 	return s.restarting != RestartUnset, s.restarting
 }
 

@@ -403,10 +403,6 @@ func WaitRestart(task *state.Task, snapsup *SnapSetup) (err error) {
 	// can be triggered by:
 	// - core (old core16 world, system-reboot)
 	// - bootable base snap (new core18 world, system-reboot)
-	//
-	// TODO: Detect "snapd" snap daemon-restarts here that
-	//       fallback into the old version (once we have
-	//       better snapd rollback support in core18).
 	if !release.OnClassic {
 		// TODO: double check that we really rebooted
 		// otherwise this could be just a spurious restart
