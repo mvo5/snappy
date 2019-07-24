@@ -109,10 +109,16 @@ static void validate_bpfpath_is_safe(const char *path)
 	}
 }
 
-bool sc_apply_seccomp_profile_for_security_tag(const char *security_tag)
+// sc_load_seccomp_profile_for_security tag loads the given security tag
+// into the provided "bpf" buffer with at most "bpf_buf_size" bytes.
+//
+// It returns the number of bpf instructions read. It will return "0"
+// for unrestricted seccomp profiles. It may die() if it is not able
+// to load the file.
+static size_t sc_load_seccomp_profile_for_security_tag(const char *security_tag,
+						       char *bpf,
+						       int bpf_buf_size)
 {
-	debug("loading bpf program for security tag %s", security_tag);
-
 	char profile_path[PATH_MAX] = { 0 };
 	sc_must_snprintf(profile_path, sizeof(profile_path), "%s/%s.bin",
 			 filter_profile_dir, security_tag);
@@ -152,9 +158,24 @@ bool sc_apply_seccomp_profile_for_security_tag(const char *security_tag)
 	// set on the system.
 	validate_bpfpath_is_safe(profile_path);
 
-	char bpf[MAX_BPF_SIZE + 1] = { 0 };	// account for EOF
-	size_t num_read = sc_read_seccomp_filter(profile_path, bpf, sizeof bpf);
+	size_t num_read =
+	    sc_read_seccomp_filter(profile_path, bpf, bpf_buf_size);
 	if (sc_streq(bpf, "@unrestricted\n")) {
+		return 0;
+	}
+
+	return num_read;
+}
+
+bool sc_apply_seccomp_profile_for_security_tag(const char *security_tag)
+{
+	debug("loading bpf program for security tag %s", security_tag);
+
+	char bpf[MAX_BPF_SIZE + 1] = { 0 };	// account for EOF
+	size_t num_read =
+	    sc_load_seccomp_profile_for_security_tag(security_tag, bpf,
+						     sizeof bpf);
+	if (num_read == 0) {
 		return false;
 	}
 	struct sock_fprog prog = {
@@ -163,6 +184,16 @@ bool sc_apply_seccomp_profile_for_security_tag(const char *security_tag)
 	};
 	sc_apply_seccomp_filter(&prog);
 	return true;
+}
+
+bool sc_seccomp_is_unrestricted(const char *security_tag)
+{
+	char bpf[MAX_BPF_SIZE + 1] = { 0 };	// account for EOF
+
+	size_t num_read =
+	    sc_load_seccomp_profile_for_security_tag(security_tag, bpf,
+						     sizeof bpf);
+	return (num_read == 0);
 }
 
 void sc_apply_global_seccomp_profile(void)

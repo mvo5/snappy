@@ -104,6 +104,15 @@ static void sc_maybe_fixup_udev(void)
 	}
 }
 
+// sc_is_devmode returns true if the given snap is installed in "devmode".
+static bool sc_is_devmode(const char *security_tag)
+{
+	// FIXME: we find out about devmode in an indirect way right now. In
+	// the future we want to have some sort of key=value value for each
+	// snap that will give us this information
+	return sc_seccomp_is_unrestricted(security_tag);
+}
+
 /**
  * sc_preserved_process_state remembers clobbered state to restore.
  *
@@ -573,10 +582,12 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 	sc_check_rootfs_dir(inv);
 
 	/** Populate and join the device control group. */
-	struct snappy_udev udev_s;
-	if (snappy_udev_init(inv->security_tag, &udev_s) == 0)
-		setup_devices_cgroup(inv->security_tag, &udev_s);
-	snappy_udev_cleanup(&udev_s);
+	if (!sc_is_devmode(inv->security_tag)) {
+		struct snappy_udev udev_s;
+		if (snappy_udev_init(inv->security_tag, &udev_s) == 0)
+			setup_devices_cgroup(inv->security_tag, &udev_s);
+		snappy_udev_cleanup(&udev_s);
+	}
 
 	/**
 	 * is_normal_mode controls if we should pivot into the base snap.

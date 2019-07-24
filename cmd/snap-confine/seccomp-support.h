@@ -47,4 +47,8 @@ bool sc_apply_seccomp_profile_for_security_tag(const char *security_tag);
 
 void sc_apply_global_seccomp_profile(void);
 
+// sc_seccomp_is_unrestricted returns true if the given snap is installed
+// in "unrestricted_mode"
+bool sc_seccomp_is_unrestricted(const char *security_tag);
+
 #endif
