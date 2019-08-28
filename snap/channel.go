@@ -38,15 +38,37 @@ type Channel struct {
 	Branch       string `json:"branch,omitempty"`
 }
 
+type DeprecatedChannelStringError struct{ error }
+
 // ParseChannelVerbatim parses a string representing a store channel and
-// includes the given architecture, if architecture is "" the system
-// architecture is included. The channel representation is not normalized.
+// includes the given architecture; if architecture is "" the system
+// architecture is used. The channel representation is not normalized.
+//
+// If the string suffers from too many slashes but is otherwise OK,
+// and as such would have been accepted by the store before (when we
+// moslty just passed it through), then the returned Channel will be
+// properly filled, and the error will be a
+// DeprecatedChannelStringError that wraps the original parse error.
+//
 // ParseChannel() should be used in most cases.
 func ParseChannelVerbatim(s string, architecture string) (Channel, error) {
 	if s == "" {
 		return Channel{}, fmt.Errorf("channel name cannot be empty")
 	}
 	p := strings.Split(s, "/")
+	ch, err := parse(p, s, architecture)
+	if err != nil {
+		p = strings.FieldsFunc(s, func(r rune) bool { return r == '/' })
+		oe := err
+		ch, err = parse(p, s, architecture)
+		if err == nil {
+			err = DeprecatedChannelStringError{oe}
+		}
+	}
+	return ch, err
+}
+
+func parse(p []string, s, architecture string) (Channel, error) {
 	var risk, track, branch *string
 	switch len(p) {
 	default:
@@ -98,14 +120,18 @@ func ParseChannelVerbatim(s string, architecture string) (Channel, error) {
 }
 
 // ParseChannel parses a string representing a store channel and includes given
-// architecture, , if architecture is "" the system architecture is included.
+// architecture; if architecture is "" the system architecture is used.
+//
+// If the string suffers from too many slashes but is otherwise OK,
+// and as such would have been accepted by the store before (when we
+// moslty just passed it through), then the returned Channel will be
+// properly filled, and the error will be a
+// DeprecatedChannelStringError that wraps the original parse error.
+//
 // The returned channel's track, risk and name are normalized.
 func ParseChannel(s string, architecture string) (Channel, error) {
 	channel, err := ParseChannelVerbatim(s, architecture)
-	if err != nil {
-		return Channel{}, err
-	}
-	return channel.Clean(), nil
+	return channel.Clean(), err
 }
 
 // Clean returns a Channel with a normalized track, risk and name.

@@ -167,20 +167,26 @@ func (s storeChannelSuite) TestParseChannelErrors(c *C) {
 	for _, tc := range []struct {
 		channel string
 		err     string
+		full    string
 	}{
-		{"", "channel name cannot be empty"},
-		{"1.0////", "channel name has too many components: 1.0////"},
-		{"1.0/cand", "invalid risk in channel name: 1.0/cand"},
-		{"fix//hotfix", "invalid risk in channel name: fix//hotfix"},
-		{"/stable/", "invalid track in channel name: /stable/"},
-		{"//stable", "invalid risk in channel name: //stable"},
-		{"stable/", "invalid branch in channel name: stable/"},
-		{"/stable", "invalid track in channel name: /stable"},
+		{"", "channel name cannot be empty", ""},
+		{"1.0////", "channel name has too many components: 1.0////", "1.0/stable"},
+		{"1.0/cand", "invalid risk in channel name: 1.0/cand", ""},
+		{"fix//hotfix", "invalid risk in channel name: fix//hotfix", ""},
+		{"/stable/", "invalid track in channel name: /stable/", "latest/stable"},
+		{"//stable", "invalid risk in channel name: //stable", "latest/stable"},
+		{"stable/", "invalid branch in channel name: stable/", "latest/stable"},
+		{"/stable", "invalid track in channel name: /stable", "latest/stable"},
 	} {
 		_, err := snap.ParseChannel(tc.channel, "")
 		c.Check(err, ErrorMatches, tc.err)
-		_, err = snap.ParseChannelVerbatim(tc.channel, "")
+		ch, err := snap.ParseChannelVerbatim(tc.channel, "")
 		c.Check(err, ErrorMatches, tc.err)
+		if tc.full != "" {
+			c.Check(err, FitsTypeOf, snap.DeprecatedChannelStringError{})
+			ch = ch.Clean()
+			c.Check(ch.Full(), Equals, tc.full)
+		}
 	}
 }
 
