@@ -20,8 +20,6 @@
 package bootloadertest
 
 import (
-	"path/filepath"
-
 	"github.com/snapcore/snapd/bootloader"
 	"github.com/snapcore/snapd/snap"
 )
@@ -32,6 +30,9 @@ type MockBootloader struct {
 	BootVars map[string]string
 	SetErr   error
 	GetErr   error
+
+	PrepareImageErr   error
+	PrepareImageCalls []string
 
 	name    string
 	bootdir string
@@ -72,8 +73,9 @@ func (b *MockBootloader) Name() string {
 	return b.name
 }
 
-func (b *MockBootloader) ConfigFile() string {
-	return filepath.Join(b.bootdir, "mockboot/mockboot.cfg")
+func (b *MockBootloader) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+	b.PrepareImageCalls = append(b.PrepareImageCalls, gadgetDir)
+	return b.PrepareImageErr
 }
 
 func (b *MockBootloader) ExtractKernelAssets(s snap.PlaceInfo, snapf snap.Container) error {

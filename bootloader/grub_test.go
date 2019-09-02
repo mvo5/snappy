@@ -68,7 +68,8 @@ func grubEditenvSet(c *C, key, value string) {
 		c.Skip("grub{,2}-editenv is not available")
 	}
 
-	err := exec.Command(grubEditenvCmd(), grubEnvPath(), "set", fmt.Sprintf("%s=%s", key, value)).Run()
+	output, err := exec.Command(grubEditenvCmd(), grubEnvPath(), "set", fmt.Sprintf("%s=%s", key, value)).CombinedOutput()
+	c.Assert(string(output), Equals, "")
 	c.Assert(err, IsNil)
 }
 

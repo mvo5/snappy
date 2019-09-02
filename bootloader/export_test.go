@@ -22,11 +22,13 @@ package bootloader
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	. "gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/bootloader/lkenv"
 	"github.com/snapcore/snapd/bootloader/ubootenv"
+	"github.com/snapcore/snapd/dirs"
 )
 
 // creates a new Androidboot bootloader object
@@ -38,7 +40,7 @@ func MockAndroidBootFile(c *C, mode os.FileMode) {
 	f := &androidboot{}
 	err := os.MkdirAll(f.dir(), 0755)
 	c.Assert(err, IsNil)
-	err = ioutil.WriteFile(f.ConfigFile(), nil, mode)
+	err = ioutil.WriteFile(f.envFile(), nil, mode)
 	c.Assert(err, IsNil)
 }
 
@@ -66,27 +68,8 @@ func MockGrubFiles(c *C) {
 	g := &grub{}
 	err := os.MkdirAll(g.dir(), 0755)
 	c.Assert(err, IsNil)
-	err = ioutil.WriteFile(g.ConfigFile(), nil, 0644)
-	c.Assert(err, IsNil)
-}
-
-func NewLk() Bootloader {
-	return newLk()
-}
-
-func MockLkFiles(c *C) {
-	l := &lk{}
-	err := os.MkdirAll(l.dir(), 0755)
-	c.Assert(err, IsNil)
-
-	// first create empty env file
-	buf := make([]byte, 4096)
-	err = ioutil.WriteFile(l.envFile(), buf, 0660)
-	c.Assert(err, IsNil)
-	// now write env in it with correct crc
-	env := lkenv.NewEnv(l.envFile())
-	env.ConfigureBootPartitions("boot_a", "boot_b")
-	err = env.Save()
+	grubCfg := filepath.Join(dirs.GlobalRootDir, "/boot/grub/grub.cfg")
+	err = ioutil.WriteFile(grubCfg, nil, 0644)
 	c.Assert(err, IsNil)
 }
 
@@ -108,5 +91,4 @@ func MockLkImageBuildingFiles(c *C) {
 	env.ConfigureBootPartitions("boot_a", "boot_b")
 	err = env.Save()
 	c.Assert(err, IsNil)
-
 }

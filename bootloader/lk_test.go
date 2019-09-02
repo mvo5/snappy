@@ -111,7 +111,8 @@ func (s *lkImageBuildingTestSuite) TestExtractKernelAssetsUnpacksCustomBootimg(c
 	c.Assert(l, NotNil)
 
 	// first configure custom boot image file name
-	env := lkenv.NewEnv(l.ConfigFile())
+	envFile := filepath.Join(dirs.GlobalRootDir, "/boot/lk/snapbootsel.bin")
+	env := lkenv.NewEnv(envFile)
 	env.Load()
 	env.ConfigureBootimgName("boot-2.img")
 	err := env.Save()

@@ -33,76 +33,51 @@ import (
 	"github.com/snapcore/snapd/snap"
 )
 
-type lkBase struct {
-	envFilePath string
-}
-
-func (l *lkBase) GetBootVars(names ...string) (map[string]string, error) {
-	out := make(map[string]string)
-
-	env := lkenv.NewEnv(l.envFilePath)
-	if err := env.Load(); err != nil {
-		return nil, err
-	}
-
-	for _, name := range names {
-		out[name] = env.Get(name)
-	}
-
-	return out, nil
-}
-
-func (l *lkBase) SetBootVars(values map[string]string) error {
-	env := lkenv.NewEnv(l.envFilePath)
-	if err := env.Load(); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	// update environment only if something change
-	dirty := false
-	for k, v := range values {
-		// already set to the right value, nothing to do
-		if env.Get(k) == v {
-			continue
-		}
-		env.Set(k, v)
-		dirty = true
-	}
-
-	if dirty {
-		return env.Save()
-	}
-
-	return nil
-}
-
-type lkImageBuilding struct {
-	lkBase
-}
+// lkImageBuilding deals with the little-kernel bootloader during
+// image-building (`snap prepare-image` specifically). Here lk
+// will write the bootsel files. In a real LK system it will write
+// files to partitions.
+type lkImageBuilding struct{}
 
 func newLkImageBuilding() Bootloader {
 	e := &lkImageBuilding{}
 	if !osutil.FileExists(e.envFile()) {
 		return nil
 	}
-	e.envFilePath = e.envFile()
 	return e
 }
 
 func (l *lkImageBuilding) Name() string {
-	// XXX: use a different name here?
 	return "lk"
 }
 
 func (l *lkImageBuilding) dir() string {
+	// XXX: this check is ugly - but needed because we don't know
+	//      if we are in the prepare image phase otherwise
+	// XXX2: we could instead check if we have a "bootsel" partition
+	//       but that would break "snap prepare-image" on a ubuntu-core
+	//       LK machine
 	if dirs.GlobalRootDir != "/" {
 		return filepath.Join(dirs.GlobalRootDir, "/boot/lk/")
 	}
 	return ""
 }
 
-func (l *lkImageBuilding) ConfigFile() string {
-	return l.envFile()
+func (l *lkImageBuilding) SetBootVars(values map[string]string) error {
+	return lkSetBootVars(l.envFile(), values)
+}
+
+func (l *lkImageBuilding) GetBootVars(names ...string) (map[string]string, error) {
+	return lkGetBootVars(l.envFile(), names...)
+}
+
+func (l *lkImageBuilding) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+	blName := l.Name()
+	blConfigFile := l.envFile()
+	if err := simplePrepareImage(blName, blConfigFile, gadgetDir); err != nil {
+		return err
+	}
+	return l.SetBootVars(bootVars)
 }
 
 func (l *lkImageBuilding) envFile() string {
@@ -145,9 +120,7 @@ func (l *lkImageBuilding) RemoveKernelAssets(s snap.PlaceInfo) error {
 	return nil
 }
 
-type lk struct {
-	lkBase
-}
+type lk struct{}
 
 // newLk create a new lk bootloader object
 func newLk() Bootloader {
@@ -155,7 +128,6 @@ func newLk() Bootloader {
 	if !osutil.FileExists(e.envFile()) {
 		return nil
 	}
-	e.envFilePath = e.envFile()
 	return e
 }
 
@@ -163,8 +135,16 @@ func (l *lk) Name() string {
 	return "lk"
 }
 
-func (l *lk) ConfigFile() string {
-	return l.envFile()
+func (l *lk) SetBootVars(values map[string]string) error {
+	return lkSetBootVars(l.envFile(), values)
+}
+
+func (l *lk) GetBootVars(names ...string) (map[string]string, error) {
+	return lkGetBootVars(l.envFile(), names...)
+}
+
+func (l *lk) PrepareImage(string, map[string]string) error {
+	return errPrepareImageNothingToDo
 }
 
 func (l *lk) dir() string {
@@ -256,5 +236,44 @@ func (l *lk) RemoveKernelAssets(s snap.PlaceInfo) error {
 	if dirty {
 		return env.Save()
 	}
+	return nil
+}
+
+func lkGetBootVars(envFile string, names ...string) (map[string]string, error) {
+	out := make(map[string]string)
+
+	env := lkenv.NewEnv(envFile)
+	if err := env.Load(); err != nil {
+		return nil, err
+	}
+
+	for _, name := range names {
+		out[name] = env.Get(name)
+	}
+
+	return out, nil
+}
+
+func lkSetBootVars(envFile string, values map[string]string) error {
+	env := lkenv.NewEnv(envFile)
+	if err := env.Load(); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// update environment only if something change
+	dirty := false
+	for k, v := range values {
+		// already set to the right value, nothing to do
+		if env.Get(k) == v {
+			continue
+		}
+		env.Set(k, v)
+		dirty = true
+	}
+
+	if dirty {
+		return env.Save()
+	}
+
 	return nil
 }

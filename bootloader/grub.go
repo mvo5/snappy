@@ -34,7 +34,7 @@ type grub struct{}
 // newGrub create a new Grub bootloader object
 func newGrub() Bootloader {
 	g := &grub{}
-	if !osutil.FileExists(g.ConfigFile()) {
+	if !osutil.FileExists(g.envFile()) {
 		return nil
 	}
 
@@ -49,8 +49,13 @@ func (g *grub) dir() string {
 	return filepath.Join(dirs.GlobalRootDir, "/boot/grub")
 }
 
-func (g *grub) ConfigFile() string {
-	return filepath.Join(g.dir(), "grub.cfg")
+func (g *grub) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+	blName := g.Name()
+	blConfigFile := filepath.Join(g.dir(), "grub.cfg")
+	if err := simplePrepareImage(blName, blConfigFile, gadgetDir); err != nil {
+		return err
+	}
+	return g.SetBootVars(bootVars)
 }
 
 func (g *grub) envFile() string {

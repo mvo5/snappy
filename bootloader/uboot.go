@@ -28,7 +28,9 @@ import (
 	"github.com/snapcore/snapd/snap"
 )
 
-type uboot struct{}
+type uboot struct {
+	bdir string
+}
 
 // newUboot create a new Uboot bootloader object
 func newUboot() Bootloader {
@@ -36,6 +38,7 @@ func newUboot() Bootloader {
 	if !osutil.FileExists(u.envFile()) {
 		return nil
 	}
+	u.bdir = filepath.Join(dirs.GlobalRootDir, "/boot/uboot")
 
 	return u
 }
@@ -45,11 +48,17 @@ func (u *uboot) Name() string {
 }
 
 func (u *uboot) dir() string {
-	return filepath.Join(dirs.GlobalRootDir, "/boot/uboot")
+	return u.bdir
 }
 
-func (u *uboot) ConfigFile() string {
-	return u.envFile()
+func (u *uboot) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+	blName := u.Name()
+	blConfigFile := u.envFile()
+	if err := simplePrepareImage(blName, blConfigFile, gadgetDir); err != nil {
+		return err
+	}
+	u.bdir = gadgetDir
+	return u.SetBootVars(bootVars)
 }
 
 func (u *uboot) envFile() string {

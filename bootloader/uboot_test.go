@@ -84,7 +84,8 @@ func (s *ubootTestSuite) TestUbootSetEnvNoUselessWrites(c *C) {
 	u := bootloader.NewUboot()
 	c.Assert(u, NotNil)
 
-	envFile := u.ConfigFile()
+	// XXX: get from uboot
+	envFile := filepath.Join(dirs.GlobalRootDir, "/boot/uboot/uboot.env")
 	env, err := ubootenv.Create(envFile, 4096)
 	c.Assert(err, IsNil)
 	env.Set("snap_ab", "b")

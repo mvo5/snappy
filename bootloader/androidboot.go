@@ -34,7 +34,7 @@ type androidboot struct{}
 // newAndroidboot creates a new Androidboot bootloader object
 func newAndroidBoot() Bootloader {
 	a := &androidboot{}
-	if !osutil.FileExists(a.ConfigFile()) {
+	if !osutil.FileExists(a.envFile()) {
 		return nil
 	}
 	return a
@@ -48,12 +48,21 @@ func (a *androidboot) dir() string {
 	return filepath.Join(dirs.GlobalRootDir, "/boot/androidboot")
 }
 
-func (a *androidboot) ConfigFile() string {
+func (a *androidboot) envFile() string {
 	return filepath.Join(a.dir(), "androidboot.env")
 }
 
+func (a *androidboot) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+	blName := a.Name()
+	blConfigFile := a.envFile()
+	if err := simplePrepareImage(blName, blConfigFile, gadgetDir); err != nil {
+		return err
+	}
+	return a.SetBootVars(bootVars)
+}
+
 func (a *androidboot) GetBootVars(names ...string) (map[string]string, error) {
-	env := androidbootenv.NewEnv(a.ConfigFile())
+	env := androidbootenv.NewEnv(a.envFile())
 	if err := env.Load(); err != nil {
 		return nil, err
 	}
@@ -67,7 +76,7 @@ func (a *androidboot) GetBootVars(names ...string) (map[string]string, error) {
 }
 
 func (a *androidboot) SetBootVars(values map[string]string) error {
-	env := androidbootenv.NewEnv(a.ConfigFile())
+	env := androidbootenv.NewEnv(a.envFile())
 	if err := env.Load(); err != nil && !os.IsNotExist(err) {
 		return err
 	}

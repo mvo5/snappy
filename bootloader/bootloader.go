@@ -58,34 +58,43 @@ type Bootloader interface {
 	// Name returns the bootloader name
 	Name() string
 
-	// ConfigFile returns the name of the config file
-	ConfigFile() string
-
 	// ExtractKernelAssets extracts kernel assets from the given kernel snap
 	ExtractKernelAssets(s snap.PlaceInfo, snapf snap.Container) error
 
 	// RemoveKernelAssets removes the assets for the given kernel snap.
 	RemoveKernelAssets(s snap.PlaceInfo) error
+
+	// PrepareImage will setup the bootloader during `snap prepare-image`
+	PrepareImage(gadgetDir string, bootvars map[string]string) error
 }
+
+var errPrepareImageNothingToDo = errors.New("prepare-image-nothing-to-do")
 
 // InstallBootConfig installs the bootloader config from the gadget
 // snap dir into the right place.
 func InstallBootConfig(gadgetDir string) error {
 	for _, bl := range []Bootloader{&grub{}, &uboot{}, &androidboot{}, &lkImageBuilding{}, &lk{}} {
-		// the bootloader config file has to be root of the gadget snap
-		gadgetFile := filepath.Join(gadgetDir, bl.Name()+".conf")
-		if !osutil.FileExists(gadgetFile) {
+		err := bl.PrepareImage(gadgetDir, nil)
+		if err == errPrepareImageNothingToDo {
 			continue
 		}
+		return err
+	}
+	return fmt.Errorf("cannot find boot config in %q", gadgetDir)
+}
 
-		systemFile := bl.ConfigFile()
-		if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
-			return err
-		}
-		return osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite)
+func simplePrepareImage(blName, blConfigFile, gadgetDir string) error {
+	// the bootloader config file has to be root of the gadget snap
+	gadgetFile := filepath.Join(gadgetDir, blName+".conf")
+	if !osutil.FileExists(gadgetFile) {
+		return errPrepareImageNothingToDo
 	}
 
-	return fmt.Errorf("cannot find boot config in %q", gadgetDir)
+	systemFile := blConfigFile
+	if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
+		return err
+	}
+	return osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite)
 }
 
 var (
