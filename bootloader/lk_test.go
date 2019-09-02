@@ -33,37 +33,34 @@ import (
 	"github.com/snapcore/snapd/testutil"
 )
 
-type lkTestSuite struct {
+type lkImageBuildingTestSuite struct {
 	testutil.BaseTest
 }
 
-var _ = Suite(&lkTestSuite{})
+var _ = Suite(&lkImageBuildingTestSuite{})
 
-func (g *lkTestSuite) SetUpTest(c *C) {
+func (g *lkImageBuildingTestSuite) SetUpTest(c *C) {
 	g.BaseTest.SetUpTest(c)
-	g.BaseTest.AddCleanup(snap.MockSanitizePlugsSlots(func(snapInfo *snap.Info) {}))
+	g.AddCleanup(snap.MockSanitizePlugsSlots(func(snapInfo *snap.Info) {}))
+
 	dirs.SetRootDir(c.MkDir())
+	g.AddCleanup(func() { dirs.SetRootDir("") })
 }
 
-func (g *lkTestSuite) TearDownTest(c *C) {
-	g.BaseTest.TearDownTest(c)
-	dirs.SetRootDir("")
-}
-
-func (s *lkTestSuite) TestNewLkNolkReturnsNil(c *C) {
-	l := bootloader.NewLk()
+func (s *lkImageBuildingTestSuite) TestNewLkImageBuildingNolkReturnsNil(c *C) {
+	l := bootloader.NewLkImageBuilding()
 	c.Assert(l, IsNil)
 }
 
-func (s *lkTestSuite) TestNewLk(c *C) {
-	bootloader.MockLkFiles(c)
-	l := bootloader.NewLk()
+func (s *lkImageBuildingTestSuite) TestNewLkImageBuilding(c *C) {
+	bootloader.MockLkImageBuildingFiles(c)
+	l := bootloader.NewLkImageBuilding()
 	c.Assert(l, NotNil)
 }
 
-func (s *lkTestSuite) TestSetGetBootVar(c *C) {
-	bootloader.MockLkFiles(c)
-	l := bootloader.NewLk()
+func (s *lkImageBuildingTestSuite) TestSetGetBootVar(c *C) {
+	bootloader.MockLkImageBuildingFiles(c)
+	l := bootloader.NewLkImageBuilding()
 	bootVars := map[string]string{"snap_mode": "try"}
 	l.SetBootVars(bootVars)
 
@@ -73,9 +70,9 @@ func (s *lkTestSuite) TestSetGetBootVar(c *C) {
 	c.Check(v["snap_mode"], Equals, "try")
 }
 
-func (s *lkTestSuite) TestExtractKernelAssetsUnpacksBootimg(c *C) {
-	bootloader.MockLkFiles(c)
-	l := bootloader.NewLk()
+func (s *lkImageBuildingTestSuite) TestExtractKernelAssetsUnpacksBootimg(c *C) {
+	bootloader.MockLkImageBuildingFiles(c)
+	l := bootloader.NewLkImageBuilding()
 
 	c.Assert(l, NotNil)
 
@@ -107,9 +104,9 @@ func (s *lkTestSuite) TestExtractKernelAssetsUnpacksBootimg(c *C) {
 	c.Assert(osutil.FileExists(bootimg), Equals, true)
 }
 
-func (s *lkTestSuite) TestExtractKernelAssetsUnpacksCustomBootimg(c *C) {
-	bootloader.MockLkFiles(c)
-	l := bootloader.NewLk()
+func (s *lkImageBuildingTestSuite) TestExtractKernelAssetsUnpacksCustomBootimg(c *C) {
+	bootloader.MockLkImageBuildingFiles(c)
+	l := bootloader.NewLkImageBuilding()
 
 	c.Assert(l, NotNil)
 

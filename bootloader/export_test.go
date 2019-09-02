@@ -89,3 +89,24 @@ func MockLkFiles(c *C) {
 	err = env.Save()
 	c.Assert(err, IsNil)
 }
+
+func NewLkImageBuilding() Bootloader {
+	return newLkImageBuilding()
+}
+
+func MockLkImageBuildingFiles(c *C) {
+	l := &lkImageBuilding{}
+	err := os.MkdirAll(l.dir(), 0755)
+	c.Assert(err, IsNil)
+
+	// first create empty env file
+	buf := make([]byte, 4096)
+	err = ioutil.WriteFile(l.envFile(), buf, 0660)
+	c.Assert(err, IsNil)
+	// now write env in it with correct crc
+	env := lkenv.NewEnv(l.envFile())
+	env.ConfigureBootPartitions("boot_a", "boot_b")
+	err = env.Save()
+	c.Assert(err, IsNil)
+
+}
