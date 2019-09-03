@@ -46,16 +46,18 @@ func NewUboot() Bootloader {
 	return newUboot()
 }
 
+func MakeUbootEnv(c *C, fname string) {
+	env, err := ubootenv.Create(fname, 4096)
+	c.Assert(err, IsNil)
+	err = env.Save()
+	c.Assert(err, IsNil)
+}
+
 func MockUbootFiles(c *C) {
 	u := &uboot{}
 	err := os.MkdirAll(u.dir(), 0755)
 	c.Assert(err, IsNil)
-
-	// ensure that we have a valid uboot.env too
-	env, err := ubootenv.Create(u.envFile(), 4096)
-	c.Assert(err, IsNil)
-	err = env.Save()
-	c.Assert(err, IsNil)
+	MakeUbootEnv(c, u.envFile())
 }
 
 func NewGrub() Bootloader {

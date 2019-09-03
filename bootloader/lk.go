@@ -49,6 +49,11 @@ func (l *lk) Name() string {
 	return "lk"
 }
 
+func (l *lk) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+
+	return nil
+}
+
 func (l *lk) dir() string {
 	// we have two scenarios, image building and runtime
 	// during image building we store environment into file

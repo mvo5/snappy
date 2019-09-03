@@ -68,21 +68,46 @@ type Bootloader interface {
 	RemoveKernelAssets(s snap.PlaceInfo) error
 }
 
-// InstallBootConfig installs the bootloader config from the gadget
-// snap dir into the right place.
-func InstallBootConfig(gadgetDir string) error {
+type BootloaderPrepareImage interface {
+	PrepareImage(string, map[string]string) error
+}
+
+func genericPrepareImage(bl Bootloader, gadgetDir string, bootVars map[string]string) error {
+	gadgetFile := filepath.Join(gadgetDir, bl.Name()+".conf")
+	systemFile := bl.ConfigFile()
+	if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
+		return err
+	}
+
+	if err := osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite); err != nil {
+		return nil
+	}
+
+	if err := bl.SetBootVars(bootVars); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+// PrepareImage installs the bootloader config from the gadget
+// snap dir into the right place and sets the boot variables
+func PrepareImage(gadgetDir string, bootVars map[string]string) error {
 	for _, bl := range []Bootloader{&grub{}, &uboot{}, &androidboot{}, &lk{}} {
-		// the bootloader config file has to be root of the gadget snap
+		// XXX: select bootloader based on gadget config
 		gadgetFile := filepath.Join(gadgetDir, bl.Name()+".conf")
 		if !osutil.FileExists(gadgetFile) {
 			continue
 		}
 
-		systemFile := bl.ConfigFile()
-		if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
-			return err
+		// check if we have the "PrepareImage" inteface and
+		// use that if its available instead of the generic code here
+		if pi, ok := bl.(BootloaderPrepareImage); ok {
+			return pi.PrepareImage(gadgetDir, bootVars)
 		}
-		return osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite)
+		// or use generic prepare-image
+		return genericPrepareImage(bl, gadgetDir, bootVars)
+
 	}
 
 	return fmt.Errorf("cannot find boot config in %q", gadgetDir)

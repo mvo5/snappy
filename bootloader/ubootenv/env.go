@@ -102,6 +102,10 @@ func OpenWithFlags(fname string, flags OpenFlags) (*Env, error) {
 	}
 	crc := readUint32(contentWithHeader)
 
+	if len(contentWithHeader) < headerSize {
+		return nil, fmt.Errorf("cannot open %q: too short", fname)
+	}
+
 	payload := contentWithHeader[headerSize:]
 	actualCRC := crc32.ChecksumIEEE(payload)
 	if crc != actualCRC {

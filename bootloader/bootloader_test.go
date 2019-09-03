@@ -133,12 +133,12 @@ func (s *bootenvTestSuite) TestMarkBootSuccessfulKKernelUpdate(c *C) {
 	})
 }
 
-func (s *bootenvTestSuite) TestInstallBootloaderConfigNoConfig(c *C) {
-	err := bootloader.InstallBootConfig(c.MkDir())
+func (s *bootenvTestSuite) TestPrepareImageNoConfig(c *C) {
+	err := bootloader.PrepareImage(c.MkDir(), nil)
 	c.Assert(err, ErrorMatches, `cannot find boot config in.*`)
 }
 
-func (s *bootenvTestSuite) TestInstallBootloaderConfig(c *C) {
+func (s *bootenvTestSuite) TestPrepareImageConfig(c *C) {
 	for _, t := range []struct{ gadgetFile, systemFile string }{
 		{"grub.conf", "/boot/grub/grub.cfg"},
 		{"uboot.conf", "/boot/uboot/uboot.env"},
@@ -146,11 +146,18 @@ func (s *bootenvTestSuite) TestInstallBootloaderConfig(c *C) {
 		{"lk.conf", "/boot/lk/snapbootsel.bin"},
 	} {
 		mockGadgetDir := c.MkDir()
-		err := ioutil.WriteFile(filepath.Join(mockGadgetDir, t.gadgetFile), nil, 0644)
-		c.Assert(err, IsNil)
-		err = bootloader.InstallBootConfig(mockGadgetDir)
+		var err error
+		if t.systemFile == "/boot/uboot/uboot.env" {
+			// uboot.env needs to have a valid format
+			ubootEnv := filepath.Join(mockGadgetDir, t.gadgetFile)
+			bootloader.MakeUbootEnv(c, ubootEnv)
+		} else {
+			err := ioutil.WriteFile(filepath.Join(mockGadgetDir, t.gadgetFile), nil, 0644)
+			c.Assert(err, IsNil)
+		}
+		err = bootloader.PrepareImage(mockGadgetDir, nil)
 		c.Assert(err, IsNil)
 		fn := filepath.Join(dirs.GlobalRootDir, t.systemFile)
-		c.Assert(osutil.FileExists(fn), Equals, true)
+		c.Assert(osutil.FileExists(fn), Equals, true, Commentf("expected file %q missing", fn))
 	}
 }

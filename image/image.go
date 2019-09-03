@@ -587,12 +587,13 @@ func setupSeed(tsto *ToolingStore, model *asserts.Model, opts *Options, local *l
 	}
 
 	if !opts.Classic {
-		// now do the bootloader stuff
-		if err := bootloader.InstallBootConfig(opts.GadgetUnpackDir); err != nil {
+		bootVars, err := makeBootvars(seed.downloadedSnapsInfoForBootConfig, model)
+		if err != nil {
 			return err
 		}
 
-		if err := setBootvars(seed.downloadedSnapsInfoForBootConfig, model); err != nil {
+		// XXX: move to boot.PrepareImage()
+		if err := bootloader.PrepareImage(opts.GadgetUnpackDir, bootVars); err != nil {
 			return err
 		}
 
@@ -804,22 +805,18 @@ func (s *imageSeed) seedYaml() *seed.Seed {
 	return &seedYaml
 }
 
-func setBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model *asserts.Model) error {
+func makeBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model *asserts.Model) (map[string]string, error) {
 	if len(downloadedSnapsInfoForBootConfig) != 2 {
-		return fmt.Errorf("setBootvars can only be called with exactly one kernel and exactly one core/base boot info: %v", downloadedSnapsInfoForBootConfig)
+		return nil, fmt.Errorf("makeBootvars can only be called with exactly one kernel and exactly one core/base boot info: %v", downloadedSnapsInfoForBootConfig)
 	}
 
-	// Set bootvars for kernel/core snaps so the system boots and
+	// make bootvars for kernel/core snaps so the system boots and
 	// does the first-time initialization. There is also no
 	// mounted kernel/core/base snap, but just the blobs.
-	loader, err := bootloader.Find()
-	if err != nil {
-		return fmt.Errorf("cannot set kernel/core boot variables: %s", err)
-	}
 
 	snaps, err := filepath.Glob(filepath.Join(dirs.SnapBlobDir, "*.snap"))
 	if len(snaps) == 0 || err != nil {
-		return fmt.Errorf("internal error: cannot find core/kernel snap")
+		return nil, fmt.Errorf("internal error: cannot find core/kernel snap")
 	}
 
 	m := map[string]string{
@@ -842,7 +839,7 @@ func setBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model *
 			for k := range downloadedSnapsInfoForBootConfig {
 				keys = append(keys, k)
 			}
-			return fmt.Errorf("cannot get download info for snap %s, available infos: %v", fn, keys)
+			return nil, fmt.Errorf("cannot get download info for snap %s, available infos: %v", fn, keys)
 		}
 		switch info.GetType() {
 		case snap.TypeOS, snap.TypeBase:
@@ -850,7 +847,7 @@ func setBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model *
 		case snap.TypeKernel:
 			bootvar = "snap_kernel"
 			if err := extractKernelAssets(fn, info, model); err != nil {
-				return err
+				return nil, err
 			}
 		}
 
@@ -859,11 +856,8 @@ func setBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model *
 			m[bootvar] = name
 		}
 	}
-	if err := loader.SetBootVars(m); err != nil {
-		return err
-	}
 
-	return nil
+	return m, nil
 }
 
 func extractKernelAssets(snapPath string, info *snap.Info, model *asserts.Model) error {
