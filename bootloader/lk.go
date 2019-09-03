@@ -49,49 +49,63 @@ func (l *lk) Name() string {
 	return "lk"
 }
 
-func (l *lk) PrepareImage(gadgetDir string, bootVars map[string]string) error {
+func (l *lk) PrepareImage(gadgetDir string, bootVars map[string]string, kernelBlobName, kernelPath string) error {
+	blobName := kernelBlobName
 
-	return nil
+	dir := filepath.Join(dirs.GlobalRootDir, "/boot/lk/")
+	envFile := filepath.Join(dir, "snapbootsel.bin")
+
+	env := lkenv.NewEnv(envFile)
+	if err := env.Load(); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	bootPartition, err := env.FindFreeBootPartition(blobName)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("ExtractKernelAssets handling image prepare\n")
+	snapf, err := snap.Open(kernelPath)
+	if err != nil {
+		return err
+	}
+	if err := snapf.Unpack(env.GetBootImageName(), l.dir()); err != nil {
+		return fmt.Errorf("Failed to open unpacked %s %v", env.GetBootImageName(), err)
+	}
+
+	if err := env.SetBootPartition(bootPartition, blobName); err != nil {
+		return err
+	}
+
+	return env.Save()
 }
 
 func (l *lk) dir() string {
 	// we have two scenarios, image building and runtime
 	// during image building we store environment into file
 	// at runtime environment is written directly into dedicated partition
-	if inRuntimeMode() {
-		return "/dev/disk/by-partlabel/"
-	} else {
-		return filepath.Join(dirs.GlobalRootDir, "/boot/lk/")
-	}
+	return "/dev/disk/by-partlabel/"
 }
 
 func (l *lk) ConfigFile() string {
 	return l.envFile()
 }
 
+// XXX: this is really a partition
 func (l *lk) envFile() string {
-	// as for dir, we have two scenarios, image building and runtime
-	if inRuntimeMode() {
-		// TO-DO: this should be eventually fetched from gadget.yaml
-		return filepath.Join(l.dir(), "snapbootsel")
-	} else {
-		return filepath.Join(l.dir(), "snapbootsel.bin")
-	}
-}
-
-// determine mode we are in, runtime or image build
-func inRuntimeMode() bool {
-	if dirs.GlobalRootDir == "/" {
-		return true
-	} else {
-		return false
-	}
+	// TO-DO: this should be eventually fetched from gadget.yaml
+	return filepath.Join(l.dir(), "snapbootsel")
 }
 
 func (l *lk) GetBootVars(names ...string) (map[string]string, error) {
+	return l.getBootVars(l.envFile())
+}
+
+func (l *lk) getBootVars(envFile string, names ...string) (map[string]string, error) {
 	out := make(map[string]string)
 
-	env := lkenv.NewEnv(l.envFile())
+	env := lkenv.NewEnv(envFile)
 	if err := env.Load(); err != nil {
 		return nil, err
 	}
@@ -104,7 +118,11 @@ func (l *lk) GetBootVars(names ...string) (map[string]string, error) {
 }
 
 func (l *lk) SetBootVars(values map[string]string) error {
-	env := lkenv.NewEnv(l.envFile())
+	return l.setBootVars(l.envFile(), values)
+}
+
+func (l *lk) setBootVars(envFile string, values map[string]string) error {
+	env := lkenv.NewEnv(envFile)
 	if err := env.Load(); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -145,55 +163,48 @@ func (l *lk) ExtractKernelAssets(s snap.PlaceInfo, snapf snap.Container) error {
 		return err
 	}
 
-	if inRuntimeMode() {
-		logger.Debugf("ExtractKernelAssets handling run time usecase\n")
-		// this is live system, extracted bootimg needs to be flashed to
-		// free bootimg partition and env has be updated boot slop mapping
-		tmpdir, err := ioutil.TempDir("", "bootimg")
-		if err != nil {
-			return fmt.Errorf("Failed to create tmp directory %v", err)
-		}
-		defer os.RemoveAll(tmpdir)
-		if err := snapf.Unpack(env.GetBootImageName(), tmpdir); err != nil {
-			return fmt.Errorf("Failed to unpack %s %v", env.GetBootImageName(), err)
-		}
-		// write boot.img to free boot partition
-		bootimgName := filepath.Join(tmpdir, env.GetBootImageName())
-		bif, err := os.Open(bootimgName)
-		if err != nil {
-			return fmt.Errorf("Failed to open unpacked %s %v", env.GetBootImageName(), err)
-		}
-		defer bif.Close()
-		bpart := filepath.Join(l.dir(), bootPartition)
+	logger.Debugf("ExtractKernelAssets handling run time usecase\n")
+	// this is live system, extracted bootimg needs to be flashed to
+	// free bootimg partition and env has be updated boot slop mapping
+	tmpdir, err := ioutil.TempDir("", "bootimg")
+	if err != nil {
+		return fmt.Errorf("Failed to create tmp directory %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := snapf.Unpack(env.GetBootImageName(), tmpdir); err != nil {
+		return fmt.Errorf("Failed to unpack %s %v", env.GetBootImageName(), err)
+	}
+	// write boot.img to free boot partition
+	bootimgName := filepath.Join(tmpdir, env.GetBootImageName())
+	bif, err := os.Open(bootimgName)
+	if err != nil {
+		return fmt.Errorf("Failed to open unpacked %s %v", env.GetBootImageName(), err)
+	}
+	defer bif.Close()
+	bpart := filepath.Join(l.dir(), bootPartition)
 
-		bpf, err := os.OpenFile(bpart, os.O_WRONLY, 0660)
-		if err != nil {
-			return fmt.Errorf("Failed to open boot partition [%s] %v", bpart, err)
-		}
-		defer bpf.Close()
+	bpf, err := os.OpenFile(bpart, os.O_WRONLY, 0660)
+	if err != nil {
+		return fmt.Errorf("Failed to open boot partition [%s] %v", bpart, err)
+	}
+	defer bpf.Close()
 
-		buf := make([]byte, 1024)
-		for {
-			// read by chunks
-			n, err := bif.Read(buf)
-			if err != nil && err != io.EOF {
-				return fmt.Errorf("Failed to read buffer chunk of %s %v", env.GetBootImageName(), err)
-			}
-			if n == 0 {
-				break
-			}
-			// write a chunk
-			if _, err := bpf.Write(buf[:n]); err != nil {
-				return fmt.Errorf("Failed to write buffer chunk of %s %v", env.GetBootImageName(), err)
-			}
+	buf := make([]byte, 1024)
+	for {
+		// read by chunks
+		n, err := bif.Read(buf)
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("Failed to read buffer chunk of %s %v", env.GetBootImageName(), err)
 		}
-	} else {
-		// we are preparing image, just extract boot image to bootloader directory
-		logger.Debugf("ExtractKernelAssets handling image prepare\n")
-		if err := snapf.Unpack(env.GetBootImageName(), l.dir()); err != nil {
-			return fmt.Errorf("Failed to open unpacked %s %v", env.GetBootImageName(), err)
+		if n == 0 {
+			break
+		}
+		// write a chunk
+		if _, err := bpf.Write(buf[:n]); err != nil {
+			return fmt.Errorf("Failed to write buffer chunk of %s %v", env.GetBootImageName(), err)
 		}
 	}
+
 	if err := env.SetBootPartition(bootPartition, blobName); err != nil {
 		return err
 	}

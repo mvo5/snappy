@@ -592,8 +592,17 @@ func setupSeed(tsto *ToolingStore, model *asserts.Model, opts *Options, local *l
 			return err
 		}
 
+		if err := extractKernelAssets(seed.downloadedSnapsInfoForBootConfig, model); err != nil {
+			return err
+		}
+
+		kernelBlobName, kernelPath, err := getKernelInfo(seed.downloadedSnapsInfoForBootConfig)
+		if err != nil {
+			return err
+		}
+
 		// XXX: move to boot.PrepareImage()
-		if err := bootloader.PrepareImage(opts.GadgetUnpackDir, bootVars); err != nil {
+		if err := bootloader.PrepareImage(opts.GadgetUnpackDir, bootVars, kernelBlobName, kernelPath); err != nil {
 			return err
 		}
 
@@ -846,9 +855,6 @@ func makeBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model 
 			bootvar = "snap_core"
 		case snap.TypeKernel:
 			bootvar = "snap_kernel"
-			if err := extractKernelAssets(fn, info, model); err != nil {
-				return nil, err
-			}
 		}
 
 		if bootvar != "" {
@@ -860,7 +866,19 @@ func makeBootvars(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model 
 	return m, nil
 }
 
-func extractKernelAssets(snapPath string, info *snap.Info, model *asserts.Model) error {
+func getKernelInfo(downloadedSnapsInfoForBootConfig map[string]*snap.Info) (blobName string, kernelPath string, err error) {
+	for fn, info := range downloadedSnapsInfoForBootConfig {
+		if info.GetType() == snap.TypeKernel {
+			return info.MountFile(), fn, nil
+		}
+	}
+	return "", "", fmt.Errorf("cannot find kernel")
+}
+
+func extractKernelAssets(downloadedSnapsInfoForBootConfig map[string]*snap.Info, model *asserts.Model) error {
+	var snapPath string
+	var info *snap.Info
+
 	snapf, err := snap.Open(snapPath)
 	if err != nil {
 		return err

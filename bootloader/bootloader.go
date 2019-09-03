@@ -69,7 +69,7 @@ type Bootloader interface {
 }
 
 type BootloaderPrepareImage interface {
-	PrepareImage(string, map[string]string) error
+	PrepareImage(gadgetDir string, bootVars map[string]string, kernelName string, kernelPath string) error
 }
 
 func genericPrepareImage(bl Bootloader, gadgetDir string, bootVars map[string]string) error {
@@ -92,7 +92,7 @@ func genericPrepareImage(bl Bootloader, gadgetDir string, bootVars map[string]st
 
 // PrepareImage installs the bootloader config from the gadget
 // snap dir into the right place and sets the boot variables
-func PrepareImage(gadgetDir string, bootVars map[string]string) error {
+func PrepareImage(gadgetDir string, bootVars map[string]string, kernelBlobName, kernelPath string) error {
 	for _, bl := range []Bootloader{&grub{}, &uboot{}, &androidboot{}, &lk{}} {
 		// XXX: select bootloader based on gadget config
 		gadgetFile := filepath.Join(gadgetDir, bl.Name()+".conf")
@@ -103,7 +103,7 @@ func PrepareImage(gadgetDir string, bootVars map[string]string) error {
 		// check if we have the "PrepareImage" inteface and
 		// use that if its available instead of the generic code here
 		if pi, ok := bl.(BootloaderPrepareImage); ok {
-			return pi.PrepareImage(gadgetDir, bootVars)
+			return pi.PrepareImage(gadgetDir, bootVars, kernelBlobName, kernelPath)
 		}
 		// or use generic prepare-image
 		return genericPrepareImage(bl, gadgetDir, bootVars)
