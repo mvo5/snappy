@@ -11,6 +11,19 @@ execute: |
     echo "Enable the snapd snap"
     snap set core experimental.snapd-snap=true
 
+    echo "Cache the snapd snap to make store issues obvious"
+    snap download --edge snapd
+    cat >sha3.py <<EOF
+    import glob,hashlib,sys
+    f=open(sys.argv[1], "rb")
+    m=hashlib.sha3_384()
+    m.update(f.read())
+    print(m.hexdigest())
+    EOF
+    mv snapd_*.snap /var/lib/snapd/cache/"$(python3 ./sha3.py snapd_*.snap)"
+
+    # Trigger ensure-state which will kick the transition. Installing the
+    # snapd snap will still take a bit of time so we need to wait here.
     for _ in $(seq 20); do
         snap debug ensure-state-soon
         if snap list snapd; then
@@ -18,6 +31,10 @@ execute: |
         fi
         sleep 6
     done
+    echo "Ensure we have the snapd snap and the change that installed it"
     snap list snapd
     snap changes | MATCH "Transition to the snapd snap"
-    
+    snap change --last=transition-to-snapd-snap
+
+    echo "Ensure we used the cache"
+    journalctl -u snapd | MATCH 'using cache for /var/lib/snapd/snaps/snapd_[0-9]+\.snap'
