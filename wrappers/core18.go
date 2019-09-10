@@ -155,8 +155,14 @@ func writeSnapdServicesOnCore(s *snap.Info, inter interacter) error {
 
 	// enable/start all the new services
 	for _, unit := range changed {
-		if err := sysd.Enable(unit); err != nil {
+		isEnabled, err := sysd.IsEnabled(unit)
+		if err != nil {
 			return err
+		}
+		if !isEnabled {
+			if err := sysd.Enable(unit); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -179,8 +185,10 @@ func writeSnapdServicesOnCore(s *snap.Info, inter interacter) error {
 			return err
 		}
 		if isActive {
-			if err := sysd.Restart(unit, 5*time.Second); err != nil {
-				return err
+			if unit != "snapd.socket" {
+				if err := sysd.Restart(unit, 5*time.Second); err != nil {
+					return err
+				}
 			}
 		} else {
 			if err := sysd.Start(unit); err != nil {

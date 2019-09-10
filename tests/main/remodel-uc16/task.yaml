@@ -1,0 +1,141 @@
+summary: Test a remodel that switches UC16 -> UC18
+environment:
+    # core -> core18 transition
+    OLD_BASE: core
+    NEW_BASE: core18
+    # kernel just switches tracks
+    KERNEL: pc-kernel
+
+systems: [ubuntu-core-16-64]
+
+prepare: |
+    if [ "$TRUST_TEST_KEYS" = "false" ]; then
+        echo "This test needs test keys to be trusted"
+        exit
+    fi
+    #shellcheck source=tests/lib/systemd.sh
+    . "$TESTSLIB"/systemd.sh
+    systemctl stop snapd.service snapd.socket
+    rm -rf /var/lib/snapd/assertions/*
+    rm -rf /var/lib/snapd/device
+    rm -rf /var/lib/snapd/state.json
+    mv /var/lib/snapd/seed/assertions/model model.bak
+    cp "$TESTSLIB"/assertions/developer1.account /var/lib/snapd/seed/assertions
+    cp "$TESTSLIB"/assertions/developer1.account-key /var/lib/snapd/seed/assertions
+    cp "$TESTSLIB"/assertions/developer1-pc.model /var/lib/snapd/seed/assertions
+    cp "$TESTSLIB"/assertions/testrootorg-store.account-key /var/lib/snapd/seed/assertions
+    # kick first boot again
+    systemctl start snapd.service snapd.socket
+    while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+
+restore: |
+    if [ "$TRUST_TEST_KEYS" = "false" ]; then
+        echo "This test needs test keys to be trusted"
+        exit
+    fi
+    #shellcheck source=tests/lib/systemd.sh
+    . "$TESTSLIB"/systemd.sh
+    systemctl stop snapd.service snapd.socket
+    rm -rf /var/lib/snapd/assertions/*
+    rm -rf /var/lib/snapd/device
+    rm -rf /var/lib/snapd/state.json
+    rm -f /var/lib/snapd/seed/assertions/developer1.account
+    rm -f /var/lib/snapd/seed/assertions/developer1.account-key
+    rm -f /var/lib/snapd/seed/assertions/developer1-pc.model
+    rm -f /var/lib/snapd/seed/assertions/testrootorg-store.account-key
+    cp model.bak /var/lib/snapd/seed/assertions/model
+    rm -f ./*.bak
+    # kick first boot again
+    systemctl start snapd.service snapd.socket
+    # wait for first boot to be done
+    snap wait system seed.loaded
+    while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+    # extra paranoia because failure to cleanup earlier took us a long time
+    # to find
+    if [ -e /var/snap/$NEW_BASE/current ]; then
+        echo "Leftover $NEW_BASE data dir found, test does not "
+        echo "properly cleanup"
+        echo "see https://github.com/snapcore/snapd/pull/6620"
+        echo
+        find /var/snap
+        exit 1
+    fi
+execute: |
+    if [ "$TRUST_TEST_KEYS" = "false" ]; then
+        echo "This test needs test keys to be trusted"
+        exit
+    fi
+    #shellcheck source=tests/lib/boot.sh
+    . "$TESTSLIB"/boot.sh
+    wait_change_done() {
+        chg_summary="$1"
+        for _ in $(seq 10); do
+            if snap changes | grep -qE "[0-9]+\ +Done\ +.* $chg_summary"; then
+                break
+            fi
+            # some debug output
+            snap changes
+            # wait a bit
+            sleep 5
+        done
+        snap changes | MATCH "$chg_summary"
+    }
+    # initial boot with the current model 
+    if [ "$SPREAD_REBOOT" = 0 ]; then
+        # sanity check
+        snap list "$OLD_BASE"
+    
+        echo "We have the right model assertion"
+        snap debug model|MATCH "model: my-model"
+        echo "Now we remodel"
+        snap remodel "$TESTSLIB"/assertions/developer1-pc-18.model
+        echo "Double check that we boot into the right kernel"
+        grub-editenv list | MATCH "snap_try_core=$NEW_BASE"
+        echo "reboot to finish the change"
+        REBOOT
+    fi
+    # first boot with the new base
+    if [ "$SPREAD_REBOOT" = 1 ]; then
+        wait_core_post_boot
+        echo "The kernel was tried and is now good"
+        grub-editenv list | MATCH "^snap_try_core=$"
+
+        echo "And now we try the new base"
+        grub-editenv list | MATCH "^snap_try_kernel=$KERNEL"
+    fi
+    # second boot with the new kernel and when we finish the remodel
+    if [ "$SPREAD_REBOOT" = 2 ]; then
+        wait_core_post_boot
+
+        echo "The base was tried and is now good"
+        grub-editenv list | MATCH "^snap_try_kernel=$"
+
+        echo "and we got the new model assertion"
+        wait_change_done "Refresh model assertion from revision 0 to 2"
+        snap debug model|MATCH "revision: 2"
+
+
+        xxx
+        
+        echo "And we can remodel back again"
+        snap remodel "$TESTSLIB"/assertions/model.bak
+        REBOOT
+    fi
+    # reboot from new model to undo the new model again (to not pollute tests)
+    # first boot for "old" kernel
+    if [ "$SPREAD_REBOOT" = 3 ]; then
+        wait_core_post_boot
+
+        grub-editenv list
+        
+        REBOOT
+    fi
+    # reboot from new model to undo the new model again (to not pollute tests)
+    # second boot to go back to the "old" core
+    if [ "$SPREAD_REBOOT" = 4 ]; then
+        wait_core_post_boot
+
+        grub-editenv list
+        
+        echo "done"
+    fi

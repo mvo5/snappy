@@ -2501,7 +2501,6 @@ func (s *deviceMgrSuite) TestRemodelUnhappy(c *C) {
 		errStr string
 	}{
 		{map[string]string{"architecture": "pdp-7"}, "cannot remodel to different architectures yet"},
-		{map[string]string{"base": "core20"}, "cannot remodel from core to bases yet"},
 		{map[string]string{"kernel": "other-kernel"}, "cannot remodel to different kernels yet"},
 		{map[string]string{"gadget": "other-gadget"}, "cannot remodel to different gadgets yet"},
 	} {
@@ -2606,9 +2605,10 @@ func (s *deviceMgrSuite) TestRemodelSwitchBase(c *C) {
 	var testDeviceCtx snapstate.DeviceContext
 
 	var snapstateInstallWithDeviceContextCalled int
+	var installed []string
 	restore := devicestate.MockSnapstateInstallWithDeviceContext(func(ctx context.Context, st *state.State, name string, opts *snapstate.RevisionOptions, userID int, flags snapstate.Flags, deviceCtx snapstate.DeviceContext, fromChange string) (*state.TaskSet, error) {
 		snapstateInstallWithDeviceContextCalled++
-		c.Check(name, Equals, "core20")
+		installed = append(installed, name)
 
 		tDownload := s.state.NewTask("fake-download", fmt.Sprintf("Download %s", name))
 		tValidate := s.state.NewTask("validate-snap", fmt.Sprintf("Validate %s", name))
@@ -2647,10 +2647,10 @@ func (s *deviceMgrSuite) TestRemodelSwitchBase(c *C) {
 
 	tss, err := devicestate.RemodelTasks(context.Background(), s.state, current, new, testDeviceCtx, "99")
 	c.Assert(err, IsNil)
-	// 1 switch to a new base plus the remodel task
-	c.Assert(tss, HasLen, 2)
+	// new base + snapd + plus the remodel task
+	c.Assert(tss, HasLen, 3)
 	// API was hit
-	c.Assert(snapstateInstallWithDeviceContextCalled, Equals, 1)
+	c.Assert(installed, DeepEquals, []string{"snapd", "core20"})
 }
 
 func (s *deviceMgrSuite) TestRemodelRequiredSnaps(c *C) {
