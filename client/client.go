@@ -185,6 +185,11 @@ func (e ConnectionError) Error() string {
 	return fmt.Sprintf("cannot communicate with server: %v", e.error)
 }
 
+func IsConnectionError(err error) bool {
+	_, ok := err.(ConnectionError)
+	return ok
+}
+
 // AllowInteractionHeader is the HTTP request header used to indicate
 // that the client is willing to allow interaction.
 const AllowInteractionHeader = "X-Allow-Interaction"

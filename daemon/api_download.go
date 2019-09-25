@@ -105,7 +105,7 @@ func streamOneSnap(c *Command, user *auth.UserState, snapName string, dlOpts *sn
 
 	return fileStream{
 		SnapName: snapName,
-		Info:     downloadInfo,
+		Info:     *info,
 		stream:   r,
 	}
 }
