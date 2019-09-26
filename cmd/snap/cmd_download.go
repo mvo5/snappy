@@ -174,7 +174,53 @@ func (x *cmdDownload) downloadViaSnapd(snapName string, rev snap.Revision) error
 		return err
 	}
 
-	// XXX: fetch assertions
+	fmt.Fprintf(Stdout, i18n.G("Fetching assertions for %q\n"), snapName)
+	assertFname := downloadPath[:strings.LastIndexAny(downloadPath, ".")] + ".assert"
+	sha3_384, _, err := asserts.SnapFileSHA3_384(fname)
+	if err != nil {
+		return err
+	}
+
+	db, err := asserts.OpenDatabase(&asserts.DatabaseConfig{
+		Backstore: asserts.NewMemoryBackstore(),
+		Trusted:   sysdb.Trusted(),
+	})
+	if err != nil {
+		return err
+	}
+	retrieve := func(ref *asserts.Ref) (asserts.Assertion, error) {
+		headers, err := asserts.HeadersFromPrimaryKey(ref.Type, ref.PrimaryKey)
+		if err != nil {
+			return nil, err
+		}
+		asserts, err := x.client.KnownRemote(ref.Type.Name, headers)
+		if err != nil {
+			return nil, err
+		}
+		if len(asserts) != 1 {
+			return nil, fmt.Errorf("unexpected amount of assertions: %q", asserts)
+		}
+		return asserts[0], nil
+	}
+
+	w, err := os.Create(assertFname)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	encoder := asserts.NewEncoder(w)
+	save := func(a asserts.Assertion) error {
+		encoder.Encode(a)
+		return db.Add(a)
+	}
+	ref := &asserts.Ref{asserts.SnapRevisionType, []string{sha3_384}}
+	fetcher := asserts.NewFetcher(db, retrieve, save)
+	if err := fetcher.Fetch(ref); err != nil {
+		return err
+	}
+	// XXX: cross check?
+
 	return nil
 }
 

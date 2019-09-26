@@ -58,6 +58,16 @@ func (client *Client) AssertionTypes() ([]string, error) {
 
 // Known queries assertions with type assertTypeName and matching assertion headers.
 func (client *Client) Known(assertTypeName string, headers map[string]string) ([]asserts.Assertion, error) {
+	remote := false
+	return client.known(assertTypeName, headers, remote)
+}
+
+func (client *Client) KnownRemote(assertTypeName string, headers map[string]string) ([]asserts.Assertion, error) {
+	remote := true
+	return client.known(assertTypeName, headers, remote)
+}
+
+func (client *Client) known(assertTypeName string, headers map[string]string, remote bool) ([]asserts.Assertion, error) {
 	path := fmt.Sprintf("/v2/assertions/%s", assertTypeName)
 	q := url.Values{}
 
@@ -65,6 +75,9 @@ func (client *Client) Known(assertTypeName string, headers map[string]string) ([
 		for k, v := range headers {
 			q.Set(k, v)
 		}
+	}
+	if remote {
+		q.Set("remote", "true")
 	}
 
 	response, err := client.raw("GET", path, q, nil, nil)
