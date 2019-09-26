@@ -77,13 +77,10 @@ func (s *snapDownloadSuite) SnapAction(ctx context.Context, currentSnaps []*stor
 	action := actions[0]
 	switch action.InstanceName {
 	case "bar":
-		if action.Channel != "" {
-			panic(fmt.Sprintf("unexpected channel %q for bar snap", action.Channel))
-		}
 		return []*snap.Info{{
 			SideInfo: snap.SideInfo{
 				RealName: "bar",
-				Revision: snap.R("1"),
+				Revision: snap.R(1),
 			},
 			DownloadInfo: snap.DownloadInfo{
 				Size:            int64(len(content)),
@@ -91,9 +88,6 @@ func (s *snapDownloadSuite) SnapAction(ctx context.Context, currentSnaps []*stor
 			},
 		}}, nil
 	case "edge-bar":
-		if action.Channel != "edge" {
-			panic(fmt.Sprintf("unexpected channel %q for edge-bar snap", action.Channel))
-		}
 		return []*snap.Info{{
 			SideInfo: snap.SideInfo{
 				RealName: "edge-bar",

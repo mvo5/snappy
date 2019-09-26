@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/store"
@@ -105,7 +106,8 @@ func streamOneSnap(c *Command, user *auth.UserState, snapName string, dlOpts *sn
 
 	return fileStream{
 		SnapName: snapName,
-		Info:     *info,
+		Filename: filepath.Base(info.MountFile()),
+		Info:     downloadInfo,
 		stream:   r,
 	}
 }
