@@ -316,6 +316,68 @@ var (
 	maxRepairScriptSize = 24 * 1024 * 1024
 )
 
+// Import imports a repair for a given brand
+func (run *Runner) Import(brandID, filename string) (*Repair, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	// helper?
+	sequenceNext := run.sequenceNext[brandID]
+	if sequenceNext == 0 {
+		sequenceNext = 1
+	}
+
+	// FIXME: helper?
+	var r []asserts.Assertion
+	dec := asserts.NewDecoder(f)
+	for {
+		a, err := dec.Decode()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		r = append(r, a)
+	}
+	if len(r) == 0 {
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	repair, aux, err := checkStream(brandID, sequenceNext, r)
+	if err != nil {
+		return nil, err
+	}
+	state := RepairState{
+		Sequence: sequenceNext,
+	}
+	if err := run.Verify(repair, aux); err != nil {
+		return nil, err
+	}
+	if err := run.saveStream(brandID, state.Sequence, repair, aux); err != nil {
+		return nil, err
+	}
+	state.Revision = repair.Revision()
+	if !run.Applicable(repair.Headers()) {
+		state.Status = SkipStatus
+		run.setRepairState(brandID, state)
+		return nil, errSkip
+	}
+	run.setRepairState(brandID, state)
+	if err := run.SaveState(); err != nil {
+		return nil, err
+	}
+
+	return &Repair{
+		Repair:   repair,
+		run:      run,
+		sequence: sequenceNext,
+	}, nil
+}
+
 // Fetch retrieves a stream with the repair with the given ids and any
 // auxiliary assertions. If revision>=0 the request will include an
 // If-None-Match header with an ETag for the revision, and
