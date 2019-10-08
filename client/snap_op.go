@@ -21,6 +21,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -203,7 +204,7 @@ func (client *Client) doMultiSnapActionFull(actionName string, snaps []string, o
 		"Content-Type": "application/json",
 	}
 
-	return client.doAsyncFull("POST", "/v2/snaps", nil, headers, bytes.NewBuffer(data))
+	return client.doAsyncFull("POST", "/v2/snaps", nil, headers, bytes.NewBuffer(data), doFlags{})
 }
 
 // InstallPath sideloads the snap with the given path under optional provided name,
@@ -229,7 +230,7 @@ func (client *Client) InstallPath(path, name string, options *SnapOptions) (chan
 		"Content-Type": mw.FormDataContentType(),
 	}
 
-	return client.doAsync("POST", "/v2/snaps", nil, headers, pr)
+	return client.doAsyncNoTimeout("POST", "/v2/snaps", nil, headers, pr)
 }
 
 // Try
@@ -306,32 +307,29 @@ func sendSnapFile(snapPath string, snapFile *os.File, pw *io.PipeWriter, mw *mul
 	pw.Close()
 }
 
-type snapDownloadOptions struct {
+type snapRevisionOptions struct {
 	Channel   string `json:"channel,omitempty"`
 	Revision  string `json:"revision,omitempty"`
 	CohortKey string `json:"cohort-key,omitempty"`
 }
 
-type downloadData struct {
-	Action  string                `json:"action"`
-	Snaps   []string              `json:"snaps,omitempty"`
-	Options []snapDownloadOptions `json:"options,omitempty"`
+type downloadAction struct {
+	SnapName string `json:"snap-name,omitempty"`
+	snapRevisionOptions
 }
 
 // Download will stream the given snap to the client
-func (client *Client) Download(name string, options *SnapOptions) (string, io.ReadCloser, error) {
+func (client *Client) Download(name string, options *SnapOptions) (suggestedFileName string, r io.ReadCloser, err error) {
 	if options == nil {
 		options = &SnapOptions{}
 	}
-	dlOpts := snapDownloadOptions{
-		Channel:   options.Channel,
-		CohortKey: options.CohortKey,
-		Revision:  options.Revision,
-	}
-	action := downloadData{
-		Action:  "download",
-		Snaps:   []string{name},
-		Options: []snapDownloadOptions{dlOpts},
+	action := downloadAction{
+		SnapName: name,
+		snapRevisionOptions: snapRevisionOptions{
+			Channel:   options.Channel,
+			CohortKey: options.CohortKey,
+			Revision:  options.Revision,
+		},
 	}
 	data, err := json.Marshal(&action)
 	if err != nil {
@@ -341,7 +339,9 @@ func (client *Client) Download(name string, options *SnapOptions) (string, io.Re
 		"Content-Type": "application/json",
 	}
 
-	rsp, err := client.raw("POST", "/v2/download", nil, headers, bytes.NewBuffer(data))
+	// no deadline for downloads
+	ctx := context.Background()
+	rsp, err := client.raw(ctx, "POST", "/v2/download", nil, headers, bytes.NewBuffer(data))
 	if err != nil {
 		return "", nil, err
 	}

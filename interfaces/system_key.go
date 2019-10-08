@@ -32,9 +32,8 @@ import (
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
-	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/sandbox/apparmor"
-	seccomp_compiler "github.com/snapcore/snapd/sandbox/seccomp"
+	"github.com/snapcore/snapd/sandbox/seccomp"
 )
 
 // ErrSystemKeyIncomparableVersions indicates that the system-key
@@ -57,7 +56,7 @@ var (
 // Note that this key gets generated on *each* `snap run` - so it
 // *must* be cheap to calculate it (no hashes of big binaries etc).
 type systemKey struct {
-	// IMPORTANT: when adding new inputs bump this version
+	// IMPORTANT: when adding/removing/changing inputs bump this version (see below)
 	Version int `json:"version"`
 
 	// This is the build-id of the snapd that generated the profiles.
@@ -76,6 +75,9 @@ type systemKey struct {
 	SeccompCompilerVersion string   `json:"seccomp-compiler-version"`
 }
 
+// IMPORTANT: when adding/removing/changing inputs bump this
+const systemKeyVersion = 9
+
 var (
 	isHomeUsingNFS  = osutil.IsHomeUsingNFS
 	mockedSystemKey *systemKey
@@ -83,8 +85,8 @@ var (
 	readBuildID = osutil.ReadBuildID
 )
 
-func seccompCompilerVersionInfo(path string) (seccomp_compiler.VersionInfo, error) {
-	return seccomp_compiler.CompilerVersionInfo(func(name string) (string, error) { return filepath.Join(path, name), nil })
+func seccompCompilerVersionInfo(path string) (seccomp.VersionInfo, error) {
+	return seccomp.CompilerVersionInfo(func(name string) (string, error) { return filepath.Join(path, name), nil })
 }
 
 func generateSystemKey() (*systemKey, error) {
@@ -94,7 +96,7 @@ func generateSystemKey() (*systemKey, error) {
 	}
 
 	sk := &systemKey{
-		Version: 1,
+		Version: systemKeyVersion,
 	}
 	snapdPath, err := cmd.InternalToolPath("snapd")
 	if err != nil {
@@ -132,7 +134,7 @@ func generateSystemKey() (*systemKey, error) {
 	}
 
 	// Add seccomp-features
-	sk.SecCompActions = release.SecCompActions()
+	sk.SecCompActions = seccomp.Actions()
 
 	versionInfo, err := seccompCompilerVersionInfo(filepath.Dir(snapdPath))
 	if err != nil {
