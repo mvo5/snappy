@@ -3509,6 +3509,9 @@ func (ms *mgrsSuite) TestRemodelSwitchToDifferentKernel(c *C) {
 	mockServer := ms.mockStore(c)
 	defer mockServer.Close()
 
+	// ensure we don't try to register
+	markSeeded(ms.o)
+
 	st := ms.o.State()
 	st.Lock()
 	defer st.Unlock()
