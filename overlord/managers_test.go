@@ -3513,6 +3513,9 @@ func (ms *mgrsSuite) TestRemodelSwitchToDifferentKernel(c *C) {
 	st.Lock()
 	defer st.Unlock()
 
+	// ensure system is not in a "need-restart" state
+	state.MockRestarting(st, state.RestartUnset)
+
 	si := &snap.SideInfo{RealName: "pc-kernel", SnapID: fakeSnapID("pc-kernel"), Revision: snap.R(1)}
 	snapstate.Set(st, "pc-kernel", &snapstate.SnapState{
 		Active:   true,
