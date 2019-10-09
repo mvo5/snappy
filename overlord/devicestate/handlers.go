@@ -698,6 +698,8 @@ func getSerialRequestConfig(t *state.Task, regCtx registrationContext, client *h
 }
 
 func (m *DeviceManager) doRequestSerial(t *state.Task, _ *tomb.Tomb) error {
+	fmt.Println("running doRequestSerial")
+
 	st := t.State()
 	st.Lock()
 	defer st.Unlock()

@@ -294,6 +294,8 @@ func (m *DeviceManager) ensureOperational() error {
 	if m.changeInFlight("become-operational") {
 		return nil
 	}
+	fmt.Println(m.changeInFlight("remodel"))
+	fmt.Println(device)
 
 	var storeID, gadget string
 	model, err := m.Model()
@@ -370,6 +372,7 @@ func (m *DeviceManager) ensureOperational() error {
 		genKey.WaitFor(prepareDevice)
 	}
 	tasks = append(tasks, genKey)
+	fmt.Println("ensureOperational: new request-serial")
 	requestSerial := m.state.NewTask("request-serial", i18n.G("Request device serial"))
 	requestSerial.WaitFor(genKey)
 	tasks = append(tasks, requestSerial)

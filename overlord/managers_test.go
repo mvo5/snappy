@@ -3509,9 +3509,6 @@ func (ms *mgrsSuite) TestRemodelSwitchToDifferentKernel(c *C) {
 	mockServer := ms.mockStore(c)
 	defer mockServer.Close()
 
-	// ensure we don't try to register
-	markSeeded(ms.o)
-
 	st := ms.o.State()
 	st.Lock()
 	defer st.Unlock()
@@ -3571,8 +3568,9 @@ version: 1.0`
 
 	// setup model assertion
 	devicestatetest.SetDevice(st, &auth.DeviceState{
-		Brand: "can0nical",
-		Model: "my-model",
+		Brand:  "can0nical",
+		Model:  "my-model",
+		Serial: "serialserial",
 	})
 	err := assertstate.Add(st, model)
 	c.Assert(err, IsNil)
@@ -3588,9 +3586,11 @@ version: 1.0`
 	c.Assert(err, IsNil)
 
 	st.Unlock()
+	println("first settle")
 	// regular settleTimeout is not enough on arm buildds :/
 	err = ms.o.Settle(4 * settleTimeout)
 	st.Lock()
+	println("/first settle")
 	if err != nil {
 		for _, t := range chg.Tasks() {
 			fmt.Printf("%s %s %s %s\n", t.Status(), t.Kind(), t.Summary(), t.Log())

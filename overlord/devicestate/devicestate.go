@@ -490,6 +490,7 @@ func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Remodel called with:", remodelKind)
 
 	var tss []*state.TaskSet
 	switch remodelKind {
@@ -501,6 +502,7 @@ func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 			}
 		}
 
+		fmt.Println("Remodel: new request-serial")
 		requestSerial := st.NewTask("request-serial", i18n.G("Request new device serial"))
 
 		prepare := st.NewTask("prepare-remodeling", i18n.G("Prepare remodeling"))
