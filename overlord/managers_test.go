@@ -3585,6 +3585,11 @@ version: 1.0`
 	// regular settleTimeout is not enough on arm buildds :/
 	err = ms.o.Settle(4 * settleTimeout)
 	st.Lock()
+	if err != nil {
+		for _, t := range chg.Tasks() {
+			fmt.Printf("%s %s %s %s\n", t.Status(), t.Kind(), t.Summary(), t.Log())
+		}
+	}
 	c.Assert(err, IsNil)
 	c.Assert(chg.Err(), IsNil)
 
