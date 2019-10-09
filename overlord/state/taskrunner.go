@@ -20,7 +20,6 @@
 package state
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -394,7 +393,6 @@ ConsiderTasks:
 			// Dependencies still unhandled.
 			continue
 		}
-		fmt.Printf("trying to run: %s %s %s %s\n", t.Kind(), t.Status(), t.Summary(), t.Log())
 
 		if status == UndoStatus && handlers.undo == nil {
 			// Although this has no dependencies itself, it must have waited
