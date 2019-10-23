@@ -41,6 +41,9 @@ func run(args []string) error {
 	gadgetRoot := os.Args[1]
 	device := os.Args[2]
 	options := &recover.Options{}
+	if len(os.Args) > 3 && os.Args[3] == "--with-encryption" {
+		options.EncryptDataPartition = true
+	}
 
 	return recover.Run(gadgetRoot, device, options)
 }

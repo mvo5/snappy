@@ -61,6 +61,23 @@ execute: |
     EOF
     /usr/lib/snapd/snap-recovery ./gadget-dir "$LOOP"
     sfdisk -l "$LOOP" | MATCH '500M\s* Linux filesystem'
-
     echo "check that the filesystems are created"
     lsblk --fs "$LOOP" | MATCH 'ext4\s* other-ext'
+
+    echo "now add an encrypted ubuntu-data partition"
+    cat >> gadget-dir/meta/gadget.yaml <<EOF
+          - name: Encrypted ext4
+            role: system-data
+            type: 83,0FC63DAF-8483-4772-8E79-3D69D8477DE4
+            filesystem: ext4
+            size: 400M
+    EOF
+    /usr/lib/snapd/snap-recovery ./gadget-dir "$LOOP" --with-encryption
+    echo "and check that the encrypted partition was created and can be mounted"
+    sfdisk -l "$LOOP" | MATCH '400M\s* Linux filesystem'
+    lsblk --fs "$LOOP" | MATCH 'crypto_LUKS'
+    mount /dev/mapper/ubuntu-data ./mnt
+    umount ./mnt
+    cryptsetup isLuks "${LOOP}p4"
+    # validate that the pbkdf memory is set correctly (more later)
+    cryptsetup luksDump "${LOOP}p4" | MATCH "Memory:\s* 1000"

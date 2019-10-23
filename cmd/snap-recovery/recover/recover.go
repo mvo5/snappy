@@ -26,7 +26,7 @@ import (
 )
 
 type Options struct {
-	// will contain encryption later
+	EncryptDataPartition bool
 }
 
 func Run(gadgetRoot, device string, options *Options) error {
@@ -35,6 +35,9 @@ func Run(gadgetRoot, device string, options *Options) error {
 	}
 	if device == "" {
 		return fmt.Errorf("cannot use empty device node")
+	}
+	if options == nil {
+		options = &Options{}
 	}
 
 	// XXX: ensure we test that the current partition table is
@@ -49,12 +52,24 @@ func Run(gadgetRoot, device string, options *Options) error {
 	if err != nil {
 		return fmt.Errorf("cannot create the partitions: %v", err)
 	}
-	if err := partition.MakeFilesystems(created); err != nil {
-		return err
-	}
+	// XXX: we need an integration style tests here now to ensure that
+	// the filesystem creation is called in the right way
+	for _, part := range created {
+		if options.EncryptDataPartition && part.Role == "system-data" {
+			// system-data roles are always called ubuntu-data for now
+			partLabel := "ubuntu-data"
+			if err := partition.MakeEncrypted(&part, partLabel); err != nil {
+				return err
+			}
+		}
 
-	if err := partition.DeployContent(created, gadgetRoot); err != nil {
-		return err
+		if err := partition.MakeFilesystem(part); err != nil {
+			return err
+		}
+
+		if err := partition.DeployContent(part, gadgetRoot); err != nil {
+			return err
+		}
 	}
 
 	return nil

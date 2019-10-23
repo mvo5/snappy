@@ -74,19 +74,17 @@ func deployNonFSContent(part DeviceStructure, gadgetRoot string) error {
 	return raw.Write(f)
 }
 
-func DeployContent(created []DeviceStructure, gadgetRoot string) error {
-	for _, part := range created {
-		switch {
-		case part.Type == "bare":
-			return fmt.Errorf("cannot deploy type 'bare' yet")
-		case part.Filesystem == "":
-			if err := deployNonFSContent(part, gadgetRoot); err != nil {
-				return err
-			}
-		case part.Filesystem != "":
-			if err := deployFilesystemContent(part, gadgetRoot); err != nil {
-				return err
-			}
+func DeployContent(part DeviceStructure, gadgetRoot string) error {
+	switch {
+	case part.Type == "bare":
+		return fmt.Errorf("cannot deploy type 'bare' yet")
+	case part.Filesystem == "":
+		if err := deployNonFSContent(part, gadgetRoot); err != nil {
+			return err
+		}
+	case part.Filesystem != "":
+		if err := deployFilesystemContent(part, gadgetRoot); err != nil {
+			return err
 		}
 	}
 
