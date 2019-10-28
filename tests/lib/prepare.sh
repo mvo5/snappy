@@ -353,6 +353,9 @@ setup_reflash_magic() {
     if is_core18_system; then
         snap download "--channel=${SNAPD_CHANNEL}" snapd
         core_name="core18"
+    elif is_core20_system; then
+        snap download "--channel=${SNAPD_CHANNEL}" snapd
+        core_name="core20"
     fi
     snap install "--channel=${CORE_CHANNEL}" "$core_name"
 
@@ -377,6 +380,12 @@ setup_reflash_magic() {
         # FIXME: fetch directly once its in the assertion service
         cp "$TESTSLIB/assertions/ubuntu-core-18-amd64.model" "$IMAGE_HOME/pc.model"
         IMAGE=core18-amd64.img
+    elif is_core20_system; then
+        repack_snapd_snap_with_deb_content "$IMAGE_HOME"
+
+        # FIXME: fetch directly once its in the assertion service
+        cp "$TESTSLIB/assertions/ubuntu-core-20-amd64.model" "$IMAGE_HOME/pc.model"
+        IMAGE=core20-amd64.img
     else
         # modify the core snap so that the current root-pw works there
         # for spread to do the first login
@@ -436,7 +445,7 @@ EOF
 
     # on core18 we need to use the modified snapd snap and on core16
     # it is the modified core that contains our freshly build snapd
-    if is_core18_system; then
+    if is_core18_system || is_core20_system; then
         extra_snap=("$IMAGE_HOME"/snapd_*.snap)
     else
         extra_snap=("$IMAGE_HOME"/core_*.snap)
@@ -481,6 +490,9 @@ EOF
     if is_core18_system; then
         UNPACK_DIR="/tmp/core18-snap"
         unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core18_*.snap
+    elif is_core20_system; then
+        UNPACK_DIR="/tmp/core20-snap"
+        unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core20_*.snap
     fi
 
     # create test user and ubuntu user inside the writable partition
@@ -650,9 +662,9 @@ prepare_ubuntu_core() {
     done
 
     echo "Ensure the snapd snap is available"
-    if is_core18_system; then
+    if is_core18_system || is_core20_system; then
         if ! snap list snapd; then
-            echo "snapd snap on core18 is missing"
+            echo "snapd snap on core18/core20 is missing"
             snap list
             exit 1
         fi
@@ -670,9 +682,9 @@ prepare_ubuntu_core() {
 
     echo "Ensure the core snap is cached"
     # Cache snaps
-    if is_core18_system; then
+    if is_core18_system || is_core20_system; then
         if snap list core >& /dev/null; then
-            echo "core snap on core18 should not be installed yet"
+            echo "core snap on core18/core20 should not be installed yet"
             snap list
             exit 1
         fi
