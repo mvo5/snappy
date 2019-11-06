@@ -7,7 +7,7 @@ execute: |
     . "$TESTSLIB/nested.sh"
 
     echo "Wait for first boot to be done"
-    while ! execute_remote "snap changes" | MATCH "Done.*Initialize system state"; do sleep 1; done
+    retry-tool -n 60 --wait 5 sh -c 'snap changes | grep -q "Done.*Initialize system state"'
 
     echo "We have a model assertion"
     execute_remote "snap known model" | MATCH "series: 16"

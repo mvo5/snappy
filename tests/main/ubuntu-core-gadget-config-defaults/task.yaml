@@ -105,7 +105,7 @@ restore: |
     # kick first boot again
     systemctl start snapd.service snapd.socket
     # wait for first boot to be done
-    while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+    retry-tool -n 60 --wait 5 sh -c 'snap changes | grep -q "Done.*Initialize system state"'
 
 execute: |
     if [ "$TRUST_TEST_KEYS" = "false" ]; then
@@ -113,7 +113,7 @@ execute: |
         exit
     fi
     echo "Wait for first boot to be done"
-    while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+    retry-tool -n 60 --wait 5 sh -c 'snap changes | grep -q "Done.*Initialize system state"'
     echo "We have a model assertion"
     snap model --verbose|MATCH "model:\s* my-model-w-config"
 

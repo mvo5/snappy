@@ -56,7 +56,7 @@ restore: |
     # kick first boot again
     systemctl start snapd.service snapd.socket
     # wait for first boot to be done
-    while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+    retry-tool -n 60 --wait 5 sh -c 'snap changes | grep -q "Done.*Initialize system state"'
     # extra paranoia because failure to cleanup earlier took us a long time
     # to find
     if [ -e /var/snap/test-snapd-tools/current ]; then
@@ -80,7 +80,8 @@ execute: |
     not snap list "$SNAP"
     
     echo "Wait for first boot to be done"
-    while ! snap changes | grep -q "Done.*Initialize system state"; do sleep 1; done
+    retry-tool -n 60 --wait 5 sh -c 'snap changes | grep -q "Done.*Initialize system state"'
+
     echo "We have the right model assertion"
     snap debug model|MATCH "model: my-model"
 
