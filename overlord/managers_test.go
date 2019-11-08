@@ -4194,10 +4194,22 @@ version: 18.04`
 	c.Assert(err, IsNil)
 	c.Assert(chg.Err(), IsNil)
 
+	// snapd waits for a restart because of the snapd snap
+	restarting, restartType := st.Restarting()
+	c.Check(restarting, Equals, true)
+	c.Check(restartType, Equals, state.RestartDaemon)
+	state.MockRestarting(st, state.RestartUnset)
+
+	st.Unlock()
+	err = ms.o.Settle(settleTimeout)
+	st.Lock()
+	c.Assert(err, IsNil)
+	c.Assert(chg.Err(), IsNil)
+
 	// system waits for a restart because of the new base
-	t := findKind(chg, "auto-connect")
-	c.Assert(t, NotNil)
-	c.Assert(t.Status(), Equals, state.DoingStatus)
+	restarting, restartType = st.Restarting()
+	c.Check(restarting, Equals, true)
+	c.Check(restartType, Equals, state.RestartSystem)
 
 	// check that the boot vars got updated as expected
 	bvars, err := bloader.GetBootVars("snap_mode", "snap_core", "snap_try_core", "snap_kernel", "snap_try_kernel")
@@ -4233,10 +4245,12 @@ version: 18.04`
 
 	// first all downloads/checks in sequential order
 	var i int
+	i += validateDownloadCheckTasks(c, tasks[i:], "snapd", "1", "stable")
 	i += validateDownloadCheckTasks(c, tasks[i:], "core18", "2", "stable")
 	i += validateDownloadCheckTasks(c, tasks[i:], "foo", "1", "stable")
 
 	// then all installs in sequential order
+	i += validateInstallTasks(c, tasks[i:], "snapd", "1", noConfigure)
 	i += validateInstallTasks(c, tasks[i:], "core18", "2", noConfigure)
 	i += validateInstallTasks(c, tasks[i:], "foo", "1", 0)
 
