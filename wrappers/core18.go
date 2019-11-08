@@ -155,14 +155,14 @@ func writeSnapdServicesOnCore(s *snap.Info, inter interacter) error {
 
 	// enable/start all the new services
 	for _, unit := range changed {
-		isEnabled, err := sysd.IsEnabled(unit)
-		if err != nil {
+		// enable is not idempotent if the symlink target switches
+		// from /lib to /etc in the multiuser-wantes.d
+		// so we need to disable first
+		if err := sysd.Disable(unit); err != nil {
 			return err
 		}
-		if !isEnabled {
-			if err := sysd.Enable(unit); err != nil {
-				return err
-			}
+		if err := sysd.Enable(unit); err != nil {
+			return err
 		}
 	}
 
