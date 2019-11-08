@@ -139,7 +139,7 @@ func canAutoRefresh(st *state.State) (bool, error) {
 	return true, nil
 }
 
-func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, flags snapstate.Flags, deviceCtx snapstate.DeviceContext) error {
+func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, _ snap.Container, flags snapstate.Flags, deviceCtx snapstate.DeviceContext) error {
 	kind := ""
 	var snapType snap.Type
 	var getName func(*asserts.Model) string
@@ -207,6 +207,7 @@ var once sync.Once
 func delayedCrossMgrInit() {
 	once.Do(func() {
 		snapstate.AddCheckSnapCallback(checkGadgetOrKernel)
+		snapstate.AddCheckSnapCallback(checkGadgetRemodelCompatible)
 	})
 	snapstate.CanAutoRefresh = canAutoRefresh
 	snapstate.CanManageRefreshes = CanManageRefreshes
@@ -318,15 +319,51 @@ func extractDownloadInstallEdgesFromTs(ts *state.TaskSet) (firstDl, lastDl, firs
 	return firstDl, tasks[edgeTaskIndex], tasks[edgeTaskIndex+1], lastInst, nil
 }
 
-func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Model, deviceCtx snapstate.DeviceContext, fromChange string) ([]*state.TaskSet, error) {
-	var tss []*state.TaskSet
-	userID := 0
+func notInstalled(st *state.State, name string) (bool, error) {
+	_, err := snapstate.CurrentInfo(st, name)
+	_, isNotInstalled := err.(*snap.NotInstalledError)
+	if isNotInstalled {
+		return true, nil
+	}
+	return false, err
+}
 
-	// change base if needed
+func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Model, deviceCtx snapstate.DeviceContext, fromChange string) ([]*state.TaskSet, error) {
+	userID := 0
+	var tss []*state.TaskSet
+
+	// kernel
+	if current.Kernel() == new.Kernel() && current.KernelTrack() != new.KernelTrack() {
+		ts, err := snapstateUpdateWithDeviceContext(st, new.Kernel(), &snapstate.RevisionOptions{Channel: new.KernelTrack()}, userID, snapstate.Flags{NoReRefresh: true}, deviceCtx, fromChange)
+		if err != nil {
+			return nil, err
+		}
+		tss = append(tss, ts)
+	}
+
+	var ts *state.TaskSet
+	if current.Kernel() != new.Kernel() {
+		needsInstall, err := notInstalled(st, new.Kernel())
+		if err != nil {
+			return nil, err
+		}
+		if needsInstall {
+			ts, err = snapstateInstallWithDeviceContext(ctx, st, new.Kernel(), &snapstate.RevisionOptions{Channel: new.KernelTrack()}, userID, snapstate.Flags{}, deviceCtx, fromChange)
+		} else {
+			ts, err = snapstate.LinkNewBaseOrKernel(st, new.Base())
+		}
+		if err != nil {
+			return nil, err
+		}
+		tss = append(tss, ts)
+	}
 	if current.Base() != new.Base() {
 		// ensure snapd is installed
-		_, err := snapstate.CurrentInfo(st, "snapd")
-		if _, ok := err.(*snap.NotInstalledError); ok {
+		snapdNeedsInstall, err := notInstalled(st, "snapd")
+		if err != nil {
+			return nil, err
+		}
+		if snapdNeedsInstall {
 			ts, err := snapstateInstallWithDeviceContext(ctx, st, "snapd", nil, userID, snapstate.Flags{}, deviceCtx, fromChange)
 			if err != nil {
 				return nil, err
@@ -334,17 +371,31 @@ func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Mo
 			tss = append(tss, ts)
 		}
 
-		// and then install the new base
-		ts, err := snapstateInstallWithDeviceContext(ctx, st, new.Base(), nil, userID, snapstate.Flags{}, deviceCtx, fromChange)
+		// and then install the new base (if needed)
+		needsInstall, err := notInstalled(st, new.Base())
+		if err != nil {
+			return nil, err
+		}
+		if needsInstall {
+			ts, err = snapstateInstallWithDeviceContext(ctx, st, new.Base(), nil, userID, snapstate.Flags{}, deviceCtx, fromChange)
+		} else {
+			ts, err = snapstate.LinkNewBaseOrKernel(st, new.Base())
+		}
 		if err != nil {
 			return nil, err
 		}
 		tss = append(tss, ts)
 	}
-
-	// adjust kernel track
-	if current.KernelTrack() != new.KernelTrack() {
-		ts, err := snapstateUpdateWithDeviceContext(st, new.Kernel(), &snapstate.RevisionOptions{Channel: new.KernelTrack()}, userID, snapstate.Flags{NoReRefresh: true}, deviceCtx, fromChange)
+	// gadget
+	if current.Gadget() == new.Gadget() && current.GadgetTrack() != new.GadgetTrack() {
+		ts, err := snapstateUpdateWithDeviceContext(st, new.Gadget(), &snapstate.RevisionOptions{Channel: new.GadgetTrack()}, userID, snapstate.Flags{NoReRefresh: true}, deviceCtx, fromChange)
+		if err != nil {
+			return nil, err
+		}
+		tss = append(tss, ts)
+	}
+	if current.Gadget() != new.Gadget() {
+		ts, err := snapstateInstallWithDeviceContext(ctx, st, new.Gadget(), &snapstate.RevisionOptions{Channel: new.GadgetTrack()}, userID, snapstate.Flags{}, deviceCtx, fromChange)
 		if err != nil {
 			return nil, err
 		}
@@ -356,16 +407,17 @@ func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Mo
 	for _, snapRef := range new.RequiredNoEssentialSnaps() {
 		// TODO|XXX: have methods that take refs directly
 		// to respect the snap ids
-		_, err := snapstate.CurrentInfo(st, snapRef.SnapName())
-		// If the snap is not installed we need to install it now.
-		if _, ok := err.(*snap.NotInstalledError); ok {
+		needsInstall, err := notInstalled(st, snapRef.SnapName())
+		if err != nil {
+			return nil, err
+		}
+		if needsInstall {
+			// If the snap is not installed we need to install it now.
 			ts, err := snapstateInstallWithDeviceContext(ctx, st, snapRef.SnapName(), nil, userID, snapstate.Flags{Required: true}, deviceCtx, fromChange)
 			if err != nil {
 				return nil, err
 			}
 			tss = append(tss, ts)
-		} else if err != nil {
-			return nil, err
 		}
 	}
 	// TODO: Validate that all bases and default-providers are part
@@ -447,6 +499,8 @@ func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Mo
 // - Reapply gadget connections as needed
 // - Check all relevant snaps exist in new store
 //   (need to check that even unchanged snaps are accessible)
+// - Make sure this works with Core 20 as well, in the Core 20 case
+//   we must enforce the default-channels from the model as well
 func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 	var seeded bool
 	err := st.Get("seeded", &seeded)
@@ -476,14 +530,6 @@ func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 	// remodels itself to/from i386 (if the HW can do both 32/64 bit)
 	if current.Architecture() != new.Architecture() {
 		return nil, fmt.Errorf("cannot remodel to different architectures yet")
-	}
-	// FIXME: we need to support this soon but right now only a single
-	// snap of type "gadget/kernel" is allowed so this needs work
-	if current.Kernel() != new.Kernel() {
-		return nil, fmt.Errorf("cannot remodel to different kernels yet")
-	}
-	if current.Gadget() != new.Gadget() {
-		return nil, fmt.Errorf("cannot remodel to different gadgets yet")
 	}
 
 	// TODO: should we run a remodel only while no other change is

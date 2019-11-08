@@ -39,8 +39,10 @@
 #include <unistd.h>
 
 #include "../libsnap-confine-private/cgroup-freezer-support.h"
+#include "../libsnap-confine-private/cgroup-support.h"
 #include "../libsnap-confine-private/classic.h"
 #include "../libsnap-confine-private/cleanup-funcs.h"
+#include "../libsnap-confine-private/feature.h"
 #include "../libsnap-confine-private/infofile.h"
 #include "../libsnap-confine-private/locking.h"
 #include "../libsnap-confine-private/mountinfo.h"
@@ -48,6 +50,7 @@
 #include "../libsnap-confine-private/tool.h"
 #include "../libsnap-confine-private/utils.h"
 #include "user-support.h"
+#include "mount-support.h"
 
 /**
  * Directory where snap-confine keeps namespace files.
@@ -117,8 +120,10 @@ void sc_reassociate_with_pid1_mount_ns(void)
 	}
 }
 
-void sc_initialize_mount_ns(void)
+void sc_initialize_mount_ns(unsigned int experimental_features)
 {
+	debug("unsharing snap namespace directory");
+
 	/* Ensure that /run/snapd/ns is a directory. */
 	if (sc_nonfatal_mkpath(sc_ns_dir, 0755) < 0) {
 		die("cannot create directory %s", sc_ns_dir);
@@ -159,6 +164,14 @@ void sc_initialize_mount_ns(void)
 		if (mount(NULL, sc_ns_dir, NULL, MS_PRIVATE, NULL) < 0) {
 			die("cannot change propagation type to MS_PRIVATE in %s", sc_ns_dir);
 		}
+	}
+
+	/* code that follows is experimental */
+	if (experimental_features & SC_FEATURE_PARALLEL_INSTANCES) {
+		// Ensure that SNAP_MOUNT_DIR and /var/snap are shared mount points
+		debug
+		    ("(experimental) ensuring snap mount and data directories are mount points");
+		sc_ensure_snap_dir_shared_mounts();
 	}
 }
 
@@ -486,6 +499,11 @@ static int sc_inspect_and_maybe_discard_stale_ns(int mnt_fd,
 		debug("preserved mount is not stale, reusing");
 		return 0;
 	case SC_DISCARD_SHOULD:
+		if (sc_cgroup_is_v2()) {
+			debug
+			    ("WARNING: cgroup v2 detected, preserved mount namespace process presence check unsupported, discarding");
+			break;
+		}
 		if (sc_cgroup_freezer_occupied(inv->snap_instance)) {
 			// Some processes are still using the namespace so we cannot discard it
 			// as that would fracture the view that the set of processes inside
