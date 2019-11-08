@@ -90,7 +90,7 @@ execute: |
         echo "Now we remodel"
         snap remodel "$TESTSLIB"/assertions/developer1-pc-18.model
         echo "Double check that we boot into the right kernel"
-        grub-editenv list | MATCH "snap_try_core=$NEW_BASE"
+        grub-editenv list | MATCH "snap_try_kernel=$KERNEL"
         echo "reboot to finish the change"
         REBOOT
     fi
@@ -98,10 +98,10 @@ execute: |
     if [ "$SPREAD_REBOOT" = 1 ]; then
         wait_core_post_boot
         echo "The kernel was tried and is now good"
-        grub-editenv list | MATCH "^snap_try_core=$"
+        grub-editenv list | MATCH "^snap_try_kernel=$"
 
         echo "And now we try the new base"
-        grub-editenv list | MATCH "^snap_try_kernel=$KERNEL"
+        grub-editenv list | MATCH "^snap_try_core=$NEW_BASE"
     fi
     # second boot with the new kernel and when we finish the remodel
     if [ "$SPREAD_REBOOT" = 2 ]; then
@@ -114,9 +114,6 @@ execute: |
         wait_change_done "Refresh model assertion from revision 0 to 2"
         snap debug model|MATCH "revision: 2"
 
-
-        xxx
-        
         echo "And we can remodel back again"
         snap remodel "$TESTSLIB"/assertions/model.bak
         REBOOT
@@ -126,8 +123,10 @@ execute: |
     if [ "$SPREAD_REBOOT" = 3 ]; then
         wait_core_post_boot
 
+        # XXX: we will need to uninstall the snapd snap
+
         grub-editenv list
-        
+
         REBOOT
     fi
     # reboot from new model to undo the new model again (to not pollute tests)
