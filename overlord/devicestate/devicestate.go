@@ -332,6 +332,23 @@ func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Mo
 	userID := 0
 	var tss []*state.TaskSet
 
+	// check first if we need to install the snapd snap
+	// (may happen on core-base remodel)
+	if current.Base() != new.Base() {
+		// ensure snapd is installed
+		snapdNeedsInstall, err := notInstalled(st, "snapd")
+		if err != nil {
+			return nil, err
+		}
+		if snapdNeedsInstall {
+			ts, err := snapstateInstallWithDeviceContext(ctx, st, "snapd", nil, userID, snapstate.Flags{}, deviceCtx, fromChange)
+			if err != nil {
+				return nil, err
+			}
+			tss = append(tss, ts)
+		}
+	}
+
 	// kernel
 	if current.Kernel() == new.Kernel() && current.KernelTrack() != new.KernelTrack() {
 		ts, err := snapstateUpdateWithDeviceContext(st, new.Kernel(), &snapstate.RevisionOptions{Channel: new.KernelTrack()}, userID, snapstate.Flags{NoReRefresh: true}, deviceCtx, fromChange)
@@ -357,21 +374,9 @@ func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Mo
 		}
 		tss = append(tss, ts)
 	}
-	if current.Base() != new.Base() {
-		// ensure snapd is installed
-		snapdNeedsInstall, err := notInstalled(st, "snapd")
-		if err != nil {
-			return nil, err
-		}
-		if snapdNeedsInstall {
-			ts, err := snapstateInstallWithDeviceContext(ctx, st, "snapd", nil, userID, snapstate.Flags{}, deviceCtx, fromChange)
-			if err != nil {
-				return nil, err
-			}
-			tss = append(tss, ts)
-		}
 
-		// and then install the new base (if needed)
+	if current.Base() != new.Base() {
+		//  install the new base (if needed)
 		needsInstall, err := notInstalled(st, new.Base())
 		if err != nil {
 			return nil, err
