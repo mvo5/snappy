@@ -30,6 +30,7 @@ import (
 	"github.com/snapcore/snapd/bootloader"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/logger"
+	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
 )
 
@@ -287,13 +288,13 @@ type BootableSet struct {
 	UnpackedGadgetDir string
 }
 
-// MakeBootable sets up the image filesystem with the given rootdir
-// such that it can be booted. This entails:
+// makeBootableUc16Uc18 setups the image filesystem for boot with UC16
+// and UC18 models. This entails:
 //  - installing the bootloader configuration from the gadget
 //  - creating symlinks for boot snaps from seed to the runtime blob dir
 //  - setting boot env vars pointing to the revisions of the boot snaps to use
 //  - extracting kernel assets as needed by the bootloader
-func MakeBootable(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
+func makeBootableUc16Uc18(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
 	// install the bootloader configuration from the gadget
 	if err := bootloader.InstallBootConfig(bootWith.UnpackedGadgetDir, rootdir); err != nil {
 		return err
@@ -360,5 +361,36 @@ func MakeBootable(model *asserts.Model, rootdir string, bootWith *BootableSet) e
 	}
 
 	return nil
+}
 
+func makeBootableUc20(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
+	// XXX: this really should be bootloader.InstallBootConfig() but
+	//      it uses the wrong ConfigFile() path, it uses
+	//      /boot/grub/grub.cfg
+	//      there but we need EFI/ubuntu/grub.cfg
+	gadgetFile := filepath.Join(bootWith.UnpackedGadgetDir, "grub.conf")
+	systemFile := filepath.Join(rootdir, "EFI/ubuntu/grub.cfg")
+	if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
+		return err
+	}
+	if err := osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite); err != nil {
+		return nil
+	}
+
+	// XXX: extract kernel for e.g. ARM
+	//
+	// XXX2: "pseudo" symlink kernel to /systems/XXXX/kernel and add
+	//       code to grub to read it?
+
+	return nil
+}
+
+// MakeBootable sets up the image filesystem with the given rootdir
+// such that it can be booted
+func MakeBootable(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
+	if model.Grade() == asserts.ModelGradeUnset {
+		return makeBootableUc16Uc18(model, rootdir, bootWith)
+	}
+
+	return makeBootableUc20(model, rootdir, bootWith)
 }
