@@ -20,13 +20,22 @@
 package httputil_test
 
 import (
+	"crypto/x509"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"gopkg.in/check.v1"
 
+	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/httputil"
+	"github.com/snapcore/snapd/logger"
+	"github.com/snapcore/snapd/testutil"
 )
 
 type clientSuite struct{}
@@ -82,4 +91,54 @@ func (s *clientSuite) TestClientProxySetsUserAgent(c *check.C) {
 	c.Check(err, check.NotNil) // because we didn't do anything in the handler
 
 	c.Assert(called, check.Equals, true)
+}
+
+func (s *clientSuite) TestClientExtraSSLCertInvalidCert(c *check.C) {
+	logbuf, restore := logger.MockLogger()
+	defer restore()
+
+	tmpdir := c.MkDir()
+	dirs.SetRootDir(tmpdir)
+	err := os.MkdirAll(dirs.SnapExtraSslCertsDir, 0755)
+	c.Assert(err, check.IsNil)
+
+	err = ioutil.WriteFile(filepath.Join(dirs.SnapExtraSslCertsDir, "garbage.pem"), []byte("garbage"), 0644)
+	c.Assert(err, check.IsNil)
+
+	cli := httputil.NewHTTPClient(nil)
+	c.Assert(cli, check.NotNil)
+	c.Assert(logbuf.String(), check.Matches, "(?m).* WARNING: cannot append extra ssl certificate: .*/var/lib/snapd/ssl/certs/garbage.pem")
+}
+
+func (s *clientSuite) TestClientExtraSSLCertGoodCert(c *check.C) {
+	logbuf, restore := logger.MockLogger()
+	defer restore()
+
+	tmpdir := c.MkDir()
+	dirs.SetRootDir(tmpdir)
+	err := os.MkdirAll(dirs.SnapExtraSslCertsDir, 0755)
+	c.Assert(err, check.IsNil)
+
+	// XXX: use golang x509 instead
+	if _, err := exec.LookPath("openssl"); err != nil {
+		c.Skip("need openssl to generate test cert")
+	}
+	needle := "needle-02082009-needle"
+	certpath := filepath.Join(dirs.SnapExtraSslCertsDir, "good.pem")
+	output, err := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:768", "-out", certpath, "-days", "365", "-nodes", "-subj", fmt.Sprintf("/CN=%s", needle)).CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf("openssl failed with %s", output))
+
+	cli := httputil.NewHTTPClient(nil)
+	c.Assert(cli, check.NotNil)
+	c.Assert(logbuf.String(), check.Equals, "")
+
+	systemCerts, err := x509.SystemCertPool()
+	c.Assert(err, check.IsNil)
+	// peel the onion
+	lg := cli.Transport.(*httputil.LoggedTransport)
+	tr := lg.Transport.(*http.Transport)
+	transportCerts := tr.TLSClientConfig.RootCAs.Subjects()
+	c.Assert(len(transportCerts), check.Equals, len(systemCerts.Subjects())+1)
+	// XXX: should we properly decode the cert?
+	c.Assert(string(transportCerts[len(transportCerts)-1]), testutil.Contains, needle)
 }
