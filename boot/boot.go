@@ -30,7 +30,6 @@ import (
 	"github.com/snapcore/snapd/bootloader"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/logger"
-	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
 )
 
@@ -364,17 +363,9 @@ func makeBootableUc16Uc18(model *asserts.Model, rootdir string, bootWith *Bootab
 }
 
 func makeBootableUc20(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
-	// XXX: this really should be bootloader.InstallBootConfig() but
-	//      it uses the wrong ConfigFile() path, it uses
-	//      /boot/grub/grub.cfg
-	//      there but we need EFI/ubuntu/grub.cfg
-	gadgetFile := filepath.Join(bootWith.UnpackedGadgetDir, "grub.conf")
-	systemFile := filepath.Join(rootdir, "EFI/ubuntu/grub.cfg")
-	if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
+	// install the recovery bootloader configuration from the gadget
+	if err := bootloader.InstallRecoveryConfig(bootWith.UnpackedGadgetDir, rootdir); err != nil {
 		return err
-	}
-	if err := osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite); err != nil {
-		return nil
 	}
 
 	// XXX: extract kernel for e.g. ARM

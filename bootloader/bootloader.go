@@ -62,6 +62,11 @@ type installableBootloader interface {
 	setRootDir(string)
 }
 
+type recoveryBootloader interface {
+	installableBootloader
+	RecoveryConfigFile() string
+}
+
 // InstallBootConfig installs the bootloader config from the gadget
 // snap dir into the right place.
 func InstallBootConfig(gadgetDir, rootDir string) error {
@@ -82,6 +87,28 @@ func InstallBootConfig(gadgetDir, rootDir string) error {
 	}
 
 	return fmt.Errorf("cannot find boot config in %q", gadgetDir)
+}
+
+// InstallRecoverConfig installs the recovery bootloader config from
+// the gadget snap dir into the right place. This is used on UC20+
+// systems.
+func InstallRecoveryConfig(gadgetDir, rootDir string) error {
+	for _, bl := range []recoveryBootloader{&grub{}} {
+		// the bootloader config file has to be root of the gadget snap
+		gadgetFile := filepath.Join(gadgetDir, bl.Name()+".cfg-recovery")
+		if !osutil.FileExists(gadgetFile) {
+			continue
+		}
+		bl.setRootDir(rootDir)
+
+		systemFile := bl.RecoveryConfigFile()
+		if err := os.MkdirAll(filepath.Dir(systemFile), 0755); err != nil {
+			return err
+		}
+		return osutil.CopyFile(gadgetFile, systemFile, osutil.CopyFlagOverwrite)
+	}
+
+	return fmt.Errorf("cannot find recovery boot config in %q", gadgetDir)
 }
 
 var (

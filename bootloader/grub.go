@@ -61,6 +61,10 @@ func (g *grub) ConfigFile() string {
 	return filepath.Join(g.dir(), "grub.cfg")
 }
 
+func (g *grub) RecoveryConfigFile() string {
+	return filepath.Join(g.rootdir, "/EFI/ubuntu/grub.cfg")
+}
+
 func (g *grub) envFile() string {
 	return filepath.Join(g.dir(), "grubenv")
 }
