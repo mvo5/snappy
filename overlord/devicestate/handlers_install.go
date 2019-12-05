@@ -26,6 +26,7 @@ import (
 
 	"gopkg.in/tomb.v2"
 
+	"github.com/snapcore/snapd/boot"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/overlord/snapstate"
@@ -60,8 +61,18 @@ func (m *DeviceManager) doSetupRunSystem(t *state.Task, _ *tomb.Tomb) error {
 		return osutil.OutputErr(output, err)
 	}
 
-	// XXX: update recovery mode in grubenv
-	// XXX2: write correct modeenv
+	// make the system runable
+	bootWith := &boot.BootableSet{
+		// XXX: add base,basePath
+		// XXX: add kernel,kernelPath
+		UnpackedGadgetDir: gadgetDir,
+		RecoverySystem:    m.modeEnv.RecoverySystem,
+	}
+	model := deviceCtx.Model()
+	if err := boot.MakeRunnable(model, bootWith); err != nil {
+		return err
+	}
+	st.RequestRestart(state.RestartSystem)
 
 	return nil
 }

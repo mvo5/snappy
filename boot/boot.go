@@ -284,6 +284,8 @@ type BootableSet struct {
 	Kernel     *snap.Info
 	KernelPath string
 
+	RecoverySystem string
+
 	UnpackedGadgetDir string
 }
 
@@ -358,6 +360,56 @@ func MakeBootable(model *asserts.Model, rootdir string, bootWith *BootableSet) e
 	if err := bl.SetBootVars(m); err != nil {
 		return err
 	}
+
+	return nil
+
+}
+
+func MakeRunnable(model *asserts.Model, bootWith *BootableSet) error {
+	rootdir := dirs.GlobalRootDir
+
+	// XXX: we need to either write our own special grub.cfg here
+	//      or double check that the grub.cfg in use is compatible
+	//      with the UC20 assumptions
+	if err := bootloader.InstallBootConfig(bootWith.UnpackedGadgetDir, rootdir, nil); err != nil {
+		return err
+	}
+
+	// Set bootvars for kernel/core snaps so the system boots and
+	// does the first-time initialization. There is also no
+	// mounted kernel/core/base snap, but just the blobs.
+	bl, err := bootloader.Find(rootdir, nil)
+	if err != nil {
+		return fmt.Errorf("cannot set kernel/core boot variables: %s", err)
+	}
+	// XXX: update to the new static kernel.img world of UC20
+	m := map[string]string{
+		"snap_mode":       "",
+		"snap_try_core":   "",
+		"snap_try_kernel": "",
+	}
+	setBoot := func(name, fn string) {
+		m[name] = filepath.Base(fn)
+	}
+	// base
+	setBoot("snap_core", bootWith.BasePath)
+	// kernel
+	kernelf, err := snap.Open(bootWith.KernelPath)
+	if err != nil {
+		return err
+	}
+	// XXX: add option to always extract kernel
+	if err := bl.ExtractKernelAssets(bootWith.Kernel, kernelf); err != nil {
+		return err
+	}
+	setBoot("snap_kernel", bootWith.KernelPath)
+	if err := bl.SetBootVars(m); err != nil {
+		return err
+	}
+
+	// XXX: set recovery bootloader
+
+	// XXX: set modeenv to /run/mnt/ubuntu-data
 
 	return nil
 
