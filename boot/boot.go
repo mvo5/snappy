@@ -285,6 +285,9 @@ type BootableSet struct {
 	KernelPath string
 
 	UnpackedGadgetDir string
+
+	// XXX: wrong name and wrong place?
+	UC20InstallMode bool
 }
 
 // makeBootableUc16Uc18 setups the image filesystem for boot with UC16
@@ -378,15 +381,16 @@ func makeBootable20(model *asserts.Model, rootdir string, bootWith *BootableSet,
 // such that it can be booted
 func MakeBootable(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
 	opts := &bootloader.Options{
-		// XXX: allow to override this
-		PrepareImageTime: true,
+		// XXX: allow to override this in a better way
+		PrepareImageTime: !bootWith.UC20InstallMode,
 	}
 
 	if model.Grade() == asserts.ModelGradeUnset {
 		return makeBootable16(model, rootdir, bootWith, opts)
 	}
 
-	// XXX: allow to override this
-	opts.Recovery = true
+	// XXX: allow to override this in a better way
+	opts.Recovery = !bootWith.UC20InstallMode
+
 	return makeBootable20(model, rootdir, bootWith, opts)
 }

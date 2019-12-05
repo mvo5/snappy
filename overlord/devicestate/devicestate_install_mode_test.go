@@ -38,6 +38,8 @@ import (
 
 type deviceMgrInstallModeSuite struct {
 	deviceMgrBaseSuite
+
+	rootdir string
 }
 
 var _ = Suite(&deviceMgrInstallModeSuite{})
@@ -57,9 +59,11 @@ func (s *deviceMgrInstallModeSuite) SetUpTest(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 	s.state.Set("seeded", true)
+
+	s.rootdir = dirs.GlobalRootDir
 }
 
-func (s *deviceMgrInstallModeSuite) makeMockInstalledPcGadget(c *C) {
+func (s *deviceMgrInstallModeSuite) makeMockUC20env(c *C) {
 	si := &snap.SideInfo{
 		RealName: "pc",
 		Revision: snap.R(1),
@@ -73,12 +77,27 @@ func (s *deviceMgrInstallModeSuite) makeMockInstalledPcGadget(c *C) {
 	})
 	snaptest.MockSnapWithFiles(c, "name: pc\ntype: gadget", si, [][]string{
 		{"meta/gadget.yaml", gadgetYaml},
+		{"grub.conf", "# regular grub.cfg"},
+		{"grub-recovery.conf", "# recovery grub.cfg"},
 	})
 	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+
+		"grade":        "dangerous",
 		"architecture": "amd64",
-		"kernel":       "pc-kernel",
-		"gadget":       "pc",
-		"base":         "core18",
+		"base":         "core20",
+		"snaps": []interface{}{
+			map[string]interface{}{
+				"name":            "pc-kernel",
+				"id":              "pckernelidididididididididididid",
+				"type":            "kernel",
+				"default-channel": "20",
+			},
+			map[string]interface{}{
+				"name":            "pc",
+				"id":              "pcididididididididididididididid",
+				"type":            "gadget",
+				"default-channel": "20",
+			}},
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
 		Brand:  "canonical",
@@ -87,7 +106,7 @@ func (s *deviceMgrInstallModeSuite) makeMockInstalledPcGadget(c *C) {
 	})
 }
 
-func (s *deviceMgrInstallModeSuite) TestInstallModeCreatesChangeHappy(c *C) {
+func (s *deviceMgrInstallModeSuite) TestInstallModeRunthrough(c *C) {
 	restore := release.MockOnClassic(false)
 	defer restore()
 
@@ -95,14 +114,13 @@ func (s *deviceMgrInstallModeSuite) TestInstallModeCreatesChangeHappy(c *C) {
 	defer mockSnapBootstrapCmd.Restore()
 
 	s.state.Lock()
-	s.makeMockInstalledPcGadget(c)
-	devicestate.SetOperatingMode(s.mgr, "install")
-	s.state.Unlock()
-
-	s.settle(c)
-
-	s.state.Lock()
 	defer s.state.Unlock()
+	s.makeMockUC20env(c)
+	devicestate.SetOperatingMode(s.mgr, "install")
+
+	s.state.Unlock()
+	s.settle(c)
+	s.state.Lock()
 
 	// the install-system change is created
 	createPartitions := s.findInstallSystem()
@@ -115,6 +133,9 @@ func (s *deviceMgrInstallModeSuite) TestInstallModeCreatesChangeHappy(c *C) {
 	c.Check(mockSnapBootstrapCmd.Calls(), DeepEquals, [][]string{
 		{"snap-bootstrap", "create-partitions", filepath.Join(dirs.SnapMountDir, "/pc/1")},
 	})
+
+	// and we got the right grub.cfg on the ubuntu-boot partition
+	c.Check(filepath.Join(s.rootdir, "/boot/grub/grub.cfg"), testutil.FileMatches, "# regular grub.cfg")
 }
 
 func (s *deviceMgrInstallModeSuite) TestInstallModeNotInstallmodeNoChg(c *C) {

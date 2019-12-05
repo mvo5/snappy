@@ -26,6 +26,7 @@ import (
 
 	"gopkg.in/tomb.v2"
 
+	"github.com/snapcore/snapd/boot"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/overlord/snapstate"
@@ -60,8 +61,19 @@ func (m *DeviceManager) doSetupRunSystem(t *state.Task, _ *tomb.Tomb) error {
 		return osutil.OutputErr(output, err)
 	}
 
-	// XXX: update recovery mode in grubenv
-	// XXX2: write correct modeenv
+	// now make the "run" system bootable
+	bootWith := &boot.BootableSet{
+		UnpackedGadgetDir: gadgetDir,
 
+		// XXX: better way to override this
+		UC20InstallMode: true,
+	}
+	model := deviceCtx.Model()
+	if err := boot.MakeBootable(model, dirs.GlobalRootDir, bootWith); err != nil {
+		return err
+	}
+	// XXX: set mode to "run" in recovery grub.cfg
+
+	st.RequestRestart(state.RestartSystem)
 	return nil
 }
