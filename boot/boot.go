@@ -362,3 +362,28 @@ func MakeBootable(model *asserts.Model, rootdir string, bootWith *BootableSet) e
 	return nil
 
 }
+
+func MakeRunnable(model *asserts.Model, bootWith *BootableSet) error {
+	rootdir := dirs.GlobalRootDir
+
+	// XXX: install "run" mode grub.cfg (static, expects static names)
+	//      to /run/mnt/ubuntu-boot
+
+	// XXX: extract kernel to fixed name to /run/mnt/ubuntu-boot
+
+	// XXX: set modeenv to /run/mnt/ubuntu-data with base,kernel,recovery-system to use
+
+	// set recovery bootloader to "run" mode
+	bl, err := bootloader.Find(rootdir, &bootloader.Options{Recovery: true})
+	if err != nil {
+		return err
+	}
+	bvars := map[string]string{
+		"snapd_recovery_mode": "run",
+	}
+	if err := bl.SetBootVars(bvars); err != nil {
+		return fmt.Errorf("cannot update  mode: %v", err)
+	}
+
+	return nil
+}
