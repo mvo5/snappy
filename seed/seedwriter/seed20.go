@@ -177,6 +177,12 @@ func (tr *tree20) snapPath(sn *SeedSnap) (string, error) {
 }
 
 func (tr *tree20) localSnapPath(sn *SeedSnap) (string, error) {
+	// local but asserted
+	if sn.Info.ID() != "" {
+		return filepath.Join(tr.snapsDirPath, fmt.Sprintf("%s_%s.snap", sn.SnapName(), sn.Info.Revision)), nil
+	}
+
+	// local unasserted snap
 	sysSnapsDir, err := tr.ensureSystemSnapsDir()
 	if err != nil {
 		return "", err
