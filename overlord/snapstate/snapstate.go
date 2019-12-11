@@ -2373,12 +2373,7 @@ func ConfigDefaults(st *state.State, deviceCtx DeviceContext, snapName string) (
 	if snapID == "" && !isSystemDefaults {
 		return nil, state.ErrNoState
 	}
-
-	constraints := &gadget.ModelConstraints{
-		Classic: release.OnClassic,
-	}
-
-	gadgetInfo, err := gadget.ReadInfo(info.MountDir(), constraints)
+	gadgetInfo, err := gadget.ReadInfo(info.MountDir(), deviceCtx.Model())
 	if err != nil {
 		return nil, err
 	}

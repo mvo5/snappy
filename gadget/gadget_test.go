@@ -31,6 +31,7 @@ import (
 	. "gopkg.in/check.v1"
 	"gopkg.in/yaml.v2"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/gadget"
 	"github.com/snapcore/snapd/snap"
@@ -40,6 +41,9 @@ import (
 type gadgetYamlTestSuite struct {
 	dir            string
 	gadgetYamlPath string
+
+	classic    bool
+	modelGrade asserts.ModelGrade
 }
 
 var _ = Suite(&gadgetYamlTestSuite{})
@@ -297,10 +301,20 @@ func (s *gadgetYamlTestSuite) SetUpTest(c *C) {
 	s.dir = c.MkDir()
 	c.Assert(os.MkdirAll(filepath.Join(s.dir, "meta"), 0755), IsNil)
 	s.gadgetYamlPath = filepath.Join(s.dir, "meta", "gadget.yaml")
+
+	s.classic = false
+	s.modelGrade = asserts.ModelGradeUnset
 }
 
 func (s *gadgetYamlTestSuite) TearDownTest(c *C) {
 	dirs.SetRootDir("/")
+}
+
+func (s *gadgetYamlTestSuite) Classic() bool {
+	return s.classic
+}
+func (s *gadgetYamlTestSuite) Grade() asserts.ModelGrade {
+	return s.modelGrade
 }
 
 func (s *gadgetYamlTestSuite) TestReadGadgetYamlMissing(c *C) {
@@ -308,13 +322,14 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlMissing(c *C) {
 	_, err := gadget.ReadInfo("bogus-path", nil)
 	c.Assert(err, IsNil)
 
-	_, err = gadget.ReadInfo("bogus-path", &gadget.ModelConstraints{})
+	_, err = gadget.ReadInfo("bogus-path", s)
 	c.Assert(err, ErrorMatches, ".*meta/gadget.yaml: no such file or directory")
 }
 
 func (s *gadgetYamlTestSuite) TestReadGadgetYamlOnClassicOptional(c *C) {
 	// no meta/gadget.yaml
-	gi, err := gadget.ReadInfo(s.dir, &gadget.ModelConstraints{Classic: true})
+	s.classic = true
+	gi, err := gadget.ReadInfo(s.dir, s)
 	c.Assert(err, IsNil)
 	c.Check(gi, NotNil)
 }
@@ -323,7 +338,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlOnClassicEmptyIsValid(c *C) {
 	err := ioutil.WriteFile(s.gadgetYamlPath, nil, 0644)
 	c.Assert(err, IsNil)
 
-	ginfo, err := gadget.ReadInfo(s.dir, &gadget.ModelConstraints{Classic: true})
+	s.classic = true
+	ginfo, err := gadget.ReadInfo(s.dir, s)
 	c.Assert(err, IsNil)
 	c.Assert(ginfo, DeepEquals, &gadget.Info{})
 }
@@ -332,7 +348,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlOnClassicOnylDefaultsIsValid(c *
 	err := ioutil.WriteFile(s.gadgetYamlPath, mockClassicGadgetYaml, 0644)
 	c.Assert(err, IsNil)
 
-	ginfo, err := gadget.ReadInfo(s.dir, &gadget.ModelConstraints{Classic: true})
+	s.classic = true
+	ginfo, err := gadget.ReadInfo(s.dir, s)
 	c.Assert(err, IsNil)
 	c.Assert(ginfo, DeepEquals, &gadget.Info{
 		Defaults: map[string]map[string]interface{}{
@@ -348,7 +365,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetDefaultsMultiline(c *C) {
 	err := ioutil.WriteFile(s.gadgetYamlPath, mockClassicGadgetMultilineDefaultsYaml, 0644)
 	c.Assert(err, IsNil)
 
-	ginfo, err := gadget.ReadInfo(s.dir, &gadget.ModelConstraints{Classic: true})
+	s.classic = true
+	ginfo, err := gadget.ReadInfo(s.dir, s)
 	c.Assert(err, IsNil)
 	c.Assert(ginfo, DeepEquals, &gadget.Info{
 		Defaults: map[string]map[string]interface{}{
@@ -492,7 +510,8 @@ volumes:
 	err := ioutil.WriteFile(s.gadgetYamlPath, mockGadgetYamlBroken, 0644)
 	c.Assert(err, IsNil)
 
-	_, err = gadget.ReadInfo(s.dir, &gadget.ModelConstraints{Classic: false})
+	s.classic = false
+	_, err = gadget.ReadInfo(s.dir, s)
 	c.Assert(err, ErrorMatches, "bootloader not declared in any volume")
 }
 
@@ -500,7 +519,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlMissingBootloader(c *C) {
 	err := ioutil.WriteFile(s.gadgetYamlPath, nil, 0644)
 	c.Assert(err, IsNil)
 
-	_, err = gadget.ReadInfo(s.dir, &gadget.ModelConstraints{Classic: false})
+	s.classic = false
+	_, err = gadget.ReadInfo(s.dir, s)
 	c.Assert(err, ErrorMatches, "bootloader not declared in any volume")
 }
 
@@ -683,7 +703,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlPCHappy(c *C) {
 	c.Assert(err, IsNil)
 
 	for _, constraints := range classicModelConstraints {
-		_, err = gadget.ReadInfo(s.dir, constraints)
+		s.classic = constraints.Classic
+		_, err = gadget.ReadInfo(s.dir, s)
 		c.Assert(err, IsNil)
 	}
 }
@@ -693,7 +714,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlRPiHappy(c *C) {
 	c.Assert(err, IsNil)
 
 	for _, constraints := range classicModelConstraints {
-		_, err = gadget.ReadInfo(s.dir, constraints)
+		s.classic = constraints.Classic
+		_, err = gadget.ReadInfo(s.dir, s)
 		c.Assert(err, IsNil)
 	}
 }
@@ -703,7 +725,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlLkHappy(c *C) {
 	c.Assert(err, IsNil)
 
 	for _, constraints := range classicModelConstraints {
-		_, err = gadget.ReadInfo(s.dir, constraints)
+		s.classic = constraints.Classic
+		_, err = gadget.ReadInfo(s.dir, s)
 		c.Assert(err, IsNil)
 	}
 }
@@ -713,7 +736,8 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlLkLegacyHappy(c *C) {
 	c.Assert(err, IsNil)
 
 	for _, constraints := range classicModelConstraints {
-		_, err = gadget.ReadInfo(s.dir, constraints)
+		s.classic = constraints.Classic
+		_, err = gadget.ReadInfo(s.dir, s)
 		c.Assert(err, IsNil)
 	}
 }
@@ -994,6 +1018,13 @@ func (s *gadgetYamlTestSuite) TestValidateVolumeDuplicateFsLabel(c *C) {
 			{Classic: false, SystemSeed: x.systemSeed},
 			{Classic: true, SystemSeed: x.systemSeed},
 		} {
+			s.classic = constraints.Classic
+			if constraints.SystemSeed {
+				s.modelGrade = asserts.ModelDangerous
+			} else {
+				s.modelGrade = asserts.ModelGradeUnset
+			}
+
 			err = gadget.ValidateVolume("name", &gadget.Volume{
 				Structure: []gadget.VolumeStructure{{
 					Name:  "data1",
@@ -1008,7 +1039,7 @@ func (s *gadgetYamlTestSuite) TestValidateVolumeDuplicateFsLabel(c *C) {
 					Type:  "21686148-6449-6E6F-744E-656564454649",
 					Size:  gadget.SizeMiB,
 				}},
-			}, constraints)
+			}, s)
 			c.Assert(err, ErrorMatches, x.errMsg)
 		}
 	}
@@ -1569,7 +1600,14 @@ volumes:
 			SystemSeed: tc.systemSeed,
 		}
 
-		_, err = gadget.ReadInfo(s.dir, constraints)
+		s.classic = false
+		if tc.systemSeed {
+			s.modelGrade = asserts.ModelDangerous
+		} else {
+			s.modelGrade = asserts.ModelGradeUnset
+		}
+
+		_, err = gadget.ReadInfo(s.dir, s)
 		if tc.err != "" {
 			c.Assert(err, ErrorMatches, tc.err)
 		} else {
@@ -1580,10 +1618,9 @@ volumes:
 	// test error with no volumes
 	err := ioutil.WriteFile(s.gadgetYamlPath, []byte(bloader), 0644)
 	c.Assert(err, IsNil)
-	constraints := &gadget.ModelConstraints{
-		SystemSeed: true,
-	}
-	_, err = gadget.ReadInfo(s.dir, constraints)
+
+	s.modelGrade = asserts.ModelDangerous
+	_, err = gadget.ReadInfo(s.dir, s)
 	c.Assert(err, ErrorMatches, ".*: model requires system-seed partition, but no system-seed or system-data partition found")
 }
 
@@ -1591,36 +1628,26 @@ func (s *gadgetYamlTestSuite) TestGadgetReadInfoVsFromMeta(c *C) {
 	err := ioutil.WriteFile(s.gadgetYamlPath, gadgetYamlPC, 0644)
 	c.Assert(err, IsNil)
 
-	constraints := &gadget.ModelConstraints{
-		Classic: false,
-	}
-
-	giRead, err := gadget.ReadInfo(s.dir, constraints)
+	s.classic = false
+	giRead, err := gadget.ReadInfo(s.dir, s)
 	c.Check(err, IsNil)
 
-	giMeta, err := gadget.InfoFromGadgetYaml(gadgetYamlPC, constraints)
+	giMeta, err := gadget.InfoFromGadgetYaml(gadgetYamlPC, s)
 	c.Check(err, IsNil)
 
 	c.Assert(giRead, DeepEquals, giMeta)
 }
 
-var (
-	classicConstraints = &gadget.ModelConstraints{
-		Classic: true,
-	}
-	coreConstraints = &gadget.ModelConstraints{
-		Classic: false,
-	}
-)
-
 func (s *gadgetYamlTestSuite) TestGadgetFromMetaEmpty(c *C) {
 	// this is ok for classic
-	giClassic, err := gadget.InfoFromGadgetYaml([]byte(""), classicConstraints)
+	s.classic = true
+	giClassic, err := gadget.InfoFromGadgetYaml([]byte(""), s)
 	c.Check(err, IsNil)
 	c.Assert(giClassic, DeepEquals, &gadget.Info{})
 
 	// but not so much for core
-	giCore, err := gadget.InfoFromGadgetYaml([]byte(""), coreConstraints)
+	s.classic = false
+	giCore, err := gadget.InfoFromGadgetYaml([]byte(""), s)
 	c.Check(err, ErrorMatches, "bootloader not declared in any volume")
 	c.Assert(giCore, IsNil)
 }
@@ -1700,7 +1727,7 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlFromSnapFileMissing(c *C) {
 	_, err = gadget.ReadInfoFromSnapFile(snapf, nil)
 	c.Assert(err, IsNil)
 
-	_, err = gadget.ReadInfoFromSnapFile(snapf, &gadget.ModelConstraints{})
+	_, err = gadget.ReadInfoFromSnapFile(snapf, s)
 	c.Assert(err, ErrorMatches, ".*meta/gadget.yaml: no such file or directory")
 }
 
@@ -1733,9 +1760,9 @@ type gadgetCompatibilityTestSuite struct{}
 var _ = Suite(&gadgetCompatibilityTestSuite{})
 
 func (s *gadgetCompatibilityTestSuite) TestGadgetIsCompatibleSelf(c *C) {
-	giPC1, err := gadget.InfoFromGadgetYaml(gadgetYamlPC, coreConstraints)
+	giPC1, err := gadget.InfoFromGadgetYaml(gadgetYamlPC, nil)
 	c.Assert(err, IsNil)
-	giPC2, err := gadget.InfoFromGadgetYaml(gadgetYamlPC, coreConstraints)
+	giPC2, err := gadget.InfoFromGadgetYaml(gadgetYamlPC, nil)
 	c.Assert(err, IsNil)
 
 	err = gadget.IsCompatible(giPC1, giPC2)
@@ -1812,9 +1839,9 @@ volumes:
 		{mockBootloaderYaml, "incompatible layout change: incompatible bootloader change from u-boot to grub"},
 	} {
 		c.Logf("trying: %v\n", string(tc.gadgetYaml))
-		gi, err := gadget.InfoFromGadgetYaml(mockYaml, coreConstraints)
+		gi, err := gadget.InfoFromGadgetYaml(mockYaml, nil)
 		c.Assert(err, IsNil)
-		giNew, err := gadget.InfoFromGadgetYaml(tc.gadgetYaml, coreConstraints)
+		giNew, err := gadget.InfoFromGadgetYaml(tc.gadgetYaml, nil)
 		c.Assert(err, IsNil)
 		err = gadget.IsCompatible(gi, giNew)
 		if tc.err == "" {
@@ -1890,9 +1917,9 @@ volumes:
 		{mockGPTBadNameYaml, `incompatible layout change: incompatible structure #0 \("non-legit"\) change: cannot change structure name from "legit" to "non-legit"`},
 	} {
 		c.Logf("trying: %d %v\n", i, string(tc.gadgetYaml))
-		gi, err := gadget.InfoFromGadgetYaml([]byte(mockYaml), coreConstraints)
+		gi, err := gadget.InfoFromGadgetYaml([]byte(mockYaml), nil)
 		c.Assert(err, IsNil)
-		giNew, err := gadget.InfoFromGadgetYaml([]byte(tc.gadgetYaml), coreConstraints)
+		giNew, err := gadget.InfoFromGadgetYaml([]byte(tc.gadgetYaml), nil)
 		c.Assert(err, IsNil)
 		err = gadget.IsCompatible(gi, giNew)
 		if tc.err == "" {
@@ -1923,9 +1950,9 @@ volumes:
         type: 0A
 `
 
-	gi, err := gadget.InfoFromGadgetYaml([]byte(mockYaml), coreConstraints)
+	gi, err := gadget.InfoFromGadgetYaml([]byte(mockYaml), nil)
 	c.Assert(err, IsNil)
-	giNew, err := gadget.InfoFromGadgetYaml([]byte(mockMBRNameOkYaml), coreConstraints)
+	giNew, err := gadget.InfoFromGadgetYaml([]byte(mockMBRNameOkYaml), nil)
 	c.Assert(err, IsNil)
 	err = gadget.IsCompatible(gi, giNew)
 	c.Check(err, IsNil)

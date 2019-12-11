@@ -32,6 +32,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/metautil"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/strutil"
@@ -298,7 +299,7 @@ func systemOrSnapID(s string) bool {
 // InfoFromGadgetYaml reads the provided gadget metadata. If constraints is nil, only the
 // self-consistency checks are performed, otherwise rules for the classic or
 // system seed cases are enforced.
-func InfoFromGadgetYaml(gadgetYaml []byte, constraints *ModelConstraints) (*Info, error) {
+func InfoFromGadgetYaml(gadgetYaml []byte, model Model) (*Info, error) {
 	var gi Info
 
 	if err := yaml.Unmarshal(gadgetYaml, &gi); err != nil {
@@ -326,7 +327,7 @@ func InfoFromGadgetYaml(gadgetYaml []byte, constraints *ModelConstraints) (*Info
 		}
 	}
 
-	if len(gi.Volumes) == 0 && (constraints == nil || constraints.Classic) {
+	if len(gi.Volumes) == 0 && (model == nil || model.Classic()) {
 		// volumes can be left out on classic
 		// can still specify defaults though
 		return &gi, nil
@@ -335,7 +336,7 @@ func InfoFromGadgetYaml(gadgetYaml []byte, constraints *ModelConstraints) (*Info
 	// basic validation
 	var bootloadersFound int
 	for name, v := range gi.Volumes {
-		if err := validateVolume(name, &v, constraints); err != nil {
+		if err := validateVolume(name, &v, model); err != nil {
 			return nil, fmt.Errorf("invalid volume %q: %v", name, err)
 		}
 
@@ -358,9 +359,14 @@ func InfoFromGadgetYaml(gadgetYaml []byte, constraints *ModelConstraints) (*Info
 	return &gi, nil
 }
 
-func readInfo(f func(string) ([]byte, error), gadgetYamlFn string, constraints *ModelConstraints) (*Info, error) {
+type Model interface {
+	Classic() bool
+	Grade() asserts.ModelGrade
+}
+
+func readInfo(f func(string) ([]byte, error), gadgetYamlFn string, model Model) (*Info, error) {
 	gmeta, err := f(gadgetYamlFn)
-	if (constraints == nil || constraints.Classic) && os.IsNotExist(err) {
+	if (model == nil || model.Classic()) && os.IsNotExist(err) {
 		// gadget.yaml is optional for classic gadgets
 		return &Info{}, nil
 	}
@@ -368,25 +374,25 @@ func readInfo(f func(string) ([]byte, error), gadgetYamlFn string, constraints *
 		return nil, err
 	}
 
-	return InfoFromGadgetYaml(gmeta, constraints)
+	return InfoFromGadgetYaml(gmeta, model)
 }
 
 // ReadInfo reads the gadget specific metadata from meta/gadget.yaml in the snap
 // root directory. If constraints is nil, ReadInfo will just check for
 // self-consistency, otherwise rules for the classic or system seed cases are
 // enforced.
-func ReadInfo(gadgetSnapRootDir string, constraints *ModelConstraints) (*Info, error) {
+func ReadInfo(gadgetSnapRootDir string, model Model) (*Info, error) {
 	gadgetYamlFn := filepath.Join(gadgetSnapRootDir, "meta", "gadget.yaml")
-	return readInfo(ioutil.ReadFile, gadgetYamlFn, constraints)
+	return readInfo(ioutil.ReadFile, gadgetYamlFn, model)
 }
 
 // ReadInfoFromSnapFile reads the gadget specific metadata from
 // meta/gadget.yaml in the given snap container. If constraints is
 // nil, ReadInfo will just check for self-consistency, otherwise rules
 // for the classic or system seed cases are enforced.
-func ReadInfoFromSnapFile(snapf snap.Container, constraints *ModelConstraints) (*Info, error) {
+func ReadInfoFromSnapFile(snapf snap.Container, model Model) (*Info, error) {
 	gadgetYamlFn := "meta/gadget.yaml"
-	return readInfo(snapf.ReadFile, gadgetYamlFn, constraints)
+	return readInfo(snapf.ReadFile, gadgetYamlFn, model)
 }
 
 func fmtIndexAndName(idx int, name string) string {
@@ -402,7 +408,7 @@ type validationState struct {
 	SystemBoot *VolumeStructure
 }
 
-func validateVolume(name string, vol *Volume, constraints *ModelConstraints) error {
+func validateVolume(name string, vol *Volume, model Model) error {
 	if !validVolumeName.MatchString(name) {
 		return errors.New("invalid name")
 	}
@@ -471,7 +477,7 @@ func validateVolume(name string, vol *Volume, constraints *ModelConstraints) err
 		previousEnd = end
 	}
 
-	if err := ensureVolumeConsistency(state, constraints); err != nil {
+	if err := ensureVolumeConsistency(state, model); err != nil {
 		return err
 	}
 
@@ -499,10 +505,10 @@ func ensureVolumeConsistencyNoConstraints(state *validationState) error {
 	return nil
 }
 
-func ensureVolumeConsistencyWithConstraints(state *validationState, constraints *ModelConstraints) error {
+func ensureVolumeConsistencyWithConstraints(state *validationState, model Model) error {
 	switch {
 	case state.SystemSeed == nil && state.SystemData == nil:
-		if constraints.SystemSeed {
+		if model.Grade() != asserts.ModelGradeUnset {
 			return fmt.Errorf("model requires system-seed partition, but no system-seed or system-data partition found")
 		}
 		return nil
@@ -510,7 +516,7 @@ func ensureVolumeConsistencyWithConstraints(state *validationState, constraints 
 		return fmt.Errorf("the system-seed role requires system-data to be defined")
 	case state.SystemSeed == nil && state.SystemData != nil:
 		// error if we have the SystemSeed constraint but no actual system-seed structure
-		if constraints.SystemSeed {
+		if model.Grade() != asserts.ModelGradeUnset {
 			return fmt.Errorf("model requires system-seed structure, but none was found")
 		}
 		// without SystemSeed, system-data label must be implicit or writable
@@ -520,7 +526,7 @@ func ensureVolumeConsistencyWithConstraints(state *validationState, constraints 
 		}
 	case state.SystemSeed != nil && state.SystemData != nil:
 		// error if we don't have the SystemSeed constraint but we have a system-seed structure
-		if !constraints.SystemSeed {
+		if model.Grade() == asserts.ModelGradeUnset {
 			return fmt.Errorf("model does not support the system-seed role")
 		}
 		if err := ensureSeedDataLabelsUnset(state); err != nil {
@@ -530,11 +536,11 @@ func ensureVolumeConsistencyWithConstraints(state *validationState, constraints 
 	return nil
 }
 
-func ensureVolumeConsistency(state *validationState, constraints *ModelConstraints) error {
-	if constraints == nil {
+func ensureVolumeConsistency(state *validationState, model Model) error {
+	if model == nil {
 		return ensureVolumeConsistencyNoConstraints(state)
 	}
-	return ensureVolumeConsistencyWithConstraints(state, constraints)
+	return ensureVolumeConsistencyWithConstraints(state, model)
 }
 
 func ensureSeedDataLabelsUnset(state *validationState) error {
