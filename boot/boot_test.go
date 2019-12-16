@@ -586,12 +586,11 @@ version: 5.0
 	c.Assert(err, IsNil)
 
 	bootWith := &boot.BootableSet{
-		RecoverySystemDir: "20191216",
-		BasePath:          baseInSeed,
-		Base:              baseInfo,
-		KernelPath:        kernelInSeed,
-		Kernel:            kernelInfo,
-		Recovery:          false,
+		BasePath:   baseInSeed,
+		Base:       baseInfo,
+		KernelPath: kernelInSeed,
+		Kernel:     kernelInfo,
+		Recovery:   false,
 	}
 
 	err = boot.MakeBootable(model, rootdir, bootWith)
@@ -609,7 +608,6 @@ version: 5.0
 	// ensure modeenv got written
 	ubuntuDataModeEnvPath := filepath.Join(rootdir, "/run/mnt/ubuntu-data/system-data/var/lib/snapd/modeenv")
 	c.Check(ubuntuDataModeEnvPath, testutil.FileEquals, `mode=run
-recovery_system=20191216
 base=core20_3.snap
 kernel=pc-kernel_5.snap
 `)
