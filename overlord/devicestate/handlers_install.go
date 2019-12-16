@@ -21,8 +21,10 @@ package devicestate
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/tomb.v2"
 
@@ -56,12 +58,28 @@ func (m *DeviceManager) doSetupRunSystem(t *state.Task, _ *tomb.Tomb) error {
 	}
 	gadgetDir := info.MountDir()
 
+	// FIXME: FUGLY - remove once
+	//   https://github.com/systemd/systemd/pull/14341  has landed
+	if err := exec.Command("udevadm", "trigger").Run(); err != nil {
+		return err
+	}
+	// FUGULY^2
+	time.Sleep(1 * time.Second)
+
 	// run the create partition code
 	st.Unlock()
 	output, err := exec.Command(filepath.Join(dirs.DistroLibExecDir, "snap-bootstrap"), "create-partitions", gadgetDir).CombinedOutput()
 	st.Lock()
 	if err != nil {
 		return fmt.Errorf("cannot create partitions: %v", osutil.OutputErr(output, err))
+	}
+
+	// XXX: ugly
+	if err := os.MkdirAll(filepath.Join(dirs.GlobalRootDir, "/run/mnt/ubuntu-boot"), 0755); err != nil {
+		return err
+	}
+	if output, err := exec.Command("mount", "/dev/sda3", "/run/mnt/ubuntu-boot").CombinedOutput(); err != nil {
+		return fmt.Errorf("cannot mount ubuntu-boot: %v", osutil.OutputErr(output, err))
 	}
 
 	// XXX: there must be a better way to get this information
@@ -122,6 +140,7 @@ func (m *DeviceManager) doSetupRunSystem(t *state.Task, _ *tomb.Tomb) error {
 	if err := boot.MakeBootable(model, bootRootDir, bootWith); err != nil {
 		return fmt.Errorf("cannot make system bootable: %v", err)
 	}
+	st.RequestRestart(state.RestartSystem)
 
 	return nil
 }

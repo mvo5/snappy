@@ -443,10 +443,15 @@ func WaitRestart(task *state.Task, snapsup *SnapSetup) (err error) {
 		// otherwise this could be just a spurious restart
 		// of snapd
 
-		model, err := ModelFromTask(task)
+		deviceCtx, err := DeviceCtx(task.State(), task, nil)
 		if err != nil {
 			return err
 		}
+		if !deviceCtx.RunMode() {
+			return nil
+		}
+
+		model := deviceCtx.Model()
 
 		// get the name of the name relevant for booting
 		// based on the given type
