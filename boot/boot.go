@@ -465,6 +465,30 @@ func makeBootable20RunMode(model *asserts.Model, rootdir string, bootWith *Boota
 		return fmt.Errorf("cannot set recovery system environment: %v", err)
 	}
 
+	// get the ubuntu-boot grub and extrac the kernel there
+	opts = &bootloader.Options{
+		// TODO:UC20: we use "recovery: true" here because on
+		// the partition the file layout of ubuntu-boot looks
+		// the same as ubuntu-seed
+		Recovery: true,
+	}
+	bl, err = bootloader.Find(filepath.Join(runMnt, "ubuntu-boot"), opts)
+	if err != nil {
+		return fmt.Errorf("internal error: cannot find run system bootloader: %v", err)
+	}
+	// TODO:UC20: no need to set these bootvars here anymore, in the
+	// new UC20 world the good/try kernels have static names
+	logger.Noticef("update ubuntu-boot kernel", bootWith.KernelPath)
+	logger.Noticef("update ubuntu-boot base", bootWith.BasePath)
+	blVars = map[string]string{
+		"snap_mode":   "",
+		"snap_kernel": filepath.Base(bootWith.KernelPath),
+		"snap_core":   filepath.Base(bootWith.BasePath),
+	}
+	if err := bl.SetBootVars(blVars); err != nil {
+		return fmt.Errorf("cannot set run system environment: %v", err)
+	}
+
 	return nil
 }
 

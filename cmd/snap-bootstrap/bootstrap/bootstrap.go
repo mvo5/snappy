@@ -20,10 +20,11 @@ package bootstrap
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/snapcore/snapd/cmd/snap-bootstrap/partition"
-	"github.com/snapcore/snapd/gadget"
 	"github.com/snapcore/snapd/dirs"
+	"github.com/snapcore/snapd/gadget"
 )
 
 type Options struct {
@@ -84,6 +85,8 @@ func Run(gadgetRoot, device string, options *Options) error {
 	if err := partition.MakeFilesystems(created); err != nil {
 		return err
 	}
+	// totaly unclear why this is needed
+	time.Sleep(1 * time.Second)
 
 	if err := partition.DeployContent(created, gadgetRoot); err != nil {
 		return err
