@@ -74,17 +74,18 @@ func (m *DeviceManager) doSetupRunSystem(t *state.Task, _ *tomb.Tomb) error {
 	}
 
 	bootWith := &boot.BootableSet{
-		Base:       bootBaseInfo,
-		BasePath:   bootBaseInfo.MountFile(),
-		Kernel:     kernelInfo,
-		KernelPath: kernelInfo.MountFile(),
-		// we shouldn't need RecoverySystemDir at this point
+		Base:              bootBaseInfo,
+		BasePath:          bootBaseInfo.MountFile(),
+		Kernel:            kernelInfo,
+		KernelPath:        kernelInfo.MountFile(),
+		RecoverySystemDir: filepath.Join("/systems", m.modeEnv.RecoverySystem),
 	}
 
 	rootdir := dirs.GlobalRootDir
 	if err := bootMakeBootable(deviceCtx.Model(), rootdir, bootWith); err != nil {
 		return fmt.Errorf("cannot make run system bootable: %v", err)
 	}
+	st.RequestRestart(state.RestartSystem)
 
 	return nil
 }
