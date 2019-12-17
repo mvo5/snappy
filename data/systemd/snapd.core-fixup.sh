@@ -11,6 +11,11 @@ if ! grep -q "ID=ubuntu-core" /etc/os-release; then
     exit 0
 fi
 
+if [ -e /var/lib/snapd/modeenv ]; then
+    # this script should not run on core20+
+    exit 0
+fi
+
 # Workaround https://forum.snapcraft.io/t/5253
 #
 # We see sometimes corrupted uboot.env files created by fsck.vfat.
