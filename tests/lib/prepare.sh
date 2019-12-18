@@ -344,150 +344,71 @@ repack_snapd_snap_with_deb_content() {
     rm -rf "$UNPACK_DIR"
 }
 
-setup_reflash_magic() {
-    # install the stuff we need
-    distro_install_package kpartx busybox-static
-    distro_install_local_package "$GOHOME"/snapd_*.deb
-    distro_clean_package_cache
+repack_snapd_snap_with_firstboot_tweaks() {
+    local TARGET="$1"
 
-    # need to be seeded to proceed with snap install
-    snap wait system seed.loaded
+    local UNPACK_DIR="/tmp/snapd-unpack"
+    unsquashfs -no-progress -d "$UNPACK_DIR" snapd_*.snap
 
-    # we cannot use "names.sh" here because no snaps are installed yet
-    core_name="core"
-    if is_core18_system; then
-        snap download "--channel=${SNAPD_CHANNEL}" snapd
-        core_name="core18"
-    fi
-    snap install "--channel=${CORE_CHANNEL}" "$core_name"
+    # TODO:UC20: use something other than "snapd.core-fixup.sh"
+    # (ok for now because nothing will happen with snapd.core-fixup.sh on UC20)
+    # XXX: this duplicates a lot of setup_test_user_by_modify_writable()
+    cat > "$UNPACK_DIR"/usr/lib/snapd/snapd.core-fixup.sh <<'EOF'
+#!/bin/sh
+set -e
+if ! grep 'snapd_recovery_mode=run' /proc/cmdline; then
+    echo "not in run mode - script not running'
+    exit 0
+fi
+mkdir -p /home/test
+mkdir -p /mnt/system-data/etc/sudoers.d/
+echo 'test ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-test-user
+echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-ubuntu-user
+sed -i 's/\#\?\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/sshd_config
+grep '^PermitRootLogin yes' /etc/ssh/sshd_config
+# user db - it's complicated
+mkdir -p /root/test-etc
+mkdir -p /var/lib/extrausers/
+touch /var/lib/extrausers/sub{uid,gid}
+for f in group gshadow passwd shadow; do
+    # the passwd from core without root
+    grep -v "^root:" "/etc/$f" > /root/test-etc/"$f"
+    # append this systems root user so that spread can connect
+    grep "^root:" /etc/"$f" >> /root/test-etc/"$f"
+    # make sure the group is as expected
+    chgrp --reference "/etc/$f" /root/test-etc/"$f"
+    # now bind mount read-only those passwd files on boot
+    cat >/etc/systemd/system/etc-"$f".mount <<EOF2
+[Unit]
+Description=Mount root/test-etc/$f over system etc/$f
+Before=ssh.service
 
-    # install ubuntu-image
-    snap install --classic --edge ubuntu-image
+[Mount]
+What=/root/test-etc/$f
+Where=/etc/$f
+Type=none
+Options=bind,ro
 
-    # needs to be under /home because ubuntu-device-flash
-    # uses snap-confine and that will hide parts of the hostfs
-    IMAGE_HOME=/home/image
-    mkdir -p "$IMAGE_HOME"
-
-    # ensure that ubuntu-image is using our test-build of snapd with the
-    # test keys and not the bundled version of usr/bin/snap from the snap.
-    # Note that we can not put it into /usr/bin as '/usr' is different
-    # when the snap uses confinement.
-    cp /usr/bin/snap "$IMAGE_HOME"
-    export UBUNTU_IMAGE_SNAP_CMD="$IMAGE_HOME/snap"
-
-    if is_core18_system; then
-        repack_snapd_snap_with_deb_content "$IMAGE_HOME"
-
-        # FIXME: fetch directly once its in the assertion service
-        cp "$TESTSLIB/assertions/ubuntu-core-18-amd64.model" "$IMAGE_HOME/pc.model"
-        IMAGE=core18-amd64.img
-    else
-        # modify the core snap so that the current root-pw works there
-        # for spread to do the first login
-        UNPACK_DIR="/tmp/core-snap"
-        unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core_*.snap
-
-        # FIXME: install would be better but we don't have dpkg on
-        #        the image
-        # unpack our freshly build snapd into the new snapd snap
-        dpkg-deb -x "$SPREAD_PATH"/../snapd_*.deb "$UNPACK_DIR"
-        # Debian packages don't carry permissions correctly and we use
-        # post-inst hooks to fix that on classic systems. Here, as a special
-        # case, fix the void directory we just unpacked.
-        chmod 111 "$UNPACK_DIR/var/lib/snapd/void"
-        # ensure any new timer units are available
-        cp -a /etc/systemd/system/timers.target.wants/*.timer "$UNPACK_DIR/etc/systemd/system/timers.target.wants"
-
-        # add gpio and iio slots
-        cat >> "$UNPACK_DIR/meta/snap.yaml" <<-EOF
-slots:
-    gpio-pin:
-        interface: gpio
-        number: 100
-        direction: out
-    iio0:
-        interface: iio
-        path: /dev/iio:device0
+[Install]
+WantedBy=multi-user.target
+EOF2
+    ln -s /etc/systemd/system/etc-"$f".mount /etc/systemd/system/multi-user.target.wants/etc-"$f".mount
+    # create /var/lib/extrausers/$f
+    # append ubuntu, test user for the testing
+    grep "^test:" /etc/$f >> /var/lib/extrausers/"$f"
+    grep "^ubuntu:" /etc/$f >> /var/lib/extrausers/"$f"
+    # check test was copied
+    MATCH "^test:" </var/lib/extrausers/"$f"
+    MATCH "^ubuntu:" </var/lib/extrausers/"$f"
+done
+(cd / && tar xvf /mnt/run/ubuntu-seed/wormhole.tar.gz)
 EOF
+    chmod 0755 "$UNPACK_DIR"/usr/lib/snapd/snapd.core-fixup.sh
+    snap pack "$UNPACK_DIR" "$TARGET"
+    rm -rf "$UNPACK_DIR"
+}
 
-        # build new core snap for the image
-        snap pack "$UNPACK_DIR" "$IMAGE_HOME"
-
-        # FIXME: fetch directly once its in the assertion service
-        cp "$TESTSLIB/assertions/pc-${REMOTE_STORE}.model" "$IMAGE_HOME/pc.model"
-
-        # FIXME: how to test store updated of ubuntu-core with sideloaded snap?
-        IMAGE=all-snap-amd64.img
-    fi
-
-    EXTRA_FUNDAMENTAL=
-    IMAGE_CHANNEL=edge
-    if [ "$KERNEL_CHANNEL" = "$GADGET_CHANNEL" ]; then
-        IMAGE_CHANNEL="$KERNEL_CHANNEL"
-    else
-        # download pc-kernel snap for the specified channel and set
-        # ubuntu-image channel to that of the gadget, so that we don't
-        # need to download it
-        snap download --channel="$KERNEL_CHANNEL" pc-kernel
-
-        EXTRA_FUNDAMENTAL="--extra-snaps $PWD/pc-kernel_*.snap"
-        IMAGE_CHANNEL="$GADGET_CHANNEL"
-    fi
-
-    # 'snap pack' creates snaps 0644, and ubuntu-image just copies those in
-    # maybe we should fix one or both of those, but for now this'll do
-    chmod 0600 "$IMAGE_HOME"/*.snap
-
-    # on core18 we need to use the modified snapd snap and on core16
-    # it is the modified core that contains our freshly build snapd
-    if is_core18_system; then
-        extra_snap=("$IMAGE_HOME"/snapd_*.snap)
-    else
-        extra_snap=("$IMAGE_HOME"/core_*.snap)
-    fi
-
-    # extra_snap should contain only ONE snap
-    if [ "${#extra_snap[@]}" -ne 1 ]; then
-        echo "unexpected number of globbed snaps: ${extra_snap[*]}"
-        exit 1
-    fi
-
-    /snap/bin/ubuntu-image -w "$IMAGE_HOME" "$IMAGE_HOME/pc.model" \
-                           --channel "$IMAGE_CHANNEL" \
-                           "$EXTRA_FUNDAMENTAL" \
-                           --extra-snaps "${extra_snap[0]}" \
-                           --output "$IMAGE_HOME/$IMAGE"
-    rm -f ./pc-kernel_*.{snap,assert} ./pc_*.{snap,assert} ./snapd_*.{snap,assert}
-
-    # mount fresh image and add all our SPREAD_PROJECT data
-    kpartx -avs "$IMAGE_HOME/$IMAGE"
-    # FIXME: hardcoded mapper location, parse from kpartx
-    if is_core18_system; then
-        mount /dev/mapper/loop3p3 /mnt
-    else
-        mount /dev/mapper/loop2p3 /mnt
-    fi
-    mkdir -p /mnt/user-data/
-    # copy over everything from gopath to user-data, exclude:
-    # - VCS files
-    # - built debs
-    # - golang archive files and built packages dir
-    # - govendor .cache directory and the binary,
-    rsync -a -C \
-          --exclude '*.a' \
-          --exclude '*.deb' \
-          --exclude /gopath/.cache/ \
-          --exclude /gopath/bin/govendor \
-          --exclude /gopath/pkg/ \
-          /home/gopath /mnt/user-data/
-
-    # now modify the image
-    if is_core18_system; then
-        UNPACK_DIR="/tmp/core18-snap"
-        unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core18_*.snap
-    fi
-
+setup_test_user_by_modify_writable() {
     # create test user and ubuntu user inside the writable partition
     # so that we can use a stock core in tests
     mkdir -p /mnt/user-data/test
@@ -581,6 +502,187 @@ EOF
     cp -avr /tmp/squashfs-root/etc/systemd/system /mnt/system-data/etc/systemd/
     umount /mnt
     kpartx -d  "$IMAGE_HOME/$IMAGE"
+}
+
+setup_reflash_magic() {
+    # install the stuff we need
+    distro_install_package kpartx busybox-static
+    distro_install_local_package "$GOHOME"/snapd_*.deb
+    distro_clean_package_cache
+
+    # need to be seeded to proceed with snap install
+    snap wait system seed.loaded
+
+    # we cannot use "names.sh" here because no snaps are installed yet
+    core_name="core"
+    if is_core18_system; then
+        snap download "--channel=${SNAPD_CHANNEL}" snapd
+        core_name="core18"
+    elif is_core20_system; then
+        snap download "--channel=${SNAPD_CHANNEL}" snapd
+        core_name="core20"
+    fi
+    snap install "--channel=${CORE_CHANNEL}" "$core_name"
+
+    # install ubuntu-image
+    snap install --classic --edge ubuntu-image
+
+    # needs to be under /home because ubuntu-device-flash
+    # uses snap-confine and that will hide parts of the hostfs
+    IMAGE_HOME=/home/image
+    mkdir -p "$IMAGE_HOME"
+
+    # ensure that ubuntu-image is using our test-build of snapd with the
+    # test keys and not the bundled version of usr/bin/snap from the snap.
+    # Note that we can not put it into /usr/bin as '/usr' is different
+    # when the snap uses confinement.
+    cp /usr/bin/snap "$IMAGE_HOME"
+    export UBUNTU_IMAGE_SNAP_CMD="$IMAGE_HOME/snap"
+
+    if is_core18_system; then
+        repack_snapd_snap_with_deb_content "$IMAGE_HOME"
+        # FIXME: fetch directly once its in the assertion service
+        cp "$TESTSLIB/assertions/ubuntu-core-18-amd64.model" "$IMAGE_HOME/pc.model"
+        IMAGE=core18-amd64.img
+    elif is_core20_system; then
+        repack_snapd_snap_with_deb_content "$IMAGE_HOME"
+        # TODO:UC20: use canonical model instead of "mvo" one
+        cp "$TESTSLIB/assertions/ubuntu-core-20-amd64.model" "$IMAGE_HOME/pc.model"
+        IMAGE=core20-amd64.img
+
+        repack_snapd_snap_with_firstboot_tweaks "$IMAGE_HOME"
+    else
+        # modify the core snap so that the current root-pw works there
+        # for spread to do the first login
+        UNPACK_DIR="/tmp/core-snap"
+        unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core_*.snap
+
+        # FIXME: install would be better but we don't have dpkg on
+        #        the image
+        # unpack our freshly build snapd into the new snapd snap
+        dpkg-deb -x "$SPREAD_PATH"/../snapd_*.deb "$UNPACK_DIR"
+        # Debian packages don't carry permissions correctly and we use
+        # post-inst hooks to fix that on classic systems. Here, as a special
+        # case, fix the void directory we just unpacked.
+        chmod 111 "$UNPACK_DIR/var/lib/snapd/void"
+        # ensure any new timer units are available
+        cp -a /etc/systemd/system/timers.target.wants/*.timer "$UNPACK_DIR/etc/systemd/system/timers.target.wants"
+
+        # add gpio and iio slots
+        cat >> "$UNPACK_DIR/meta/snap.yaml" <<-EOF
+slots:
+    gpio-pin:
+        interface: gpio
+        number: 100
+        direction: out
+    iio0:
+        interface: iio
+        path: /dev/iio:device0
+EOF
+
+        # build new core snap for the image
+        snap pack "$UNPACK_DIR" "$IMAGE_HOME"
+
+        # FIXME: fetch directly once its in the assertion service
+        cp "$TESTSLIB/assertions/pc-${REMOTE_STORE}.model" "$IMAGE_HOME/pc.model"
+
+        # FIXME: how to test store updated of ubuntu-core with sideloaded snap?
+        IMAGE=all-snap-amd64.img
+    fi
+
+    EXTRA_FUNDAMENTAL=
+    IMAGE_CHANNEL=edge
+    if [ "$KERNEL_CHANNEL" = "$GADGET_CHANNEL" ]; then
+        IMAGE_CHANNEL="$KERNEL_CHANNEL"
+    else
+        # download pc-kernel snap for the specified channel and set
+        # ubuntu-image channel to that of the gadget, so that we don't
+        # need to download it
+        snap download --channel="$KERNEL_CHANNEL" pc-kernel
+
+        EXTRA_FUNDAMENTAL="--extra-snaps $PWD/pc-kernel_*.snap"
+        IMAGE_CHANNEL="$GADGET_CHANNEL"
+    fi
+
+    # 'snap pack' creates snaps 0644, and ubuntu-image just copies those in
+    # maybe we should fix one or both of those, but for now this'll do
+    chmod 0600 "$IMAGE_HOME"/*.snap
+
+    # on core18 we need to use the modified snapd snap and on core16
+    # it is the modified core that contains our freshly build snapd
+    if is_core18_system || is_core20_system; then
+        extra_snap=("$IMAGE_HOME"/snapd_*.snap)
+    else
+        extra_snap=("$IMAGE_HOME"/core_*.snap)
+    fi
+
+    # extra_snap should contain only ONE snap
+    if [ "${#extra_snap[@]}" -ne 1 ]; then
+        echo "unexpected number of globbed snaps: ${extra_snap[*]}"
+        exit 1
+    fi
+
+    # TODO:UC20: do we really need --size here?
+    # TODO:UC20: use store kernel
+    wget https://code.launchpad.net/~xnox/+snap/pc-20/+build/768312/+files/pc-kernel_5.3.0-24.26_amd64.snap
+    /snap/bin/ubuntu-image -w "$IMAGE_HOME" "$IMAGE_HOME/pc.model" \
+                           --image-size 15G \
+                           --channel "$IMAGE_CHANNEL" \
+                           "$EXTRA_FUNDAMENTAL" \
+                           --extra-snaps "${extra_snap[0]}" \
+                           --extra-snaps "pc-kernel_5.3.0-24.26_amd64.snap" \
+                           --output "$IMAGE_HOME/$IMAGE"
+    rm -f ./pc-kernel_*.{snap,assert} ./pc_*.{snap,assert} ./snapd_*.{snap,assert}
+
+    # mount fresh image and add all our SPREAD_PROJECT data
+    kpartx -avs "$IMAGE_HOME/$IMAGE"
+    # FIXME: hardcoded mapper location, parse from kpartx
+    if is_core18_system; then
+        mount /dev/mapper/loop3p3 /mnt
+    elif is_core20_system; then
+        # (ab)use ubuntu-seed
+        mount /dev/mapper/loop3p2 /mnt
+    else
+        mount /dev/mapper/loop2p3 /mnt
+    fi
+    mkdir -p /mnt/user-data/
+    # copy over everything from gopath to user-data, exclude:
+    # - VCS files
+    # - built debs
+    # - golang archive files and built packages dir
+    # - govendor .cache directory and the binary,
+    if is_core16_system || is_core18_system; then
+        rsync -a -C \
+          --exclude '*.a' \
+          --exclude '*.deb' \
+          --exclude /gopath/.cache/ \
+          --exclude /gopath/bin/govendor \
+          --exclude /gopath/pkg/ \
+          /home/gopath /mnt/user-data/
+    elif is_core20_system; then
+        tar -c -z \
+          --exclude '*.a' \
+          --exclude '*.deb' \
+          --exclude /gopath/.cache/ \
+          --exclude /gopath/bin/govendor \
+          --exclude /gopath/pkg/ \
+          -f /mnt/wormhole.tar.gz \
+          /home/gopath
+    fi
+
+    # now modify the image
+    if is_core18_system; then
+        UNPACK_DIR="/tmp/core18-snap"
+        unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core18_*.snap
+    fi
+    if is_core20_system; then
+        UNPACK_DIR="/tmp/core20-snap"
+        unsquashfs -no-progress -d "$UNPACK_DIR" /var/lib/snapd/snaps/core20_*.snap
+    fi
+
+    if is_core16_system || is_core18_system; then
+        setup_test_user_by_modify_writable
+    fi
 
     # the reflash magic
     # FIXME: ideally in initrd, but this is good enough for now
@@ -591,7 +693,11 @@ cp /bin/busybox /tmp
 cp $IMAGE_HOME/$IMAGE /tmp
 sync
 # blow away everything
-/tmp/busybox dd if=/tmp/$IMAGE of=/dev/sda bs=4M
+OF=/dev/sda
+if [ -e /dev/vda ]; then
+    OF=/dev/vda
+fi
+/tmp/busybox dd if=/tmp/$IMAGE of=\$OF bs=4M
 # and reboot
 /tmp/busybox sync
 /tmp/busybox echo b > /proc/sysrq-trigger
