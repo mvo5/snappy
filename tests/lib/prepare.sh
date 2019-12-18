@@ -367,7 +367,7 @@ repack_snapd_snap_with_deb_content_and_firstboot_tweaks() {
 #!/bin/sh
 set -e
 if ! grep 'snapd_recovery_mode=run' /proc/cmdline; then
-    echo "not in run mode - script not running'
+    echo "not in run mode - script not running"
     exit 0
 fi
 mkdir -p /home/test
@@ -381,12 +381,6 @@ mkdir -p /root/test-etc
 mkdir -p /var/lib/extrausers/
 touch /var/lib/extrausers/sub{uid,gid}
 for f in group gshadow passwd shadow; do
-    # the passwd from core without root
-    grep -v "^root:" "/etc/$f" > /root/test-etc/"$f"
-    # append this systems root user so that spread can connect
-    grep "^root:" /etc/"$f" >> /root/test-etc/"$f"
-    # make sure the group is as expected
-    chgrp --reference "/etc/$f" /root/test-etc/"$f"
     # now bind mount read-only those passwd files on boot
     cat >/etc/systemd/system/etc-"$f".mount <<EOF2
 [Unit]
@@ -402,14 +396,8 @@ Options=bind,ro
 [Install]
 WantedBy=multi-user.target
 EOF2
-    ln -s /etc/systemd/system/etc-"$f".mount /etc/systemd/system/multi-user.target.wants/etc-"$f".mount
-    # create /var/lib/extrausers/$f
-    # append ubuntu, test user for the testing
-    grep "^test:" /etc/$f >> /var/lib/extrausers/"$f"
-    grep "^ubuntu:" /etc/$f >> /var/lib/extrausers/"$f"
-    # check test was copied
-    MATCH "^test:" </var/lib/extrausers/"$f"
-    MATCH "^ubuntu:" </var/lib/extrausers/"$f"
+    systemctl enable etc-"$f".mount
+    systemctl start etc-"$f".mount
 done
 (cd / && tar xvf /mnt/run/ubuntu-seed/wormhole.tar.gz)
 EOF
@@ -668,14 +656,27 @@ EOF
           --exclude /gopath/pkg/ \
           /home/gopath /mnt/user-data/
     elif is_core20_system; then
-        tar -c -z \
+        # prepare passwd for wormhole
+           for f in group gshadow passwd shadow; do
+               grep -v "^root:" "$UNPACK_DIR/etc/$f" > /root/test-etc/"$f"
+               grep "^root:" /etc/"$f" >> /root/test-etc/"$f"
+               chgrp --reference "/etc/$f" /root/test-etc/"$f"
+               # create /var/lib/extrausers/$f
+               # append ubuntu, test user for the testing
+               grep "^test:" /etc/$f >> /var/lib/extrausers/"$f"
+               grep "^ubuntu:" /etc/$f >> /var/lib/extrausers/"$f"
+               # check test was copied
+               MATCH "^test:" </var/lib/extrausers/"$f"
+               MATCH "^ubuntu:" </var/lib/extrausers/"$f"
+           done
+         tar -c -z \
           --exclude '*.a' \
           --exclude '*.deb' \
           --exclude /gopath/.cache/ \
           --exclude /gopath/bin/govendor \
           --exclude /gopath/pkg/ \
           -f /mnt/wormhole.tar.gz \
-          /home/gopath
+          /home/gopath /root/test-etc /var/lib/extrausers
     fi
 
     # now modify the image

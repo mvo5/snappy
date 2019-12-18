@@ -175,6 +175,7 @@ backends:
                 image: ubuntu-18.04-64
                 username: ubuntu
                 password: ubuntu
+                memory: 2048
             - ubuntu-17.10-64:
                 username: ubuntu
                 password: ubuntu
