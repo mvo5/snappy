@@ -157,6 +157,7 @@ func RemodelDeviceBackend(remodCtx remodelContext) storecontext.DeviceBackend {
 var (
 	ImportAssertionsFromSeed     = importAssertionsFromSeed
 	CheckGadgetOrKernel          = checkGadgetOrKernel
+	CheckGadgetValid             = checkGadgetValid
 	CheckGadgetRemodelCompatible = checkGadgetRemodelCompatible
 	CanAutoRefresh               = canAutoRefresh
 	NewEnoughProxy               = newEnoughProxy
