@@ -344,12 +344,22 @@ repack_snapd_snap_with_deb_content() {
     rm -rf "$UNPACK_DIR"
 }
 
-repack_snapd_snap_with_firstboot_tweaks() {
+repack_snapd_snap_with_deb_content_and_firstboot_tweaks() {
     local TARGET="$1"
 
     local UNPACK_DIR="/tmp/snapd-unpack"
     unsquashfs -no-progress -d "$UNPACK_DIR" snapd_*.snap
 
+    # clean snap apparmor.d to ensure the put the right snap-confine apparmor
+    # file in place. Its called usr.lib.snapd.snap-confine on 14.04 but
+    # usr.lib.snapd.snap-confine.real everywhere else
+    rm -f "$UNPACK_DIR"/etc/apparmor.d/*
+
+    dpkg-deb -x "$SPREAD_PATH"/../snapd_*.deb "$UNPACK_DIR"
+    cp /usr/lib/snapd/info "$UNPACK_DIR"/usr/lib/
+
+    # now install a unit that setups enough so that we can connect
+    
     # TODO:UC20: use something other than "snapd.core-fixup.sh"
     # (ok for now because nothing will happen with snapd.core-fixup.sh on UC20)
     # XXX: this duplicates a lot of setup_test_user_by_modify_writable()
@@ -545,12 +555,10 @@ setup_reflash_magic() {
         cp "$TESTSLIB/assertions/ubuntu-core-18-amd64.model" "$IMAGE_HOME/pc.model"
         IMAGE=core18-amd64.img
     elif is_core20_system; then
-        repack_snapd_snap_with_deb_content "$IMAGE_HOME"
+        repack_snapd_snap_with_deb_content_and_firstboot_tweaks "$IMAGE_HOME"
         # TODO:UC20: use canonical model instead of "mvo" one
         cp "$TESTSLIB/assertions/ubuntu-core-20-amd64.model" "$IMAGE_HOME/pc.model"
         IMAGE=core20-amd64.img
-
-        repack_snapd_snap_with_firstboot_tweaks "$IMAGE_HOME"
     else
         # modify the core snap so that the current root-pw works there
         # for spread to do the first login
