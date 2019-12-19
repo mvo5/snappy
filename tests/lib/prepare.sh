@@ -374,16 +374,6 @@ if [ -e /root/spread-setup-done ]; then
     exit 0
 fi
 
-mkdir -p /home/test
-chown test:test /home/test
-mkdir -p /home/ubuntu
-chown ubuntu:ubuntu /home/test
-mkdir -p /etc/sudoers.d/
-echo 'test ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-test-user
-echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-ubuntu-user
-sed -i 's/\#\?\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/sshd_config
-grep '^PermitRootLogin yes' /etc/ssh/sshd_config
-
 # extract data from previous stage
 (cd / && tar xvf /run/mnt/ubuntu-seed/wormhole.tar.gz)
 
@@ -407,6 +397,16 @@ EOF2
     systemctl enable etc-"$f".mount
     systemctl start etc-"$f".mount
 done
+
+mkdir -p /home/test
+chown test:test /home/test
+mkdir -p /home/ubuntu
+chown ubuntu:ubuntu /home/test
+mkdir -p /etc/sudoers.d/
+echo 'test ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-test-user
+echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-ubuntu-user
+sed -i 's/\#\?\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/sshd_config
+grep '^PermitRootLogin yes' /etc/ssh/sshd_config
 
 touch /root/spread-setup-done
 EOF
