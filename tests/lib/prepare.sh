@@ -370,16 +370,21 @@ if ! grep 'snapd_recovery_mode=run' /proc/cmdline; then
     echo "not in run mode - script not running"
     exit 0
 fi
+if [ -e /root/spread-setup-done ]; then
+    exit 0
+fi
+
 mkdir -p /home/test
-mkdir -p /mnt/system-data/etc/sudoers.d/
+mkdir -p /etc/sudoers.d/
 echo 'test ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-test-user
 echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-ubuntu-user
 sed -i 's/\#\?\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/sshd_config
 grep '^PermitRootLogin yes' /etc/ssh/sshd_config
+
+# extract data from previous stage
+(cd / && tar xvf /mnt/run/ubuntu-seed/wormhole.tar.gz)
+
 # user db - it's complicated
-mkdir -p /root/test-etc
-mkdir -p /var/lib/extrausers/
-touch /var/lib/extrausers/sub{uid,gid}
 for f in group gshadow passwd shadow; do
     # now bind mount read-only those passwd files on boot
     cat >/etc/systemd/system/etc-"$f".mount <<EOF2
@@ -399,7 +404,8 @@ EOF2
     systemctl enable etc-"$f".mount
     systemctl start etc-"$f".mount
 done
-(cd / && tar xvf /mnt/run/ubuntu-seed/wormhole.tar.gz)
+
+touch /root/spread-setup-done
 EOF
     chmod 0755 "$UNPACK_DIR"/usr/lib/snapd/snapd.core-fixup.sh
     snap pack "$UNPACK_DIR" "$TARGET"
@@ -657,19 +663,22 @@ EOF
           /home/gopath /mnt/user-data/
     elif is_core20_system; then
         # prepare passwd for wormhole
-           for f in group gshadow passwd shadow; do
-               grep -v "^root:" "$UNPACK_DIR/etc/$f" > /root/test-etc/"$f"
-               grep "^root:" /etc/"$f" >> /root/test-etc/"$f"
-               chgrp --reference "/etc/$f" /root/test-etc/"$f"
-               # create /var/lib/extrausers/$f
-               # append ubuntu, test user for the testing
-               grep "^test:" /etc/$f >> /var/lib/extrausers/"$f"
-               grep "^ubuntu:" /etc/$f >> /var/lib/extrausers/"$f"
-               # check test was copied
-               MATCH "^test:" </var/lib/extrausers/"$f"
-               MATCH "^ubuntu:" </var/lib/extrausers/"$f"
-           done
-         tar -c -z \
+        mkdir -p /root/test-etc
+        mkdir -p /var/lib/extrausers
+        touch /var/lib/extrausers/sub{uid,gid}
+        for f in group gshadow passwd shadow; do
+            grep -v "^root:" "/etc/$f" > /root/test-etc/"$f"
+            grep "^root:" /etc/"$f" >> /root/test-etc/"$f"
+            chgrp --reference "/etc/$f" /root/test-etc/"$f"
+            # create /var/lib/extrausers/$f
+            # append ubuntu, test user for the testing
+            grep "^test:" /etc/$f >> /var/lib/extrausers/"$f"
+            grep "^ubuntu:" /etc/$f >> /var/lib/extrausers/"$f"
+            # check test was copied
+            MATCH "^test:" </var/lib/extrausers/"$f"
+            MATCH "^ubuntu:" </var/lib/extrausers/"$f"
+        done
+        tar -c -z \
           --exclude '*.a' \
           --exclude '*.deb' \
           --exclude /gopath/.cache/ \
