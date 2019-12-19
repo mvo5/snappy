@@ -375,6 +375,9 @@ if [ -e /root/spread-setup-done ]; then
 fi
 
 mkdir -p /home/test
+chown test:test /home/test
+mkdir -p /home/ubuntu
+chown ubuntu:ubuntu /home/test
 mkdir -p /etc/sudoers.d/
 echo 'test ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-test-user
 echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-ubuntu-user
@@ -382,7 +385,7 @@ sed -i 's/\#\?\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/
 grep '^PermitRootLogin yes' /etc/ssh/sshd_config
 
 # extract data from previous stage
-(cd / && tar xvf /mnt/run/ubuntu-seed/wormhole.tar.gz)
+(cd / && tar xvf /run/mnt/ubuntu-seed/wormhole.tar.gz)
 
 # user db - it's complicated
 for f in group gshadow passwd shadow; do
