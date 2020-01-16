@@ -20,6 +20,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/snapcore/snapd/cmd/snap-bootstrap/partition"
 	"github.com/snapcore/snapd/dirs"
@@ -106,8 +107,16 @@ func Run(gadgetRoot, device string, options Options) error {
 		}
 	}
 
+	f, err := os.Create("/run/bs.log")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
 	for _, part := range created {
+		fmt.Fprintf(f, "looking at %s\n", part)
 		if options.Encrypt && part.Role == gadget.SystemData {
+			fmt.Fprintf(f, "creating-encrypted-device %s\n", part)
 			dataPart, err := partition.NewEncryptedDevice(&part, key, ubuntuDataLabel)
 			if err != nil {
 				return err
@@ -116,14 +125,17 @@ func Run(gadgetRoot, device string, options Options) error {
 			part.Node = dataPart.Node
 		}
 
+		fmt.Fprintf(f, "creating-fs %s\n", part)
 		if err := partition.MakeFilesystem(part); err != nil {
 			return err
 		}
 
+		fmt.Fprintf(f, "deploy-content %s\n", part)
 		if err := partition.DeployContent(part, gadgetRoot); err != nil {
 			return err
 		}
 
+		fmt.Fprintf(f, "mount %s\n", part)
 		if options.Mount && part.Label != "" && part.HasFilesystem() {
 			if err := partition.MountFilesystem(part, dirs.RunMnt); err != nil {
 				return err
