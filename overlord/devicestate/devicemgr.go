@@ -26,6 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+	"syscall"
+
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/sysdb"
 	"github.com/snapcore/snapd/boot"
@@ -82,6 +85,10 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, runner *state.T
 		newStore:   newStore,
 		reg:        make(chan struct{}),
 	}
+	if err := m.startNetlinkWatcher(); err != nil {
+		// XXX: just log error instead?
+		return nil, fmt.Errorf("cannot start netlink watcher: %v", err)
+	}
 
 	modeEnv, err := boot.ReadModeenv("")
 	if err != nil && !os.IsNotExist(err) {
@@ -131,6 +138,61 @@ func deviceMgr(st *state.State) *DeviceManager {
 		panic("internal error: device manager is not yet associated with state")
 	}
 	return mgr.(*DeviceManager)
+}
+
+func (m *DeviceManager) startNetlinkWatcher() error {
+	const (
+		// see /usr/include/linux/rtnetlink.h
+		RTMGRP_IPV4_ROUTE = 0x40
+		RTMGRP_IPV6_ROUTE = 0x400
+
+		RTM_NEWROUTE = 24
+	)
+
+	// XXX: close socket
+	s, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW, unix.NETLINK_ROUTE)
+	if err != nil {
+		return err
+	}
+	addr := &unix.SockaddrNetlink{
+		Family: unix.AF_NETLINK,
+		Groups: RTMGRP_IPV4_ROUTE | RTMGRP_IPV6_ROUTE,
+	}
+	if err := unix.Bind(s, addr); err != nil {
+		return err
+	}
+	buf := make([]byte, unix.Getpagesize())
+	go func() {
+		for {
+			n, _, err := unix.Recvfrom(s, buf, 0)
+			if err != nil {
+				// XXX: log error?
+				continue
+			}
+			if n < unix.NLMSG_HDRLEN {
+				// XXX: log error?
+				continue
+			}
+			rawMsg := buf[:n]
+			msgs, err := syscall.ParseNetlinkMessage(rawMsg)
+			if err != nil {
+				// XXX: log error?
+				continue
+			}
+			for _, mm := range msgs {
+				switch mm.Header.Type {
+				case RTM_NEWROUTE:
+					// new route was added
+					// XXX: use ubuntu connecitivy check
+					// before retrying?
+					// XXX2: locking
+					m.lastBecomeOperationalAttempt = time.Time{}
+					// XXX3: something like m.state.Ensure(0)
+				}
+			}
+		}
+	}()
+	return nil
 }
 
 func (m *DeviceManager) CanStandby() bool {
