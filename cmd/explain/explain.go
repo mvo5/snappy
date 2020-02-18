@@ -22,6 +22,7 @@ package explain
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -30,6 +31,12 @@ var (
 	enabled = false
 )
 
+type explainState struct {
+	indent int
+}
+
+var cs explainState
+
 // Say prints an explanatory message to standard output.
 //
 // Say is only effective if Enable was called earlier.
@@ -37,9 +44,48 @@ func Say(f string, args ...interface{}) {
 	if !enabled {
 		return
 	}
+
+	for i := cs.indent; i > 0; i-- {
+		f = "\t" + f
+	}
 	f = strings.Replace(f, "\t", "  ", -1) + "\n"
 	fmt.Fprintf(stdout, f, args...)
 	stdout.Sync() // Ignore errors
+}
+
+func StartSection(f string, args ...interface{}) {
+	Say(f, args...)
+	cs.indent++
+}
+
+func EndSection() {
+	cs.indent--
+}
+
+func ListItem(f string, args ...interface{}) {
+	f = "- " + f
+	Say(f, args...)
+}
+
+func SayExtraEnv(env []string) {
+	envCopy := make([]string, len(env))
+	copy(envCopy, env)
+	sort.Strings(envCopy)
+	extraEnv := make([]string, 0, len(env))
+	for _, envItem := range envCopy {
+		keyValue := strings.SplitN(envItem, "=", 2)
+		key, value := keyValue[0], keyValue[1]
+		if os.Getenv(key) != value {
+			extraEnv = append(extraEnv, envItem)
+		}
+	}
+	if len(extraEnv) > 0 {
+		StartSection("with environment additions")
+		for _, ee := range extraEnv {
+			Say(ee)
+		}
+		EndSection()
+	}
 }
 
 // Header prints a spaced header, usually separating subsequent programs.

@@ -26,6 +26,7 @@
 #include "cleanup-funcs.h"
 #include "panic.h"
 #include "utils.h"
+#include "string-utils.h"
 
 void die(const char *msg, ...)
 {
@@ -131,23 +132,132 @@ void debug(const char *msg, ...)
 	}
 }
 
-void sc_explain(const char *fmt, ...)
+typedef struct sc_explain_state {
+        int indent;
+
+        // keep track of mode
+        char mode[32];
+} sc_explain_state;
+
+static struct sc_explain_state es = {
+ .indent=0,
+ .mode={0},
+};
+
+static void sc_explain_output_va(const char *fmt, va_list ap)
 {
-	if (sc_is_explain_enabled()) {
-		va_list ap;
-		va_start(ap, fmt);
-		vprintf(fmt, ap);
-		va_end(ap);
-		fflush(stdout);
-	}
+        vfprintf(stdout, fmt, ap);
+        fprintf(stdout, "\n");
+        fflush(stdout);
+}
+
+static void sc_explain_write_indent(void)
+{
+        // XXX: instead of this if everywhere just "explain_out"
+        // instead of stdout and write to /dev/null ?
+        if (!sc_is_explain_enabled())
+                return;
+                
+        for (int i=0; i < es.indent; i++) {
+                if (es.mode[i] == 'l') {
+                        // extra indent for "-"
+                        fprintf(stdout, "   ");
+                } else {
+                        fprintf(stdout, "  ");
+                }
+        }
+}
+
+static void sc_explain_say_common(void)
+{
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_write_indent();
+        if (es.mode[es.indent] == 'l') {
+                fprintf(stdout, "- ");
+        }
+}
+
+void sc_explain_say(const char *fmt, ...)
+{
+	if (!sc_is_explain_enabled())
+                return;
+        sc_explain_say_common();
+
+        va_list ap;
+        va_start(ap, fmt);
+        sc_explain_output_va(fmt, ap);
+        va_end(ap);
+}
+
+void sc_explain_kv(const char *key, const char *fmt, ...)
+{
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_say_common();
+        fprintf(stdout, "%s: ", key);
+
+        va_list ap;
+        va_start(ap, fmt);
+        sc_explain_output_va(fmt, ap);
+        va_end(ap);
+}
+
+void sc_explain_start_list(const char *intro_text)
+{
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_say_common();
+        fprintf(stdout, "%s", intro_text);
+        fprintf(stdout, "\n");
+        fflush(stdout);
+
+        es.indent++;
+        if ((long unsigned)es.indent > sizeof(es.mode))
+                die("explain nesting too deep");
+        es.mode[es.indent] = 'l';
+}
+
+void sc_explain_start_kv(const char *key, const char *fmt, ...)
+{
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_say_common();
+        fprintf(stdout, "%s: ", key);
+        va_list ap;
+        va_start(ap, fmt);
+        sc_explain_output_va(fmt, ap);        
+        va_end(ap);
+
+        es.indent++;
+        if ((long unsigned)es.indent > sizeof(es.mode))
+                die("explain nesting too deep");
+        es.mode[es.indent] = 'k';
+}
+
+void sc_explain_end_section()
+{
+        // XXX: check for underflow
+        es.mode[es.indent] = '\0';
+        es.indent--;
+        if (es.indent < 0)
+                die("explain nesting underflow");
 }
 
 void sc_explain_header(const char *name)
 {
-	if (sc_is_explain_enabled()) {
-		printf("\n<< %s >>\n\n", name);
-		fflush(stdout);
-	}
+	if (!sc_is_explain_enabled())
+                return;
+        
+        printf("\n<< %s >>\n\n", name);
+        fflush(stdout);
+        
+        es.indent = 0;
+        es.mode[0] = '\0';
 }
 
 void write_string_to_file(const char *filepath, const char *buf)

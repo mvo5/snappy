@@ -17,8 +17,9 @@
 #ifndef CORE_LAUNCHER_UTILS_H
 #define CORE_LAUNCHER_UTILS_H
 
-#include <stdlib.h>
+#include <stdarg.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 __attribute__((noreturn))
     __attribute__((format(printf, 1, 2)))
@@ -28,21 +29,55 @@ __attribute__((format(printf, 1, 2)))
 void debug(const char *fmt, ...);
 
 /**
- * sc_explain prints additional explanatory output to stdout.
- *
- * This function has effects only if explain mode is in effect.
- * See sc_is_explain_enabled for details.
- **/
-__attribute__((format(printf, 1, 2)))
-void sc_explain(const char *fmt, ...);
-
-/**
  * sc_explain_header prints an explain-style header to stdout.
+ * This also closes all open sections.
  *
  * This function has effects only if explain mode is in effect.
  * See sc_is_explain_enabled for details.
  **/
 void sc_explain_header(const char *name);
+
+/**
+ * sc_explain_start_kv starts a new key/value item.
+ * Start a section with some indentation and expectin "key: value"
+entries
+ *
+ * This function has effects only if explain mode is in effect.
+ **/
+__attribute__((format(printf, 2, 3)))
+void sc_explain_start_kv(const char *key, const char *value_fmt, ...);
+
+/**
+ * sc_explain_start_list starts a new list.
+ * Entries will be prefixed with "-"
+ *
+ * This function has effects only if explain mode is in effect.
+ **/
+void sc_explain_start_list(const char *intro_text);
+
+/**
+ * sc_explain_end_section ends the current section.
+ **/
+void sc_explain_end_section(void);
+
+/**
+ * sc_explain_say prints additional explanatory output to stdout.
+ *
+ * This function has effects only if explain mode is in effect.
+ * See sc_is_explain_enabled for details.
+ **/
+__attribute__((format(printf, 1, 2)))
+void sc_explain_say(const char *fmt, ...);
+
+/**
+ * sc_explain_say_kv prints key/value output to stdout.
+ *
+ * This function has effects only if explain mode is in effect.
+ * See sc_is_explain_enabled for details.
+ **/
+__attribute__((format(printf, 2, 3)))
+void sc_explain_kv(const char *key, const char *value_fmt, ...);
+
 
 /**
  * Return true if debugging is enabled.
