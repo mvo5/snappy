@@ -458,8 +458,7 @@ int main(int argc, char **argv)
 	setup_user_xdg_runtime_dir();
 #endif
 	sc_explain_header("... snap-confine");
-        sc_explain("Sandbox overview");
-	sc_explain_start_section();
+        sc_explain_start_list("Sandbox overview");
 	// https://wiki.ubuntu.com/SecurityTeam/Specifications/SnappyConfinement
 	sc_maybe_aa_change_onexec(&apparmor, invocation.security_tag);
 #ifdef HAVE_SELINUX
@@ -532,9 +531,10 @@ int main(int argc, char **argv)
 	// Now that we've dropped and regained SYS_ADMIN, we can load the
 	// seccomp profiles.
 	if (sc_apply_seccomp_profile_for_security_tag(invocation.security_tag)) {
-                sc_explain_li_kv("Applied seccomp profile", "%s",
+                sc_explain_kv("Applied seccomp profile", "%s",
 			   invocation.security_tag);
-                sc_explain_start_section();
+                // XXX: empty "" to get new nesting level
+                sc_explain_start_kv("");
 		sc_explain_kv("source", "/var/lib/snapd/seccomp/bpf/%s.src",
 			   invocation.security_tag);
 		sc_explain_kv("binary", "/var/lib/snapd/seccomp/bpf/%s.bin "
@@ -544,10 +544,10 @@ int main(int argc, char **argv)
 		// If the process is not explicitly unconfined then load the
 		// global profile as well.
 		sc_apply_global_seccomp_profile();
-		sc_explain_li_kv("Applied seccomp profile", "global profile for all snaps");
-                sc_explain_start_section();
+		sc_explain_kv("Applied seccomp profile", "global profile for all snaps");
+                // XXX: empty "" to get new nesting level
+                sc_explain_start_kv("");
 		sc_explain_kv("binary", "/var/lib/snapd/seccomp/bpf/global.bin");
-		sc_explain("\n");
                 sc_explain_end_section();
 	}
         sc_explain_end_section();
@@ -569,7 +569,7 @@ int main(int argc, char **argv)
 	}
 	// Restore process state that was recorded earlier.
 	sc_restore_process_state(&proc_state);
-	sc_explain("Executing %s", invocation.executable);
+	sc_explain_say("Executing %s", invocation.executable);
 	execv(invocation.executable, (char *const *)&argv[0]);
 	perror("execv failed");
 	return 1;
@@ -643,8 +643,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 						    gid_t real_gid,
 						    gid_t saved_gid)
 {
-         sc_explain("Execution environment");
-         sc_explain_start_section();
+         sc_explain_start_list("Execution environment");
 	// main() reassociated with the mount ns of PID 1 to make /run/snapd/ns
 	// visible
 
@@ -663,19 +662,20 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 
 	// Init and check rootfs_dir, apply any fallback behaviors.
 	sc_check_rootfs_dir(inv);
-	sc_explain_li("Root file system is %s", inv->rootfs_dir);
+	sc_explain_say("Root file system is %s", inv->rootfs_dir);
 
 	/** Populate and join the device control group. */
 	struct snappy_udev udev_s;
 	if (snappy_udev_init(inv->security_tag, &udev_s) == 0) {
 		if (sc_cgroup_is_v2()) {
-			sc_explain_li_kv("Device cgroup v1",
+			sc_explain_kv("Device cgroup v1",
 				   "unsupported, system in v2 mode");
 		} else {
 			setup_devices_cgroup(inv->security_tag, &udev_s);
-			sc_explain_li_kv("Device cgroup v1", "%s",
+			sc_explain_kv("Device cgroup v1", "%s",
 				   inv->security_tag);
-                        sc_explain_start_section();
+                        // XXX: empty "" to get new nesting level
+                        sc_explain_start_kv("");
 			sc_explain_kv("path", "/sys/fs/cgroup/devices/%s",
 				   inv->security_tag);
 			// TODO: this needs changes once improved device cgroup
@@ -730,8 +730,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		if (unshare(CLONE_NEWNS) < 0) {
 			die("cannot unshare the mount namespace");
 		}
-		sc_explain_li("Creating new per-snap mount namespace");
-                sc_explain_start_section();
+                sc_explain_start_kv("Creating new per-snap mount namespace");
 		sc_explain_kv("desired mount profile",
 			   "/var/lib/snapd/mount/snap.%s.fstab",
 			   inv->snap_instance);
@@ -747,7 +746,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		/* Preserve the mount namespace. */
 		sc_preserve_populated_mount_ns(group);
 	} else {
-		sc_explain_li("Reused per-snap mount namespace "
+		sc_explain_say("Reused per-snap mount namespace "
 			   "/run/snapd/ns/%s.mnt", inv->snap_instance);
 	}
 
@@ -764,8 +763,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		    sc_join_preserved_per_user_ns(group, inv->snap_instance);
 		if (retval == ESRCH) {
                         sc_explain_header("snap-confine");
-			sc_explain_li("Creating new per-user mount namespace");
-                        sc_explain_start_section();
+                        sc_explain_start_kv("Creating new per-user mount namespace");
 			sc_explain_kv("desired user mount profile",
 				   "/var/lib/snapd/mount/snap.%s.user-fstab",
 				   inv->snap_instance);
@@ -786,7 +784,8 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 			if (sc_feature_enabled
 			    (SC_FEATURE_PER_USER_MOUNT_NAMESPACE)) {
 				sc_preserve_populated_per_user_mount_ns(group);
-                                sc_explain_start_section();
+                                // XXX: empty "" to get new nesting level
+                                sc_explain_start_kv("");
 				sc_explain_kv("effective user fstab",
 					   "/run/snapd/ns/snap.%s.%d.fstab",
 					   inv->snap_instance, getuid());
@@ -796,7 +795,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 				    ("NOT preserving per-user mount namespace");
 			}
 		} else {
-			sc_explain_li("Reused per-user mount namespace "
+			sc_explain_say("Reused per-user mount namespace "
 				   "/run/snapd/ns/%s.%d.mnt",
 				   inv->snap_instance, (int)getuid());
 		}
@@ -816,12 +815,13 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		}
 	}
 	if (sc_cgroup_is_v2()) {
-		sc_explain_li_kv("Freezer cgroup v1",
+		sc_explain_kv("Freezer cgroup v1",
 			   "unsupported, system in v2 mode");
 	} else {
-		sc_explain_li("Freezer cgroup v1: supported");
+                sc_explain_kv("Freezer cgroup v1", "supported");
 		sc_cgroup_freezer_join(inv->snap_instance, getpid());
-                sc_explain_start_section();
+                // XXX: empty "" to get new nesting level
+                sc_explain_start_kv("");
 		sc_explain_kv("path", "/sys/fs/cgroup/freezer/%s",
 			   inv->snap_instance);
                 sc_explain_end_section();
@@ -844,7 +844,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 	// directories are explicitly left out as they are not part of the core
 	// snap.
 	debug("resetting PATH to values in sync with core snap");
-	sc_explain_li("Setting PATH to %s", fixed_path);
+	sc_explain_say("Setting PATH to %s", fixed_path);
 	setenv("PATH", fixed_path, 1);
 	// Ensure we set the various TMPDIRs to /tmp. One of the parts of setting
 	// up the mount namespace is to create a private /tmp directory (this is
@@ -853,7 +853,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 	const char *tmpd[] = { "TMPDIR", "TEMPDIR", NULL };
 	int i;
 	for (i = 0; tmpd[i] != NULL; i++) {
-		sc_explain_li("Setting %s to /tmp", tmpd[i]);
+		sc_explain_say("Setting %s to /tmp", tmpd[i]);
 		if (setenv(tmpd[i], "/tmp", 1) != 0) {
 			die("cannot set environment variable '%s'", tmpd[i]);
 		}
@@ -871,13 +871,13 @@ static void maybe_join_tracking_cgroup(const sc_invocation * inv,
 		}
 	}
 	if (sc_cgroup_is_v2()) {
-		sc_explain_li_kv
+		sc_explain_kv
                         ("Pids cgroup v1", "unsupported, system in v2 mode");
 	} else {
 		if (sc_feature_enabled(SC_FEATURE_REFRESH_APP_AWARENESS)) {
-			sc_explain_li_kv("Pids cgroup v1","supported");
+			sc_explain_kv("Pids cgroup v1","supported");
 			sc_cgroup_pids_join(inv->security_tag, getpid());
-			sc_explain_li_kv("path", "/sys/fs/cgroup/pids/%s",
+			sc_explain_kv("path", "/sys/fs/cgroup/pids/%s",
 				   inv->snap_instance);
 		}
 	}

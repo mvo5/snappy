@@ -75,7 +75,7 @@ void sc_explain_say(const char *fmt, ...);
  * See sc_is_explain_enabled for details.
  **/
 __attribute__((format(printf, 2, 3)))
-void sc_explain_say_kv(const char *key, const char *value_fmt, ...);
+void sc_explain_kv(const char *key, const char *value_fmt, ...);
 
 
 /**
