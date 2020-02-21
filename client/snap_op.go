@@ -314,7 +314,10 @@ type snapRevisionOptions struct {
 }
 
 type downloadAction struct {
-	SnapName string `json:"snap-name,omitempty"`
+	SnapName    string `json:"snap-name"`
+	HeaderPeek  bool   `json:"header-peek,omitempty"`
+	ResumeToken string `json:"resume-token,omitempty"`
+
 	snapRevisionOptions
 }
 
@@ -322,12 +325,20 @@ type DownloadInfo struct {
 	SuggestedFileName string
 	Size              int64
 	Sha3_384          string
+	ResumeToken       string
+}
+
+type DownloadOptions struct {
+	SnapOptions
+
+	HeaderPeek  bool
+	ResumeToken string
 }
 
 // Download will stream the given snap to the client
-func (client *Client) Download(name string, options *SnapOptions) (dlInfo *DownloadInfo, r io.ReadCloser, err error) {
+func (client *Client) Download(name string, options *DownloadOptions) (dlInfo *DownloadInfo, r io.ReadCloser, err error) {
 	if options == nil {
-		options = &SnapOptions{}
+		options = &DownloadOptions{}
 	}
 	action := downloadAction{
 		SnapName: name,
@@ -336,6 +347,8 @@ func (client *Client) Download(name string, options *SnapOptions) (dlInfo *Downl
 			CohortKey: options.CohortKey,
 			Revision:  options.Revision,
 		},
+		HeaderPeek:  options.HeaderPeek,
+		ResumeToken: options.ResumeToken,
 	}
 	data, err := json.Marshal(&action)
 	if err != nil {
@@ -369,6 +382,7 @@ func (client *Client) Download(name string, options *SnapOptions) (dlInfo *Downl
 		SuggestedFileName: matches[1],
 		Size:              rsp.ContentLength,
 		Sha3_384:          rsp.Header.Get("Snap-Sha3-384"),
+		ResumeToken:       rsp.Header.Get("Snap-Download-Token"),
 	}
 
 	return dlInfo, rsp.Body, nil
