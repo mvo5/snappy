@@ -459,6 +459,7 @@ func (cs *clientSuite) TestClientOpDownload(c *check.C) {
 		},
 		HeaderPeek:  true,
 		ResumeToken: "some-token",
+		Resume:      64,
 	})
 	c.Check(err, check.IsNil)
 	c.Check(dlInfo, check.DeepEquals, &client.DownloadInfo{
@@ -470,6 +471,7 @@ func (cs *clientSuite) TestClientOpDownload(c *check.C) {
 
 	// check we posted the right stuff
 	c.Assert(cs.req.Header.Get("Content-Type"), check.Equals, "application/json")
+	c.Assert(cs.req.Header.Get("range"), check.Equals, "bytes: 64-")
 	body, err := ioutil.ReadAll(cs.req.Body)
 	c.Assert(err, check.IsNil)
 	var jsonBody client.DownloadAction

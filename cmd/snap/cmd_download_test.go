@@ -22,6 +22,7 @@ package main_test
 import (
 	"crypto"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -109,6 +110,11 @@ func (s *SnapSuite) TestDownloadViaSnapd(c *check.C) {
 		switch n {
 		case 0:
 			c.Check(r.URL.Path, check.Equals, "/v2/download")
+			c.Check(DecodedRequestBody(c, r), check.DeepEquals, map[string]interface{}{
+				"revision":  "unset",
+				"snap-name": "a-snap",
+			})
+
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Header().Set("Content-Disposition", "attachment; filename=a-snap_1.snap")
 			mockContent := []byte("file-content\n")
@@ -131,6 +137,68 @@ func (s *SnapSuite) TestDownloadViaSnapd(c *check.C) {
 	_, err := snapCmd.Parser(snapCmd.Client()).ParseArgs([]string{"download", "--indirect", "a-snap", "--target-directory", tmpdir})
 	c.Assert(err, check.ErrorMatches, `server error: "418 I'm a teapot"`)
 	c.Assert(n, check.Equals, 2)
+	c.Assert(filepath.Join(tmpdir, "a-snap_1.snap"), testutil.FilePresent)
+}
+
+func (s *SnapSuite) TestDownloadViaSnapdResumes(c *check.C) {
+	n := 0
+	s.RedirectClientToTestServer(func(w http.ResponseWriter, r *http.Request) {
+		switch n {
+		case 0:
+			c.Check(r.URL.Path, check.Equals, "/v2/download")
+			c.Check(DecodedRequestBody(c, r), check.DeepEquals, map[string]interface{}{
+				"revision":    "unset",
+				"snap-name":   "a-snap",
+				"header-peek": true,
+			})
+
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Disposition", "attachment; filename=a-snap_1.snap")
+			mockContent := []byte("12345678")
+			h := crypto.SHA3_384.New()
+			h.Write(mockContent)
+			w.Header().Set("Snap-Sha3-384", fmt.Sprintf("%x", h.Sum(nil)))
+			w.Header().Set("Snap-Length", fmt.Sprintf("%d", len(mockContent)))
+			w.Header().Set("Snap-Download-Token", "hmac-download-token")
+			// don't write anything, header-peek mode
+			w.Write(nil)
+		case 1:
+			c.Check(r.URL.Path, check.Equals, "/v2/download")
+			c.Check(DecodedRequestBody(c, r), check.DeepEquals, map[string]interface{}{
+				"revision":     "unset",
+				"snap-name":    "a-snap",
+				"resume-token": "hmac-download-token",
+				// note: no header-peek this time
+			})
+			c.Check(r.Header.Get("range"), check.Equals, "bytes=4-")
+
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Disposition", "attachment; filename=a-snap_1.snap")
+			w.Header().Set("Content-Lenght", "4")
+			w.Header().Set("Content-Range", "bytes 4-7/8")
+			mockContent := []byte("12345678")
+			h := crypto.SHA3_384.New()
+			h.Write(mockContent)
+			w.Header().Set("Snap-Sha3-384", fmt.Sprintf("%x", h.Sum(nil)))
+			w.Write(mockContent[4:])
+		case 2:
+			c.Check(r.URL.Path, check.Equals, "/v2/assertions/snap-revision")
+			w.WriteHeader(418)
+		default:
+			c.Fatalf("expected to get 1 requests, now on %d", n+1)
+		}
+		n++
+	})
+
+	// we just test here that we hits the snapd API, testing this fully
+	// would require a full assertion chain
+	tmpdir := c.MkDir()
+	err := ioutil.WriteFile(filepath.Join(tmpdir, "a-snap_1.snap.partial"), []byte("1234"), 0644)
+	c.Assert(err, check.IsNil)
+
+	_, err = snapCmd.Parser(snapCmd.Client()).ParseArgs([]string{"download", "--indirect", "a-snap", "--target-directory", tmpdir})
+	c.Assert(err, check.ErrorMatches, `server error: "418 I'm a teapot"`)
+	c.Assert(n, check.Equals, 3)
 	c.Assert(filepath.Join(tmpdir, "a-snap_1.snap"), testutil.FilePresent)
 }
 

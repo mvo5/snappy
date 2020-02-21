@@ -171,8 +171,9 @@ func (x *cmdDownload) downloadDirect(snapName string, revision snap.Revision) er
 }
 
 func downloadSnapFromStreamWithProgress(downloadPath string, stream io.ReadCloser, dlInfo *client.DownloadInfo) error {
-	// TODO: support resume of exiting files and not download if the
-	//       file is already there with the right hash
+	finalName := downloadPath
+	downloadPath = downloadPath + ".partial"
+
 	f, err := os.OpenFile(downloadPath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return err
@@ -197,6 +198,11 @@ func downloadSnapFromStreamWithProgress(downloadPath string, stream io.ReadClose
 	defer signal.Reset(syscall.SIGINT)
 
 	h := crypto.SHA3_384.New()
+	// stream local data (for resume) first into progress and hash
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	// then stream the data from the daemon
 	mw := io.MultiWriter(f, h, pbar)
 	if _, err := io.Copy(mw, stream); err != nil {
 		return err
@@ -206,7 +212,8 @@ func downloadSnapFromStreamWithProgress(downloadPath string, stream io.ReadClose
 		return fmt.Errorf("unexpected sha3-384 for %s", downloadPath)
 	}
 
-	return nil
+	// put final file into place
+	return os.Rename(downloadPath, finalName)
 }
 
 func fetchSnapAssertionsViaSnapd(cli *client.Client, assertFname, hexSha3_384 string) error {
@@ -266,11 +273,29 @@ func fetchSnapAssertionsViaSnapd(cli *client.Client, assertFname, hexSha3_384 st
 }
 
 func (x *cmdDownload) downloadViaSnapd(snapName string, rev snap.Revision) error {
-	opts := &client.SnapOptions{
-		Channel:   x.Channel,
-		CohortKey: x.CohortKey,
-		Revision:  rev.String(),
+	opts := &client.DownloadOptions{
+		SnapOptions: client.SnapOptions{
+			Channel:   x.Channel,
+			CohortKey: x.CohortKey,
+			Revision:  rev.String(),
+		},
 	}
+
+	// see if we have partial files that we should try to resume
+	if partials, err := filepath.Glob(filepath.Join(x.TargetDir, snapName+"_*.snap.partial")); err == nil && len(partials) > 0 {
+		opts.HeaderPeek = true
+		dlInfo, _, err := x.client.Download(snapName, opts)
+		if err != nil {
+			return fmt.Errorf("cannot get download information for %s: %v", snapName, err)
+		}
+		opts.HeaderPeek = false
+		partialPath := filepath.Join(x.TargetDir, dlInfo.SuggestedFileName+".partial")
+		if fi, err := os.Stat(partialPath); err == nil {
+			opts.ResumeToken = dlInfo.ResumeToken
+			opts.Resume = fi.Size()
+		}
+	}
+
 	dlInfo, stream, err := x.client.Download(snapName, opts)
 	if err != nil {
 		return err
