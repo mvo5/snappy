@@ -134,78 +134,119 @@ void debug(const char *msg, ...)
 
 typedef struct sc_explain_state {
         int indent;
+
+        // keep track of mode
+        char mode[32];
 } sc_explain_state;
 
-static struct sc_explain_state es;
+static struct sc_explain_state es = {
+ .indent=0,
+ .mode={0},
+};
 
-static void sc_explain_va(const char *fmt, va_list ap) {
-	if (sc_is_explain_enabled()) {
-                for (int i=es.indent; i > 0; i--) {
-                        fprintf(stdout, "    ");
-                }
-		vprintf(fmt, ap);
-                fprintf(stdout, "\n");
-		fflush(stdout);
-	}
+static void sc_explain_write_indent(void)
+{
+        // XXX: instead of this if everywhere just "explain_out"
+        // instead of stdout and write to /dev/null ?
+        if (!sc_is_explain_enabled())
+                return;
+                
+        for (int i=es.indent; i > 0; i--) {
+                fprintf(stdout, "   ");
+        }
 }
 
-void sc_explain(const char *fmt, ...)
+static void sc_explain_say_common(void)
 {
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_write_indent();
+        if (es.mode[es.indent] == 'l') {
+                fprintf(stdout, "- ");
+        }
+}
+
+void sc_explain_say(const char *fmt, ...)
+{
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_say_common();
+
         va_list ap;
         va_start(ap, fmt);
-        sc_explain_va(fmt, ap);
+        vfprintf(stdout, fmt, ap);
         va_end(ap);
+        fprintf(stdout, "\n");
+        fflush(stdout);
 }
 
-void sc_explain_start_section()
+void sc_explain_kv(const char *key, const char *fmt, ...)
 {
+	if (!sc_is_explain_enabled())
+                return;
+
+        sc_explain_say_common();
+        fprintf(stdout, "%s: ", key);
+
+        // XXX: duplicated with sc_explain_say()
+        va_list ap;
+        va_start(ap, fmt);
+        vfprintf(stdout, fmt, ap);
+        va_end(ap);
+        fprintf(stdout, "\n");
+        fflush(stdout);
+}
+
+static void sc_explain_start_generic(const char *intro_text)
+{
+	if (!sc_is_explain_enabled())
+                return;
+
+        // XXX: ideally we don't need this, i.e. there is always an intro
+        if (strlen(intro_text) == 0) {
+                return;
+        }
+        
+        sc_explain_write_indent();
+        fprintf(stdout, "%s", intro_text);
+        fprintf(stdout, "\n");
+        fflush(stdout);
+}
+
+void sc_explain_start_list(const char *intro_text)
+{
+        // XXX: check for overflow
+        sc_explain_start_generic(intro_text);
         es.indent++;
+        es.mode[es.indent] = 'l';
+}
+
+void sc_explain_start_kv(const char *intro_text)
+{
+        sc_explain_start_generic(intro_text);
+        es.indent++;
+        es.mode[es.indent] = 'k';
 }
 
 void sc_explain_end_section()
 {
+        // XXX: check for underflow
+        es.mode[es.indent] = '\0';
         es.indent--;
 }
 
-void sc_explain_li_kv(const char *key, const char *value_fmt, ...) {
-        char buf[256];
-        sc_must_snprintf(buf, sizeof buf, "- %s: %s", key, value_fmt);
-
-        va_list ap;
-        va_start(ap, value_fmt);
-        sc_explain_va(buf, ap);
-        va_end(ap);
-}        
-        
-void sc_explain_kv(const char *key, const char *value_fmt, ...)
-{
-        char buf[256];
-        sc_must_snprintf(buf, sizeof buf, "%s: %s", key, value_fmt);
-
-        va_list ap;
-        va_start(ap, value_fmt);
-        sc_explain_va(buf, ap);
-        va_end(ap);
-}
-
-void sc_explain_li(const char *fmt, ...)
-{
-        char buf[256] = "- \0";
-        strncpy(&buf[2], fmt, sizeof(buf)-3);
-
-        va_list va;
-        va_start(va, fmt);
-        sc_explain_va(buf, va);
-        va_end(va);
-}
-
-
 void sc_explain_header(const char *name)
 {
-	if (sc_is_explain_enabled()) {
-		printf("\n<< %s >>\n\n", name);
-		fflush(stdout);
-	}
+	if (!sc_is_explain_enabled())
+                return;
+        
+        printf("\n<< %s >>\n\n", name);
+        fflush(stdout);
+        
+        es.indent = 0;
+        es.mode[0] = '\0';
 }
 
 void write_string_to_file(const char *filepath, const char *buf)
