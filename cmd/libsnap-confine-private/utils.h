@@ -44,7 +44,8 @@ entries
  *
  * This function has effects only if explain mode is in effect.
  **/
-void sc_explain_start_kv(const char *intro_text);
+__attribute__((format(printf, 2, 3)))
+void sc_explain_start_kv(const char *key, const char *value_fmt, ...);
 
 /**
  * sc_explain_start_list starts a new list.

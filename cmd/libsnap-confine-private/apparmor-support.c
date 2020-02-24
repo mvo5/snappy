@@ -117,8 +117,7 @@ sc_maybe_aa_change_onexec(struct sc_apparmor *apparmor, const char *profile)
 	debug("requesting changing of apparmor profile on next exec to %s",
 	      profile);
 	sc_explain_kv("Apparmor profile", "%s", profile);
-        sc_explain_start_kv("");
-	sc_explain_kv("source", "/var/lib/snapd/apparmor/profiles/%s", profile);
+	sc_explain_start_kv("source", "/var/lib/snapd/apparmor/profiles/%s", profile);
 	sc_explain_kv("binary", "(loaded into the kernel, cached by the platform)");
         sc_explain_end_section();
 	if (aa_change_onexec(profile) < 0) {

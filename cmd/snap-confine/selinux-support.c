@@ -49,7 +49,7 @@ int sc_selinux_set_snap_execcon(void) {
         sc_explain_kv("SELinux", "disabled in the kernel");
         return 0;
     }
-    sc_explain_kv("SELinux", "enabled in the kernel");
+    sc_explain_start_kv("SELinux", "enabled in the kernel");
 
     char *ctx_str SC_CLEANUP(sc_freecon) = NULL;
     if (getcon(&ctx_str) < 0) {
@@ -92,10 +92,9 @@ int sc_selinux_set_snap_execcon(void) {
             die("cannot set SELinux exec context to %s", new_ctx_str);
         }
         debug("SELinux context after next exec: %s", new_ctx_str);
-        sc_explain_start_kv("");
         sc_explain_kv("SELinux context: %s", new_ctx_str);
-        sc_explain_end_section();
     }
+    sc_explain_end_section();
 
     return 0;
 }

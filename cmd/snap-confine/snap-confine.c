@@ -533,9 +533,7 @@ int main(int argc, char **argv)
 	if (sc_apply_seccomp_profile_for_security_tag(invocation.security_tag)) {
                 sc_explain_kv("Applied seccomp profile", "%s",
 			   invocation.security_tag);
-                // XXX: empty "" to get new nesting level
-                sc_explain_start_kv("");
-		sc_explain_kv("source", "/var/lib/snapd/seccomp/bpf/%s.src",
+		sc_explain_start_kv("source", "/var/lib/snapd/seccomp/bpf/%s.src",
 			   invocation.security_tag);
 		sc_explain_kv("binary", "/var/lib/snapd/seccomp/bpf/%s.bin "
 			   "(built with snap-seccomp)",
@@ -545,9 +543,7 @@ int main(int argc, char **argv)
 		// global profile as well.
 		sc_apply_global_seccomp_profile();
 		sc_explain_kv("Applied seccomp profile", "global profile for all snaps");
-                // XXX: empty "" to get new nesting level
-                sc_explain_start_kv("");
-		sc_explain_kv("binary", "/var/lib/snapd/seccomp/bpf/global.bin");
+		sc_explain_start_kv("binary", "/var/lib/snapd/seccomp/bpf/global.bin");
                 sc_explain_end_section();
 	}
         sc_explain_end_section();
@@ -674,9 +670,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 			setup_devices_cgroup(inv->security_tag, &udev_s);
 			sc_explain_kv("Device cgroup v1", "%s",
 				   inv->security_tag);
-                        // XXX: empty "" to get new nesting level
-                        sc_explain_start_kv("");
-			sc_explain_kv("path", "/sys/fs/cgroup/devices/%s",
+			sc_explain_start_kv("path", "/sys/fs/cgroup/devices/%s",
 				   inv->security_tag);
 			// TODO: this needs changes once improved device cgroup
 			// configuration is merged. Right now we only ever use device cgroup v1
@@ -730,7 +724,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		if (unshare(CLONE_NEWNS) < 0) {
 			die("cannot unshare the mount namespace");
 		}
-                sc_explain_start_kv("Creating new per-snap mount namespace");
+                sc_explain_start_kv("Creating", "new per-snap mount namespace");
 		sc_explain_kv("desired mount profile",
 			   "/var/lib/snapd/mount/snap.%s.fstab",
 			   inv->snap_instance);
@@ -738,10 +732,11 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 			   "/run/snapd/ns/snap.%s.fstab", inv->snap_instance);
 		sc_explain_kv("info file ",
                               "/run/snapd/ns/snap.%s.info", inv->snap_instance);
+                sc_explain_end_section();
 		sc_populate_mount_ns(aa, snap_update_ns_fd, inv, real_gid,
 				     saved_gid);
 		sc_store_ns_info(inv);
-                sc_explain_end_section();
+
 
 		/* Preserve the mount namespace. */
 		sc_preserve_populated_mount_ns(group);
@@ -763,7 +758,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		    sc_join_preserved_per_user_ns(group, inv->snap_instance);
 		if (retval == ESRCH) {
                         sc_explain_header("snap-confine");
-                        sc_explain_start_kv("Creating new per-user mount namespace");
+                        sc_explain_start_list("Creating new per-user mount namespace");
 			sc_explain_kv("desired user mount profile",
 				   "/var/lib/snapd/mount/snap.%s.user-fstab",
 				   inv->snap_instance);
@@ -775,6 +770,8 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 			sc_setup_user_mounts(aa, snap_update_ns_fd,
 					     inv->snap_instance);
 			sc_explain_header("snap-confine");
+                        sc_explain_start_list("Configuring mount namespace according to mount profile");
+                                   
 			/* Preserve the mount per-user namespace. But only if the
 			 * experimental feature is enabled. This way if the feature is
 			 * disabled user mount namespaces will still exist but will be
@@ -784,9 +781,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 			if (sc_feature_enabled
 			    (SC_FEATURE_PER_USER_MOUNT_NAMESPACE)) {
 				sc_preserve_populated_per_user_mount_ns(group);
-                                // XXX: empty "" to get new nesting level
-                                sc_explain_start_kv("");
-				sc_explain_kv("effective user fstab",
+				sc_explain_start_kv("effective user fstab",
 					   "/run/snapd/ns/snap.%s.%d.fstab",
 					   inv->snap_instance, getuid());
                                 sc_explain_end_section();
@@ -818,10 +813,8 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		sc_explain_kv("Freezer cgroup v1",
 			   "unsupported, system in v2 mode");
 	} else {
-                sc_explain_kv("Freezer cgroup v1", "supported");
+                sc_explain_start_kv("Freezer cgroup v1", "supported");
 		sc_cgroup_freezer_join(inv->snap_instance, getpid());
-                // XXX: empty "" to get new nesting level
-                sc_explain_start_kv("");
 		sc_explain_kv("path", "/sys/fs/cgroup/freezer/%s",
 			   inv->snap_instance);
                 sc_explain_end_section();
