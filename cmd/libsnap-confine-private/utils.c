@@ -227,6 +227,10 @@ void sc_explain_start_kv(const char *key, const char *fmt, ...)
                 return;
 
         sc_explain_say_common();
+        if (fmt == NULL || strlen(fmt) == 0) {
+           fprintf(stdout, "%s", key);
+           return;
+        }
         fprintf(stdout, "%s: ", key);
         va_list ap;
         va_start(ap, fmt);

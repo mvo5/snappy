@@ -724,7 +724,7 @@ static void enter_non_classic_execution_environment(sc_invocation * inv,
 		if (unshare(CLONE_NEWNS) < 0) {
 			die("cannot unshare the mount namespace");
 		}
-                sc_explain_start_kv("Creating", "new per-snap mount namespace");
+                sc_explain_start_kv("Creating new per-snap mount namespace", NULL);
 		sc_explain_kv("desired mount profile",
 			   "/var/lib/snapd/mount/snap.%s.fstab",
 			   inv->snap_instance);
