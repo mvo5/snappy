@@ -382,7 +382,7 @@ apps:
 	st.Lock()
 	defer st.Unlock()
 
-	ts, _, err := snapstate.InstallPath(st, &snap.SideInfo{RealName: "foo"}, snapPath, "", "", snapstate.Flags{DevMode: true})
+	ts, _, err := snapstate.InstallPath(st, &snap.SideInfo{RealName: "foo"}, snapPath, "", "stable", snapstate.Flags{DevMode: true})
 	c.Assert(err, IsNil)
 	chg := st.NewChange("install-snap", "...")
 	chg.AddAll(ts)
@@ -394,8 +394,14 @@ apps:
 
 	c.Assert(chg.Status(), Equals, state.DoneStatus, Commentf("install-snap change failed with: %v", chg.Err()))
 
-	snap, err := snapstate.CurrentInfo(st, "foo")
+	var snapst snapstate.SnapState
+	err = snapstate.Get(st, "foo", &snapst)
 	c.Assert(err, IsNil)
+	c.Check(snapst.TrackingChannel, Equals, "latest/stable")
+	snap, err := snapst.CurrentInfo()
+	c.Assert(err, IsNil)
+	// channel is set
+	c.Check(snap.Channel, Equals, "latest/stable")
 
 	// ensure that the binary wrapper file got generated with the right
 	// name

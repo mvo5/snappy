@@ -1146,6 +1146,10 @@ func (m *SnapManager) doLinkSnap(t *state.Task, _ *tomb.Tomb) (err error) {
 		if err != nil {
 			return err
 		}
+		si := snapst.CurrentSideInfo()
+		if si.Channel == "" {
+			si.Channel = snapst.TrackingChannel
+		}
 	}
 	oldIgnoreValidation := snapst.IgnoreValidation
 	snapst.IgnoreValidation = snapsup.IgnoreValidation
