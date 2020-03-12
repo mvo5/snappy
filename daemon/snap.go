@@ -304,6 +304,10 @@ func mapLocal(about aboutSnap) *client.Snap {
 	}
 
 	result.TrackingChannel = snapst.TrackingChannel
+	// we have not contacted the store yet
+	if result.Channel == "" {
+		result.Channel = result.TrackingChannel
+	}
 	result.IgnoreValidation = snapst.IgnoreValidation
 	result.CohortKey = snapst.CohortKey
 	result.DevMode = snapst.DevMode

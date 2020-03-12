@@ -967,6 +967,33 @@ func (s *apiSuite) TestMapLocalFields(c *check.C) {
 	c.Check(mapLocal(about), check.DeepEquals, expected)
 }
 
+func (s *apiSuite) TestMapLocalFieldsWithChannelEmpty(c *check.C) {
+	info := &snap.Info{
+		SideInfo: snap.SideInfo{
+			// the channel is empty at this point, we did not
+			// talk to the store yet
+			Channel:  "",
+			SnapID:   "some-snap-id",
+			RealName: "some-snap",
+			Revision: snap.R(7),
+		},
+		SnapType: "app",
+		Version:  "v1.0",
+	}
+	about := aboutSnap{
+		info: info,
+		snapst: &snapstate.SnapState{
+			Active:          true,
+			TrackingChannel: "flaky/beta",
+			Current:         snap.R(7),
+		},
+	}
+
+	local := mapLocal(about)
+	c.Check(local.TrackingChannel, check.Equals, "flaky/beta")
+	c.Check(local.Channel, check.Equals, "flaky/beta")
+}
+
 func (s *apiSuite) TestMapLocalOfTryResolvesSymlink(c *check.C) {
 	c.Assert(os.MkdirAll(dirs.SnapBlobDir, 0755), check.IsNil)
 
