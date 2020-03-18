@@ -56,12 +56,15 @@ import (
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/snaptest"
 	"github.com/snapcore/snapd/store/storetest"
+	"github.com/snapcore/snapd/testutil"
 	"github.com/snapcore/snapd/timings"
 )
 
 func TestDeviceManager(t *testing.T) { TestingT(t) }
 
 type deviceMgrBaseSuite struct {
+	testutil.BaseTest
+
 	o       *overlord.Overlord
 	state   *state.State
 	se      *overlord.StateEngine
@@ -117,6 +120,8 @@ var (
 )
 
 func (s *deviceMgrBaseSuite) SetUpTest(c *C) {
+	s.BaseTest.SetUpTest(c)
+
 	dirs.SetRootDir(c.MkDir())
 	os.MkdirAll(dirs.SnapRunDir, 0755)
 
