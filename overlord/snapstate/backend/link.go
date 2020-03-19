@@ -41,6 +41,9 @@ type LinkContext struct {
 	// PrevDisabledServices is a list snap services that were manually
 	// disable in the previous revisions of this snap
 	PrevDisabledServices []string
+
+	// XXX: VitalityRank ...
+	VitalityRank int
 }
 
 func updateCurrentSymlinks(info *snap.Info) (e error) {
@@ -95,6 +98,7 @@ func (b Backend) LinkSnap(info *snap.Info, dev boot.Device, linkCtx LinkContext,
 
 	var err error
 	timings.Run(tm, "generate-wrappers", fmt.Sprintf("generate wrappers for snap %s", info.InstanceName()), func(timings.Measurer) {
+		// XXX: deal with linkCtx.VitalityRank
 		err = b.generateWrappers(info, linkCtx.PrevDisabledServices)
 	})
 	if err != nil {
@@ -105,6 +109,7 @@ func (b Backend) LinkSnap(info *snap.Info, dev boot.Device, linkCtx LinkContext,
 			return
 		}
 		timings.Run(tm, "remove-wrappers", fmt.Sprintf("remove wrappers of snap %s", info.InstanceName()), func(timings.Measurer) {
+			// XXX: deal with linkCtx.VitalityRank
 			removeGeneratedWrappers(info, linkCtx.FirstInstall, progress.Null)
 		})
 	}()

@@ -1,0 +1,17 @@
+name: Test that the snap vitality score works
+
+systems: [ubuntu-core-*]
+
+execute: |
+    echo "On install of a service the oom score is 0"
+    snap install test-snapd-service
+    systemctl show snap.test-snapd-service.service.service |MATCH "OOMScoreAdjust=0"
+    
+    echo "When setting the vitality score"
+    snap set core resiliance.vitality=test-snapd-service
+    echo "the setting is applied"
+    MATCH "[Service]\nOOMScoreAdjust=-899\n" < /etc/systemd/system/snap.test-snapd-service.service.service.d/vitality.conf
+    systemctl show snap.test-snapd-service.service.service |MATCH "OOMScoreAdjust=-899"
+    # XXX: install a persistent service and check that it got the correct
+    #      score
+    
