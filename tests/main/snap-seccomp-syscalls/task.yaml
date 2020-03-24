@@ -1,5 +1,9 @@
 summary: Ensure that we accounted for all syscalls known to libseccomp
 
+# XXX: disabled on 2.44 for now until
+# https://github.com/snapcore/snapd/pull/8328 is merged
+manual: true
+
 description: |
   The snap-seccomp tool maintains a list of all syscalls supported by
   libseccomp. The test ensures that we catch when the internal list is not in
