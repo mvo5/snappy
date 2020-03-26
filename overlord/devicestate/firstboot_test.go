@@ -54,6 +54,7 @@ import (
 	"github.com/snapcore/snapd/seed"
 	"github.com/snapcore/snapd/seed/seedtest"
 	"github.com/snapcore/snapd/snap"
+	"github.com/snapcore/snapd/snap/naming"
 	"github.com/snapcore/snapd/snap/snaptest"
 	"github.com/snapcore/snapd/systemd"
 	"github.com/snapcore/snapd/testutil"
@@ -755,17 +756,17 @@ func (s *firstBoot16Suite) TestPopulateFromSeedConfigureHappy(c *C) {
 	bloader.SetBootKernel("pc-kernel_1.snap")
 	bloader.SetBootBase("core_1.snap")
 
-	const defaultsYaml = `
+	var defaultsYaml = fmt.Sprintf(`
 defaults:
     foodidididididididididididididid:
        foo-cfg: foo.
-    99T7MUlRhtI3U0QFgl5mXXESAiSwt776:
+    %s:
        core-cfg: core_cfg_defl
     pckernelidididididididididididid:
        pc-kernel-cfg: pc-kernel_cfg_defl
     pcididididididididididididididid:
        pc-cfg: pc_cfg_defl
-`
+`, naming.WellKnownSnapID("core"))
 	coreFname, kernelFname, gadgetFname := s.makeCoreSnaps(c, defaultsYaml)
 
 	s.WriteAssertions("developer.account", s.devAcct)
