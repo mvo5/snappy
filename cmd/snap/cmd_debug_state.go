@@ -29,6 +29,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/snapcore/snapd/i18n"
+	"github.com/snapcore/snapd/overlord/configstate/config"
 	"github.com/snapcore/snapd/overlord/state"
 )
 
@@ -40,6 +41,9 @@ type cmdDebugState struct {
 	Changes  bool   `long:"changes"`
 	TaskID   string `long:"task"`
 	ChangeID string `long:"change"`
+
+	Get  string `long:"get"`
+	Snap string `long:"snap"`
 
 	// flags for --change=N output
 	DotOutput bool `long:"dot"` // XXX: mildly useful (too crowded in many cases), but let's have it just in case
@@ -83,6 +87,8 @@ func init() {
 		"dot":     i18n.G("Dot (graphviz) output"),
 		"no-hold": i18n.G("Omit tasks in 'Hold' state in the change output"),
 		"changes": i18n.G("List all changes"),
+		"get":     i18n.G("Get snap configuration"),
+		"snap":    i18n.G("Specifc what snap"),
 	}), nil)
 }
 
@@ -255,6 +261,20 @@ func (c *cmdDebugState) showTask(st *state.State, taskID string) error {
 	return nil
 }
 
+func (c *cmdDebugState) showGet(st *state.State, snapName, key string) error {
+	st.Lock()
+	defer st.Unlock()
+
+	var v interface{}
+	tr := config.NewTransaction(st)
+	if err := tr.Get(snapName, key, &v); err != nil {
+		return err
+	}
+	fmt.Fprintf(Stdout, "%v\n", v)
+
+	return nil
+}
+
 func (c *cmdDebugState) Execute(args []string) error {
 	st, err := loadState(c.Positional.StateFilePath)
 	if err != nil {
@@ -281,6 +301,13 @@ func (c *cmdDebugState) Execute(args []string) error {
 	}
 	if c.NoHoldState && c.ChangeID == "" {
 		return fmt.Errorf("--no-hold can only be used with --change=")
+	}
+
+	if c.Get != "" && c.Snap == "" {
+		return fmt.Errorf("--get can only be used with --snap")
+	}
+	if c.Get != "" && c.Snap != "" {
+		return c.showGet(st, c.Snap, c.Get)
 	}
 
 	if c.Changes {

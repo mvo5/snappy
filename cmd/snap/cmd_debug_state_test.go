@@ -34,8 +34,18 @@ var stateJSON = []byte(`
 	"last-change-id": 2,
 
 	"data": {
-		"snaps": {}
-	},
+		"snaps": {},
+                "config": {
+                    "core": {
+                        "experimental": {
+                            "parallel-instances": true
+                        },
+                        "seed": {
+                            "loaded": true
+                        }
+                    }
+                }
+        },
 	"changes": {
 		"1": {
 			"id": "1",
@@ -201,4 +211,16 @@ func (s *SnapSuite) TestDebugTasks(c *C) {
 func (s *SnapSuite) TestDebugTasksMissingState(c *C) {
 	_, err := main.Parser(main.Client()).ParseArgs([]string{"debug", "state", "--change=1", "/missing-state.json"})
 	c.Check(err, ErrorMatches, "cannot read the state file: open /missing-state.json: no such file or directory")
+}
+
+func (s *SnapSuite) TestDebugSnapGet(c *C) {
+	dir := c.MkDir()
+	stateFile := filepath.Join(dir, "test-state.json")
+	c.Assert(ioutil.WriteFile(stateFile, stateJSON, 0644), IsNil)
+
+	rest, err := main.Parser(main.Client()).ParseArgs([]string{"debug", "state", "--snap=core", "--get=seed.loaded", stateFile})
+	c.Assert(err, IsNil)
+	c.Assert(rest, DeepEquals, []string{})
+	c.Check(s.Stdout(), Matches, "true\n")
+	c.Check(s.Stderr(), Equals, "")
 }
