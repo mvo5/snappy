@@ -3,6 +3,9 @@ summary: Ensure that the pulseaudio interface works
 # Classic Ubuntu is sufficient to test the feature
 systems: [ubuntu-1*-*64, ubuntu-2*-*64]
 
+# XXX: under investigation by zyga
+manual: true
+
 kill-timeout: 3m
 
 environment:
