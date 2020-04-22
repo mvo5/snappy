@@ -350,6 +350,23 @@ func remodelTasks(ctx context.Context, st *state.State, current, new *asserts.Mo
 	userID := 0
 	var tss []*state.TaskSet
 
+	// check first if we need to install the snapd snap
+	// (may happen on core-base remodel)
+	if current.Base() != new.Base() {
+		// ensure snapd is installed
+		snapdNeedsInstall, err := notInstalled(st, "snapd")
+		if err != nil {
+			return nil, err
+		}
+		if snapdNeedsInstall {
+			ts, err := snapstateInstallWithDeviceContext(ctx, st, "snapd", nil, userID, snapstate.Flags{}, deviceCtx, fromChange)
+			if err != nil {
+				return nil, err
+			}
+			tss = append(tss, ts)
+		}
+	}
+
 	// kernel
 	if current.Kernel() == new.Kernel() && current.KernelTrack() != new.KernelTrack() {
 		ts, err := snapstateUpdateWithDeviceContext(st, new.Kernel(), &snapstate.RevisionOptions{Channel: new.KernelTrack()}, userID, snapstate.Flags{NoReRefresh: true}, deviceCtx, fromChange)
@@ -542,12 +559,6 @@ func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 	// remodels itself to/from i386 (if the HW can do both 32/64 bit)
 	if current.Architecture() != new.Architecture() {
 		return nil, fmt.Errorf("cannot remodel to different architectures yet")
-	}
-
-	// calculate snap differences between the two models
-	// FIXME: this needs work to switch from core->bases
-	if current.Base() == "" && new.Base() != "" {
-		return nil, fmt.Errorf("cannot remodel from core to bases yet")
 	}
 
 	// TODO: should we run a remodel only while no other change is
