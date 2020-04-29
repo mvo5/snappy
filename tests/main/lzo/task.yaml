@@ -1,0 +1,24 @@
+summary: Check that lzo recompression works
+
+systems: [-ubuntu-core-*]
+
+execute: |
+    snap install --edge review-tools
+    apt install -y faketime
+
+    for snap in hello-world chromium firefox lxd libreoffice \
+                core core18 snapd gnome-3-28-1804 \
+                docker; do
+        snap download $snap
+        unsquashfs -d ${snap} ${snap}_*.snap
+        snap pack --compression=lzo ${snap} ./${snap}-1
+        mv ./${snap}-1/*.snap ./${snap}-1/1.snap
+        snap pack --compression=lzo ${snap} ./${snap}-1
+        cmp ./${snap}-1/*.snap
+        # XXX: enable once figured out how to drive it, errors with:
+        # -Found a valid SQUASHFS 4:0 superblock on ./hello-world-1/1.snap.
+        # +Found a valid SQUASHFS 4:0 superblock on ./hello-world-1/hello-world_6.4_all.snap.
+        # today.
+        #
+        #review-tools.diffsquash ./${snap}-1/*.snap
+    done
