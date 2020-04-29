@@ -79,7 +79,8 @@ Recommends: linux-generic-lts-xenial,
 Replaces: ubuntu-snappy (<< 1.9), ubuntu-snappy-cli (<< 1.9), snap-confine (<< 2.23), ubuntu-core-launcher (<< 2.22), snapd-xdg-open (<< 0.0.0)
 Breaks: ubuntu-snappy (<< 1.9), ubuntu-snappy-cli (<< 1.9), snap-confine (<< 2.23), ubuntu-core-launcher (<< 2.22), snapd-xdg-open (<< 0.0.0)
 Conflicts: snap (<< 2013-11-29-1ubuntu1)
-Built-Using: ${Built-Using} ${misc:Built-Using}
+#XXX: renable once PPAs accept "built-using" again
+#Built-Using: ${Built-Using} ${misc:Built-Using}
 Description: Daemon and tooling that enable snap packages
  Install, configure, refresh and remove snap packages. Snaps are
  'universal' packages that work across many different Linux systems,
