@@ -28,7 +28,6 @@ import (
 
 	"github.com/jessevdk/go-flags"
 
-	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/snapenv"
@@ -218,8 +217,8 @@ func execApp(snapApp, revision, command string, args []string) error {
 			filepath.Join(app.Snap.MountDir(), app.Completer),
 		}
 	case "gdb":
-		fullCmd = append(fullCmd, fullCmd[0])
-		fullCmd[0] = filepath.Join(dirs.CoreLibExecDir, "snap-gdb-shim")
+		fullCmd = append([]string{"/usr/bin/gdbserver", env["SNAP_CONFINE_RUN_UNDER_GDBSERVER"]}, fullCmd...)
+		fullCmd[0] = filepath.Join(fullCmd[0])
 	}
 	fullCmd = append(fullCmd, cmdArgs...)
 	fullCmd = append(fullCmd, args...)

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -748,16 +749,49 @@ func activateXdgDocumentPortal(info *snap.Info, snapApp, hook string) error {
 
 type envForExecFunc func(extra map[string]string) []string
 
-func (x *cmdRun) runCmdUnderGdb(origCmd []string, envForExec envForExecFunc) error {
-	cmd := []string{"sudo", "-E", "gdb", "-ex=run", "-ex=catch exec", "-ex=continue", "--args"}
-	cmd = append(cmd, origCmd...)
+func waitPort(addr string) error {
+	for i := 0; i < 600; i++ {
+		time.Sleep(100 * time.Millisecond)
 
-	gcmd := exec.Command(cmd[0], cmd[1:]...)
+		if conn, err := net.Dial("tcp", addr); err == nil {
+			conn.Close()
+			return nil
+		}
+	}
+	return fmt.Errorf("cannot connect to %q", addr)
+}
+
+var gdbServerWelcomeFmt = `
+
+Welcome to "snap run --gdb".
+You are right before your application is run.
+
+Please open a different terminal and run:
+
+    $ gdb -ex="target remote %s"
+    (gdb) cont
+
+or use your favorite gdb frontend.
+`
+
+func (x *cmdRun) runCmdUnderGdb(origCmd []string, envForExec envForExecFunc) error {
+	// TODO: pick a better TCP port
+	addr := "localhost:45678"
+
+	gcmd := exec.Command(origCmd[0], origCmd[1:]...)
 	gcmd.Stdin = os.Stdin
 	gcmd.Stdout = os.Stdout
 	gcmd.Stderr = os.Stderr
-	gcmd.Env = envForExec(map[string]string{"SNAP_CONFINE_RUN_UNDER_GDB": "1"})
-	return gcmd.Run()
+	gcmd.Env = envForExec(map[string]string{"SNAP_CONFINE_RUN_UNDER_GDBSERVEr": addr})
+
+	if err := gcmd.Start(); err != nil {
+		return err
+	}
+	// TODO: detect when gdbserver is ready
+	time.Sleep(1 * time.Second)
+
+	fmt.Fprintf(Stdout, fmt.Sprintf(gdbServerWelcomeFmt, addr))
+	return gcmd.Wait()
 }
 
 func (x *cmdRun) runCmdWithTraceExec(origCmd []string, envForExec envForExecFunc) error {
