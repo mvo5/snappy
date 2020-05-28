@@ -29,14 +29,18 @@ int main(int argc, char **argv)
 			printf("-%s-\n", argv[i]);
 		}
 	}
-	// signal gdb to stop here
-	printf("\n\n");
-	printf("Welcome to `snap run --gdb`.\n");
-	printf("You are right before your application is execed():\n");
-	printf("- set any options you may need\n");
-	printf("- use 'cont' to start\n");
-	printf("\n\n");
-	raise(SIGTRAP);
+        // Signal to "snap run" that we are ready to get a debugger attached.
+        // When a debugger attached it will stop the binary at whatever
+        // point the binary is executing. So we cannot have clever code
+        // here that e.g. waits for a debugger to get attached because that
+        // code would also get stoppped/debugged by that debugger and that
+        // would be confusing for the user.
+        raise(SIGSTOP);
+
+        // once a debugger is attached we expect it to send:
+        //  "continue; signal SIGCONT"
+        // and then we end up here, right before the program is executed
+        raise(SIGTRAP);
 
 	const char *executable = argv[1];
 	execv(executable, (char *const *)&argv[1]);

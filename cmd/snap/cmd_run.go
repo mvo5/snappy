@@ -748,16 +748,42 @@ func activateXdgDocumentPortal(info *snap.Info, snapApp, hook string) error {
 
 type envForExecFunc func(extra map[string]string) []string
 
-func (x *cmdRun) runCmdUnderGdb(origCmd []string, envForExec envForExecFunc) error {
-	cmd := []string{"sudo", "-E", "gdb", "-ex=run", "-ex=catch exec", "-ex=continue", "--args"}
-	cmd = append(cmd, origCmd...)
+var gdbServerWelcomeFmt = `
+Welcome to "snap run --gdb".
+You are right before your application is run.
+Please open a different terminal and run:
 
-	gcmd := exec.Command(cmd[0], cmd[1:]...)
+gdb -ex="target remote %[1]s" -ex="continue" -ex="signal SIGCONT"
+(gdb) continue
+
+or use your favorite gdb frontend and connect to %[1]s
+`
+
+func (x *cmdRun) runCmdUnderGdb(origCmd []string, envForExec envForExecFunc) error {
+	gcmd := exec.Command(origCmd[0], origCmd[1:]...)
 	gcmd.Stdin = os.Stdin
 	gcmd.Stdout = os.Stdout
 	gcmd.Stderr = os.Stderr
 	gcmd.Env = envForExec(map[string]string{"SNAP_CONFINE_RUN_UNDER_GDB": "1"})
-	return gcmd.Run()
+	if err := gcmd.Start(); err != nil {
+		return err
+	}
+	var status syscall.WaitStatus
+	_, err := syscall.Wait4(gcmd.Process.Pid, &status, syscall.WSTOPPED, nil)
+	if err != nil {
+		return err
+	}
+
+	// TODO: pick a better TCP port
+	addr := "localhost:45678"
+	fmt.Fprintf(Stdout, fmt.Sprintf(gdbServerWelcomeFmt, addr))
+	// note that only gdbserver needs to run as root, the application
+	// keeps running as the user
+	gdbSrvCmd := exec.Command("sudo", "-E", "gdbserver", "--attach", addr, strconv.Itoa(gcmd.Process.Pid))
+	if output, err := gdbSrvCmd.CombinedOutput(); err != nil {
+		return osutil.OutputErr(output, err)
+	}
+	return nil
 }
 
 func (x *cmdRun) runCmdWithTraceExec(origCmd []string, envForExec envForExecFunc) error {
