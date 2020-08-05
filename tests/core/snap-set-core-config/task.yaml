@@ -134,3 +134,9 @@ execute: |
     snap unset system system.kernel.printk.console-loglevel
     not test -e /etc/sysctl.d/99-snapd.conf
     sysctl -n kernel.printk|MATCH "^4\s+"
+
+    # We support setting netplan via the gadget config for firstboot
+    # but *not* for anything else yet.
+    echo "netplan config can *not* be set via snap set yet"
+    not snap set system netplan.version=2 2> stderr
+    MATCH "unsupported system option" < stderr

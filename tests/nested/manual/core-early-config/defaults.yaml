@@ -3,3 +3,9 @@ defaults:
     service:
       rsyslog:
         disable: true
+      netplan:
+        testif:
+          match:
+            macaddress: "de:ad:be:ef:ca:fe"
+          set-name: testif
+          dhcp: true
