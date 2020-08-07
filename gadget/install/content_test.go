@@ -244,7 +244,7 @@ func (s *contentTestSuite) TestWriteFilesystemContent(c *C) {
 			observeErr:     tc.observeErr,
 			expectedStruct: &m.LaidOutStructure,
 		}
-		err := install.WriteContent(&m, s.gadgetRoot, obs)
+		err := install.WriteContent(&m, s.gadgetRoot, "", obs)
 		if tc.err == "" {
 			c.Assert(err, IsNil)
 		} else {
@@ -283,7 +283,7 @@ func (s *contentTestSuite) TestWriteRawContent(c *C) {
 		},
 	}
 
-	err = install.WriteContent(&m, s.gadgetRoot, nil)
+	err = install.WriteContent(&m, s.gadgetRoot, "", nil)
 	c.Assert(err, IsNil)
 
 	content, err := ioutil.ReadFile(m.Node)

@@ -57,7 +57,7 @@ func (s *installSuite) SetUpTest(c *C) {
 }
 
 func (s *installSuite) TestInstallRunError(c *C) {
-	err := install.Run("", "", install.Options{}, nil)
+	err := install.Run("", "", "", install.Options{}, nil)
 	c.Assert(err, ErrorMatches, "cannot use empty gadget root directory")
 }
 
@@ -347,7 +347,7 @@ func layoutFromYaml(c *C, gadgetYaml string) *gadget.LaidOutVolume {
 	c.Assert(err, IsNil)
 	err = ioutil.WriteFile(filepath.Join(gadgetRoot, "meta", "gadget.yaml"), []byte(gadgetYaml), 0644)
 	c.Assert(err, IsNil)
-	pv, err := gadget.PositionedVolumeFromGadget(gadgetRoot)
+	pv, err := gadget.PositionedVolumeFromGadget(gadgetRoot, "")
 	c.Assert(err, IsNil)
 	return pv
 }

@@ -1701,7 +1701,7 @@ func (s *gadgetYamlTestSuite) TestPositionedVolumeFromGadgetMultiVolume(c *C) {
 	err := ioutil.WriteFile(s.gadgetYamlPath, mockMultiVolumeGadgetYaml, 0644)
 	c.Assert(err, IsNil)
 
-	_, err = gadget.PositionedVolumeFromGadget(s.dir)
+	_, err = gadget.PositionedVolumeFromGadget(s.dir, "")
 	c.Assert(err, ErrorMatches, "cannot position multiple volumes yet")
 }
 
@@ -1713,7 +1713,7 @@ func (s *gadgetYamlTestSuite) TestPositionedVolumeFromGadgetHappy(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	lv, err := gadget.PositionedVolumeFromGadget(s.dir)
+	lv, err := gadget.PositionedVolumeFromGadget(s.dir, "")
 	c.Assert(err, IsNil)
 	c.Assert(lv.Volume.Bootloader, Equals, "grub")
 	// mbr, bios-boot, efi-system
@@ -1798,6 +1798,44 @@ func (s *gadgetYamlTestSuite) TestReadGadgetYamlFromSnapFileValid(c *C) {
 			},
 		},
 	})
+}
+
+var gadgetYamlRPiFromKernel = []byte(`
+device-tree: bcm2709-rpi-2-b
+volumes:
+  pi:
+    schema: mbr
+    bootloader: u-boot
+    structure:
+      - type: 0C
+        filesystem: vfat
+        filesystem-label: system-boot
+        size: 128M
+        content:
+          - source: $kernel:pi-dtbs/boot-assets/
+            target: /
+`)
+
+// XXX: ensure this matches the real kernel yaml
+var kernelYamlRPi = []byte(`
+assets:
+  pi-dtbs:
+    edition: 1
+    content:
+      - boot-assets/
+`)
+
+func (s *gadgetYamlTestSuite) TestMergeKernelYaml(c *C) {
+	gi, err := gadget.InfoFromGadgetYaml(gadgetYamlRPiFromKernel, coreConstraints)
+	c.Assert(err, IsNil)
+	ki, err := gadget.KernelInfoFromKernelYaml(kernelYamlRPi)
+	c.Assert(err, IsNil)
+
+	c.Check(gi.Volumes["pi"].Structure[0].Content, DeepEquals, []gadget.VolumeContent{
+		{Source: "$kernel:pi-dtbs/boot-assets/", Target: "/"},
+	})
+	// XXX: test doing stuff with kernel refs
+	fmt.Println(gi, ki)
 }
 
 type gadgetCompatibilityTestSuite struct{}

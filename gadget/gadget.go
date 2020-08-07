@@ -176,6 +176,12 @@ func (vs *VolumeStructure) EffectiveFilesystemLabel() string {
 // either files within a filesystem described by the structure or raw images
 // written into the area of a bare structure.
 type VolumeContent struct {
+	// XXX: make this abolute to avoid having to juggle gadget/kernel
+	//      roots
+	// XXX2: add something like "ResolveAllVolumeSources()" or similar.
+	//       E.g. gadget.Info(gadget.KernelInfo) would resolves all
+	//       $kernel
+	//
 	// Source is the data of the partition relative to the gadget base
 	// directory
 	Source string `yaml:"source"`
@@ -988,7 +994,7 @@ func IsCompatible(current, new *Info) error {
 
 // PositionedVolumeFromGadget takes a gadget rootdir and positions the
 // partitions as specified.
-func PositionedVolumeFromGadget(gadgetRoot string) (*LaidOutVolume, error) {
+func PositionedVolumeFromGadget(gadgetRoot, kernelRoot string) (*LaidOutVolume, error) {
 	// TODO:UC20: since this is unconstrained via the model, it returns an
 	//            err == nil and an empty info when the gadgetRoot does not
 	//            actually contain the required gadget.yaml file (for example
