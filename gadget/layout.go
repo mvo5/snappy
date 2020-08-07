@@ -191,7 +191,7 @@ func LayoutVolumePartially(volume *Volume, constraints LayoutConstraints) (*Part
 
 // LayoutVolume attempts to completely lay out the volume, that is the
 // structures and their content, using provided constraints
-func LayoutVolume(gadgetRootDir string, volume *Volume, constraints LayoutConstraints) (*LaidOutVolume, error) {
+func LayoutVolume(gadgetRootDir, kernelRootDir string, volume *Volume, constraints LayoutConstraints) (*LaidOutVolume, error) {
 
 	structures, byName, err := layoutVolumeStructures(volume, constraints)
 	if err != nil {

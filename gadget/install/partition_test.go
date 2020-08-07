@@ -188,7 +188,7 @@ func (s *partitionTestSuite) TestCreatePartitions(c *C) {
 	gadgetRoot := filepath.Join(c.MkDir(), "gadget")
 	err := makeMockGadget(gadgetRoot, gadgetContent)
 	c.Assert(err, IsNil)
-	pv, err := gadget.PositionedVolumeFromGadget(gadgetRoot)
+	pv, err := gadget.PositionedVolumeFromGadget(gadgetRoot, "")
 	c.Assert(err, IsNil)
 
 	dl, err := gadget.OnDiskVolumeFromDevice("/dev/node")

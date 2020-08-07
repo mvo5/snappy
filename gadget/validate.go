@@ -60,7 +60,9 @@ func Validate(gadgetSnapRootDir string, model Model) error {
 	}
 
 	for name, vol := range info.Volumes {
-		lv, err := LayoutVolume(gadgetSnapRootDir, &vol, defaultConstraints)
+		// XXX: should we allow validating against a given kernel?
+		kernelSnapRootDir := ""
+		lv, err := LayoutVolume(gadgetSnapRootDir, kernelSnapRootDir, &vol, defaultConstraints)
 		if err != nil {
 			return fmt.Errorf("invalid layout of volume %q: %v", name, err)
 		}

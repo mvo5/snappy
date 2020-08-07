@@ -62,6 +62,7 @@ func checkContent(content *VolumeContent) error {
 // MountedFilesystemWriter assists in writing contents of a structure to a
 // mounted filesystem.
 type MountedFilesystemWriter struct {
+	// split into gadgetContentDIr, kernelContentDir
 	contentDir string
 	ps         *LaidOutStructure
 	observer   ContentObserver
