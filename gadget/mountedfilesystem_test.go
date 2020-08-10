@@ -185,7 +185,7 @@ func (s *mountedfilesystemTestSuite) TestWriteDirectoryContents(c *C) {
 			Filesystem: "ext4",
 		},
 	}
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 
 	outDir := c.MkDir()
@@ -211,7 +211,7 @@ func (s *mountedfilesystemTestSuite) TestWriteDirectoryWhole(c *C) {
 			Filesystem: "ext4",
 		},
 	}
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 
 	outDir := c.MkDir()
@@ -232,7 +232,7 @@ func (s *mountedfilesystemTestSuite) TestWriteNonDirectory(c *C) {
 			Filesystem: "ext4",
 		},
 	}
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 
 	outDir := c.MkDir()
@@ -324,7 +324,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterHappy(c *C) {
 		c:              c,
 		expectedStruct: ps,
 	}
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, obs)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, obs)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -378,7 +378,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterNonDirectory(c *C) {
 
 	outDir := c.MkDir()
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -403,7 +403,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterErrorMissingSource(c *C) {
 
 	outDir := c.MkDir()
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -433,7 +433,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterErrorBadDestination(c *C) 
 	err := os.Chmod(outDir, 0000)
 	c.Assert(err, IsNil)
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -467,7 +467,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterConflictingDestinationDire
 
 	outDir := c.MkDir()
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, psOverwritesDirectoryWithFile, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(psOverwritesDirectoryWithFile, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -501,7 +501,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterConflictingDestinationFile
 
 	outDir := c.MkDir()
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, psOverwritesFile, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(psOverwritesFile, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -537,7 +537,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterErrorNested(c *C) {
 
 	makeSizedFile(c, filepath.Join(outDir, "/foo-dir/foo/bar"), 0, nil)
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -618,7 +618,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterPreserve(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -663,7 +663,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterNonFilePreserveError(c *C)
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -694,7 +694,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterImplicitDir(c *C) {
 
 	outDir := c.MkDir()
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -719,13 +719,13 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterNoFs(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, ErrorMatches, "structure #0 has no filesystem")
 	c.Assert(rw, IsNil)
 }
 
 func (s *mountedfilesystemTestSuite) TestMountedWriterTrivialValidation(c *C) {
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, nil, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(nil, nil)
 	c.Assert(err, ErrorMatches, `internal error: \*LaidOutStructure.*`)
 	c.Assert(rw, IsNil)
 
@@ -743,11 +743,11 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterTrivialValidation(c *C) {
 		},
 	}
 
-	rw, err = gadget.NewMountedFilesystemWriter("", ps, nil)
+	rw, err = gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, ErrorMatches, `internal error: gadget content directory cannot be unset`)
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err = gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 
 	err = rw.Write("", nil)
@@ -784,7 +784,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterSymlinks(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, nil)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, nil)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -856,7 +856,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupSimple(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -907,7 +907,7 @@ func (s *mountedfilesystemTestSuite) TestMountedWriterObserverErr(c *C) {
 		observeErr:     errors.New("observe fail"),
 		expectedStruct: ps,
 	}
-	rw, err := gadget.NewMountedFilesystemWriter(s.dir, ps, obs)
+	rw, err := gadget.NewMountedFilesystemWriter(ps, obs)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -964,7 +964,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupWithDirectories(c *
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1018,7 +1018,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupNonexistent(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1052,7 +1052,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupFailsOnBackupDirErr
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1098,7 +1098,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupFailsOnDestinationE
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1139,7 +1139,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupFailsOnBadSrcCompar
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1205,7 +1205,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupFunnyNamesConflictB
 	} {
 		err := os.MkdirAll(tc.backupDir, 0755)
 		c.Assert(err, IsNil)
-		rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, tc.backupDir, func(to *gadget.LaidOutStructure) (string, error) {
+		rw, err := gadget.NewMountedFilesystemUpdater(ps, tc.backupDir, func(to *gadget.LaidOutStructure) (string, error) {
 			c.Check(to, DeepEquals, ps)
 			return tc.outDir, nil
 		})
@@ -1253,7 +1253,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupFunnyNamesOk(c *C) 
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1299,7 +1299,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupErrorOnSymlinkFile(
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1336,7 +1336,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupErrorOnSymlinkInPre
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1440,7 +1440,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterUpdate(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1505,7 +1505,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterDirContents(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1560,7 +1560,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterExpectsBackup(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1618,7 +1618,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterEmptyDir(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1675,7 +1675,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterSameFileSkipped(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1728,7 +1728,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterLonePrefix(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1764,7 +1764,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterUpdateErrorOnSymlinkToFil
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1802,7 +1802,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBackupErrorOnSymlinkToDir
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1850,7 +1850,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackFromBackup(c *C) 
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1898,7 +1898,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackSkipSame(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1945,7 +1945,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackSkipPreserved(c *
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -1997,7 +1997,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackNewFiles(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -2044,7 +2044,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackRestoreFails(c *C
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -2096,7 +2096,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackNotWritten(c *C) 
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -2161,7 +2161,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterRollbackDirectory(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -2283,7 +2283,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterEndToEndOne(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -2389,7 +2389,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterTrivialValidation(c *C) {
 		return "", nil
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, psNoFs, s.backup, lookupFail)
+	rw, err := gadget.NewMountedFilesystemUpdater(psNoFs, s.backup, lookupFail)
 	c.Assert(err, ErrorMatches, "structure #0 has no filesystem")
 	c.Assert(rw, IsNil)
 
@@ -2401,19 +2401,19 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterTrivialValidation(c *C) {
 		},
 	}
 
-	rw, err = gadget.NewMountedFilesystemUpdater("", ps, s.backup, lookupFail)
+	rw, err = gadget.NewMountedFilesystemUpdater(ps, s.backup, lookupFail)
 	c.Assert(err, ErrorMatches, `internal error: gadget content directory cannot be unset`)
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewMountedFilesystemUpdater(s.dir, ps, "", lookupFail)
+	rw, err = gadget.NewMountedFilesystemUpdater(ps, "", lookupFail)
 	c.Assert(err, ErrorMatches, `internal error: backup directory must not be unset`)
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, nil)
+	rw, err = gadget.NewMountedFilesystemUpdater(ps, s.backup, nil)
 	c.Assert(err, ErrorMatches, `internal error: mount lookup helper must be provided`)
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewMountedFilesystemUpdater(s.dir, nil, s.backup, lookupFail)
+	rw, err = gadget.NewMountedFilesystemUpdater(nil, s.backup, lookupFail)
 	c.Assert(err, ErrorMatches, `internal error: \*LaidOutStructure.*`)
 	c.Assert(rw, IsNil)
 
@@ -2436,7 +2436,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterTrivialValidation(c *C) {
 			},
 		}
 
-		rw, err := gadget.NewMountedFilesystemUpdater(s.dir, testPs, s.backup, lookupOk)
+		rw, err := gadget.NewMountedFilesystemUpdater(testPs, s.backup, lookupOk)
 		c.Assert(err, IsNil)
 		c.Assert(rw, NotNil)
 
@@ -2470,7 +2470,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterMountLookupFail(c *C) {
 		return "", errors.New("fail fail fail")
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, lookupFail)
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, lookupFail)
 	c.Assert(err, ErrorMatches, "cannot find mount location of structure #0: fail fail fail")
 	c.Assert(rw, IsNil)
 }
@@ -2501,7 +2501,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterNonFilePreserveError(c *C
 		},
 	}
 
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup, func(to *gadget.LaidOutStructure) (string, error) {
 		c.Check(to, DeepEquals, ps)
 		return outDir, nil
 	})
@@ -2554,7 +2554,7 @@ managed grub.cfg from disk`
 			},
 		},
 	}
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup,
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup,
 		func(to *gadget.LaidOutStructure) (string, error) {
 			c.Check(to, DeepEquals, ps)
 			return outDir, nil
@@ -2641,7 +2641,7 @@ func (s *mountedfilesystemTestSuite) TestMountedUpdaterBootAssetsErr(c *C) {
 			},
 		},
 	}
-	rw, err := gadget.NewMountedFilesystemUpdater(s.dir, ps, s.backup,
+	rw, err := gadget.NewMountedFilesystemUpdater(ps, s.backup,
 		func(to *gadget.LaidOutStructure) (string, error) {
 			return outDir, nil
 		})

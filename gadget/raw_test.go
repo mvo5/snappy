@@ -99,7 +99,7 @@ func (r *rawTestSuite) TestRawWriterHappy(c *C) {
 			},
 		},
 	}
-	rw, err := gadget.NewRawStructureWriter(r.dir, ps)
+	rw, err := gadget.NewRawStructureWriter(ps)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -139,7 +139,7 @@ func (r *rawTestSuite) TestRawWriterNoFile(c *C) {
 			},
 		},
 	}
-	rw, err := gadget.NewRawStructureWriter(r.dir, ps)
+	rw, err := gadget.NewRawStructureWriter(ps)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -192,7 +192,7 @@ func (r *rawTestSuite) TestRawWriterFailInWriteSeeker(c *C) {
 			},
 		},
 	}
-	rw, err := gadget.NewRawStructureWriter(r.dir, ps)
+	rw, err := gadget.NewRawStructureWriter(ps)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -225,7 +225,7 @@ func (r *rawTestSuite) TestRawWriterNoImage(c *C) {
 			},
 		},
 	}
-	rw, err := gadget.NewRawStructureWriter(r.dir, ps)
+	rw, err := gadget.NewRawStructureWriter(ps)
 	c.Assert(err, IsNil)
 	c.Assert(rw, NotNil)
 
@@ -242,7 +242,7 @@ func (r *rawTestSuite) TestRawWriterFailWithNonBare(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewRawStructureWriter(r.dir, ps)
+	rw, err := gadget.NewRawStructureWriter(ps)
 	c.Assert(err, ErrorMatches, "internal error: structure #0 has a filesystem")
 	c.Assert(rw, IsNil)
 }
@@ -254,11 +254,11 @@ func (r *rawTestSuite) TestRawWriterInternalErrors(c *C) {
 		},
 	}
 
-	rw, err := gadget.NewRawStructureWriter("", ps)
+	rw, err := gadget.NewRawStructureWriter(ps)
 	c.Assert(err, ErrorMatches, "internal error: gadget content directory cannot be unset")
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewRawStructureWriter(r.dir, nil)
+	rw, err = gadget.NewRawStructureWriter(nil)
 	c.Assert(err, ErrorMatches, `internal error: \*LaidOutStructure is nil`)
 	c.Assert(rw, IsNil)
 }
@@ -278,7 +278,7 @@ func (r *rawTestSuite) TestRawUpdaterFailWithNonBare(c *C) {
 		},
 	}
 
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Fatalf("unexpected call")
 		return "", 0, nil
 	})
@@ -318,7 +318,7 @@ func (r *rawTestSuite) TestRawUpdaterBackupUpdateRestoreSame(c *C) {
 			},
 		},
 	}
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		// Structure has a partition, thus it starts at 0 offset.
 		return partitionPath, 0, nil
@@ -337,7 +337,7 @@ func (r *rawTestSuite) TestRawUpdaterBackupUpdateRestoreSame(c *C) {
 	c.Assert(err, IsNil)
 	// update should be a noop now, use the same locations, point to a file
 	// of 0 size, so that seek fails and write would increase the size
-	ru, err = gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err = gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		return emptyDiskPath, 0, nil
 	})
 	c.Assert(err, IsNil)
@@ -405,7 +405,7 @@ func (r *rawTestSuite) TestRawUpdaterBackupUpdateRestoreDifferent(c *C) {
 			},
 		},
 	}
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		// Structure has a partition, thus it starts at 0 offset.
 		return diskPath, 0, nil
@@ -494,7 +494,7 @@ func (r *rawTestSuite) TestRawUpdaterBackupUpdateRestoreNoPartition(c *C) {
 			},
 		},
 	}
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		// No partition table, returned path corresponds to a disk, start offset is non-0.
 		return diskPath, ps.StartOffset, nil
@@ -548,7 +548,7 @@ func (r *rawTestSuite) TestRawUpdaterBackupErrors(c *C) {
 		},
 	}
 
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		return diskPath, 0, nil
 	})
@@ -597,7 +597,7 @@ func (r *rawTestSuite) TestRawUpdaterBackupIdempotent(c *C) {
 		},
 	}
 
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		return diskPath, 0, nil
 	})
@@ -639,11 +639,11 @@ func (r *rawTestSuite) TestRawUpdaterFindDeviceFailed(c *C) {
 		},
 	}
 
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, nil)
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, nil)
 	c.Assert(err, ErrorMatches, "internal error: device lookup helper must be provided")
 	c.Assert(ru, IsNil)
 
-	ru, err = gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err = gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		return "", 0, errors.New("failed")
 	})
@@ -681,7 +681,7 @@ func (r *rawTestSuite) TestRawUpdaterRollbackErrors(c *C) {
 		},
 	}
 
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		return diskPath, 0, nil
 	})
@@ -727,7 +727,7 @@ func (r *rawTestSuite) TestRawUpdaterUpdateErrors(c *C) {
 		},
 	}
 
-	ru, err := gadget.NewRawStructureUpdater(r.dir, ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
+	ru, err := gadget.NewRawStructureUpdater(ps, r.backup, func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		c.Check(to, DeepEquals, ps)
 		return diskPath, 0, nil
 	})
@@ -787,19 +787,19 @@ func (r *rawTestSuite) TestRawUpdaterInternalErrors(c *C) {
 	f := func(to *gadget.LaidOutStructure) (string, gadget.Size, error) {
 		return "", 0, errors.New("unexpected call")
 	}
-	rw, err := gadget.NewRawStructureUpdater("", ps, r.backup, f)
+	rw, err := gadget.NewRawStructureUpdater(ps, r.backup, f)
 	c.Assert(err, ErrorMatches, "internal error: gadget content directory cannot be unset")
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewRawStructureUpdater(r.dir, nil, r.backup, f)
+	rw, err = gadget.NewRawStructureUpdater(nil, r.backup, f)
 	c.Assert(err, ErrorMatches, `internal error: \*LaidOutStructure is nil`)
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewRawStructureUpdater(r.dir, ps, "", f)
+	rw, err = gadget.NewRawStructureUpdater(ps, "", f)
 	c.Assert(err, ErrorMatches, "internal error: backup directory cannot be unset")
 	c.Assert(rw, IsNil)
 
-	rw, err = gadget.NewRawStructureUpdater(r.dir, ps, r.backup, nil)
+	rw, err = gadget.NewRawStructureUpdater(ps, r.backup, nil)
 	c.Assert(err, ErrorMatches, "internal error: device lookup helper must be provided")
 	c.Assert(rw, IsNil)
 }

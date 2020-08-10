@@ -106,7 +106,7 @@ func writeFilesystemContent(ds *gadget.OnDiskStructure, gadgetRoot, kernelRoot s
 			err = errUnmount
 		}
 	}()
-	fs, err := gadget.NewMountedFilesystemWriter(gadgetRoot, &ds.LaidOutStructure, observer)
+	fs, err := gadget.NewMountedFilesystemWriter(&ds.LaidOutStructure, observer)
 	if err != nil {
 		return fmt.Errorf("cannot create filesystem image writer: %v", err)
 	}
@@ -130,7 +130,7 @@ func writeNonFSContent(ds *gadget.OnDiskStructure, gadgetRoot, kernelRoot string
 	// volume, shift the structure offsets to 0, so that it starts
 	// at the beginning of the partition
 	l := gadget.ShiftStructureTo(ds.LaidOutStructure, 0)
-	raw, err := gadget.NewRawStructureWriter(gadgetRoot, &l)
+	raw, err := gadget.NewRawStructureWriter(&l)
 	if err != nil {
 		return err
 	}

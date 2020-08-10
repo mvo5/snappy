@@ -304,7 +304,7 @@ func applyUpdates(new GadgetData, updates []updatePair, rollbackDir string) erro
 	updaters := make([]Updater, len(updates))
 
 	for i, one := range updates {
-		up, err := updaterForStructure(one.to, new.RootDir, rollbackDir)
+		up, err := updaterForStructure(one.to, rollbackDir)
 		if err != nil {
 			return fmt.Errorf("cannot prepare update for volume structure %v: %v", one.to, err)
 		}
@@ -356,19 +356,19 @@ func applyUpdates(new GadgetData, updates []updatePair, rollbackDir string) erro
 
 var updaterForStructure = updaterForStructureImpl
 
-func updaterForStructureImpl(ps *LaidOutStructure, newRootDir, rollbackDir string) (Updater, error) {
+func updaterForStructureImpl(ps *LaidOutStructure, rollbackDir string) (Updater, error) {
 	var updater Updater
 	var err error
 	if !ps.HasFilesystem() {
-		updater, err = newRawStructureUpdater(newRootDir, ps, rollbackDir, findDeviceForStructureWithFallback)
+		updater, err = newRawStructureUpdater(ps, rollbackDir, findDeviceForStructureWithFallback)
 	} else {
-		updater, err = newMountedFilesystemUpdater(newRootDir, ps, rollbackDir, findMountPointForStructure)
+		updater, err = newMountedFilesystemUpdater(ps, rollbackDir, findMountPointForStructure)
 	}
 	return updater, err
 }
 
 // MockUpdaterForStructure replace internal call with a mocked one, for use in tests only
-func MockUpdaterForStructure(mock func(ps *LaidOutStructure, rootDir, rollbackDir string) (Updater, error)) (restore func()) {
+func MockUpdaterForStructure(mock func(ps *LaidOutStructure, rollbackDir string) (Updater, error)) (restore func()) {
 	old := updaterForStructure
 	updaterForStructure = mock
 	return func() {

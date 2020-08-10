@@ -712,8 +712,7 @@ func (u *updateTestSuite) TestUpdateApplyHappy(c *C) {
 	updaterForStructureCalls := 0
 	updateCalls := make(map[string]bool)
 	backupCalls := make(map[string]bool)
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
-		c.Assert(psRootDir, Equals, newData.RootDir)
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		c.Assert(psRollbackDir, Equals, rollbackDir)
 
 		switch updaterForStructureCalls {
@@ -788,8 +787,7 @@ func (u *updateTestSuite) TestUpdateApplyOnlyWhenNeeded(c *C) {
 	newData.Info.Volumes["foo"].Structure[2].Update.Edition = 3
 
 	updaterForStructureCalls := 0
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
-		c.Assert(psRootDir, Equals, newData.RootDir)
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		c.Assert(psRollbackDir, Equals, rollbackDir)
 
 		switch updaterForStructureCalls {
@@ -992,7 +990,7 @@ func (u *updateTestSuite) TestUpdateApplyErrorDifferentVolume(c *C) {
 	newData := gadget.GadgetData{Info: newInfo, RootDir: c.MkDir()}
 	rollbackDir := c.MkDir()
 
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		c.Fatalf("unexpected call")
 		return &mockUpdater{}, nil
 	})
@@ -1036,7 +1034,7 @@ func (u *updateTestSuite) TestUpdateApplyUpdatesAreOptInWithDefaultPolicy(c *C) 
 
 	rollbackDir := c.MkDir()
 
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		c.Fatalf("unexpected call")
 		return &mockUpdater{}, nil
 	})
@@ -1089,7 +1087,7 @@ func (u *updateTestSuite) TestUpdateApplyUpdatesArePolicyControlled(c *C) {
 	newData.Info.Volumes["foo"].Structure[4].Update.Edition = 5
 
 	toUpdate := map[string]int{}
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		toUpdate[ps.Name]++
 		return &mockUpdater{}, nil
 	})
@@ -1140,7 +1138,7 @@ func (u *updateTestSuite) TestUpdateApplyUpdatesRemodelPolicy(c *C) {
 	oldData.Info.Volumes["foo"].Structure[4].Update.Edition = 5
 
 	toUpdate := map[string]int{}
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		toUpdate[ps.Name] = toUpdate[ps.Name] + 1
 		return &mockUpdater{}, nil
 	})
@@ -1165,7 +1163,7 @@ func (u *updateTestSuite) TestUpdateApplyBackupFails(c *C) {
 	newData.Info.Volumes["foo"].Structure[2].Update.Edition = 3
 
 	updaterForStructureCalls := 0
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		updater := &mockUpdater{
 			updateCb: func() error {
 				c.Fatalf("unexpected update call")
@@ -1203,7 +1201,7 @@ func (u *updateTestSuite) TestUpdateApplyUpdateFailsThenRollback(c *C) {
 	backupCalls := make(map[string]bool)
 	rollbackCalls := make(map[string]bool)
 	updaterForStructureCalls := 0
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		updater := &mockUpdater{
 			backupCb: func() error {
 				backupCalls[ps.Name] = true
@@ -1266,7 +1264,7 @@ func (u *updateTestSuite) TestUpdateApplyUpdateErrorRollbackFail(c *C) {
 	backupCalls := make(map[string]bool)
 	rollbackCalls := make(map[string]bool)
 	updaterForStructureCalls := 0
-	restore = gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore = gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		updater := &mockUpdater{
 			backupCb: func() error {
 				backupCalls[ps.Name] = true
@@ -1334,7 +1332,7 @@ func (u *updateTestSuite) TestUpdateApplyBadUpdater(c *C) {
 	newData.Info.Volumes["foo"].Structure[1].Update.Edition = 2
 	newData.Info.Volumes["foo"].Structure[2].Update.Edition = 3
 
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		return nil, errors.New("bad updater for structure")
 	})
 	defer restore()
@@ -1345,7 +1343,6 @@ func (u *updateTestSuite) TestUpdateApplyBadUpdater(c *C) {
 }
 
 func (u *updateTestSuite) TestUpdaterForStructure(c *C) {
-	gadgetRootDir := c.MkDir()
 	rollbackDir := c.MkDir()
 	rootDir := c.MkDir()
 
@@ -1374,7 +1371,7 @@ func (u *updateTestSuite) TestUpdaterForStructure(c *C) {
 		},
 		StartOffset: 1 * gadget.SizeMiB,
 	}
-	updater, err := gadget.UpdaterForStructure(psBare, gadgetRootDir, rollbackDir)
+	updater, err := gadget.UpdaterForStructure(psBare, rollbackDir)
 	c.Assert(err, IsNil)
 	c.Assert(updater, FitsTypeOf, &gadget.RawStructureUpdater{})
 
@@ -1386,18 +1383,9 @@ func (u *updateTestSuite) TestUpdaterForStructure(c *C) {
 		},
 		StartOffset: 1 * gadget.SizeMiB,
 	}
-	updater, err = gadget.UpdaterForStructure(psFs, gadgetRootDir, rollbackDir)
+	updater, err = gadget.UpdaterForStructure(psFs, rollbackDir)
 	c.Assert(err, IsNil)
 	c.Assert(updater, FitsTypeOf, &gadget.MountedFilesystemUpdater{})
-
-	// trigger errors
-	updater, err = gadget.UpdaterForStructure(psBare, gadgetRootDir, "")
-	c.Assert(err, ErrorMatches, "internal error: backup directory cannot be unset")
-	c.Assert(updater, IsNil)
-
-	updater, err = gadget.UpdaterForStructure(psFs, "", rollbackDir)
-	c.Assert(err, ErrorMatches, "internal error: gadget content directory cannot be unset")
-	c.Assert(updater, IsNil)
 }
 
 func (u *updateTestSuite) TestUpdaterMultiVolumesDoesNotError(c *C) {
@@ -1443,7 +1431,7 @@ func (u *updateTestSuite) TestUpdateApplyNoChangedContentInAll(c *C) {
 
 	expectedStructs := []string{"first", "second"}
 	updateCalls := 0
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		mu := &mockUpdater{
 			updateCb: func() error {
 				c.Assert(expectedStructs, testutil.Contains, ps.Name)
@@ -1477,7 +1465,7 @@ func (u *updateTestSuite) TestUpdateApplyNoChangedContentInSome(c *C) {
 
 	expectedStructs := []string{"first", "second"}
 	updateCalls := 0
-	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRootDir, psRollbackDir string) (gadget.Updater, error) {
+	restore := gadget.MockUpdaterForStructure(func(ps *gadget.LaidOutStructure, psRollbackDir string) (gadget.Updater, error) {
 		mu := &mockUpdater{
 			updateCb: func() error {
 				c.Assert(expectedStructs, testutil.Contains, ps.Name)

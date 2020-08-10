@@ -62,28 +62,22 @@ func checkContent(content *VolumeContent) error {
 // MountedFilesystemWriter assists in writing contents of a structure to a
 // mounted filesystem.
 type MountedFilesystemWriter struct {
-	// split into gadgetContentDIr, kernelContentDir
-	contentDir string
-	ps         *LaidOutStructure
-	observer   ContentObserver
+	ps       *LaidOutStructure
+	observer ContentObserver
 }
 
 // NewMountedFilesystemWriter returns a writer capable of writing provided
 // structure, with content of the structure stored in the given root directory.
-func NewMountedFilesystemWriter(contentDir string, ps *LaidOutStructure, observer ContentObserver) (*MountedFilesystemWriter, error) {
+func NewMountedFilesystemWriter(ps *LaidOutStructure, observer ContentObserver) (*MountedFilesystemWriter, error) {
 	if ps == nil {
 		return nil, fmt.Errorf("internal error: *LaidOutStructure is nil")
 	}
 	if !ps.HasFilesystem() {
 		return nil, fmt.Errorf("structure %v has no filesystem", ps)
 	}
-	if contentDir == "" {
-		return nil, fmt.Errorf("internal error: gadget content directory cannot be unset")
-	}
 	fw := &MountedFilesystemWriter{
-		contentDir: contentDir,
-		ps:         ps,
-		observer:   observer,
+		ps:       ps,
+		observer: observer,
 	}
 	return fw, nil
 }
@@ -234,7 +228,7 @@ func (m *MountedFilesystemWriter) writeVolumeContent(volumeRoot string, content 
 	if err := checkContent(content); err != nil {
 		return err
 	}
-	realSource := filepath.Join(m.contentDir, content.Source)
+	realSource := content.Source
 	realTarget := filepath.Join(volumeRoot, content.Target)
 
 	// filepath trims the trailing /, restore if needed
@@ -296,8 +290,8 @@ type mountedFilesystemUpdater struct {
 // structure, with structure content coming from provided root directory. The
 // mount is located by calling a mount lookup helper. The backup directory
 // contains backup state information for use during rollback.
-func newMountedFilesystemUpdater(rootDir string, ps *LaidOutStructure, backupDir string, mountLookup mountLookupFunc) (*mountedFilesystemUpdater, error) {
-	fw, err := NewMountedFilesystemWriter(rootDir, ps, nil)
+func newMountedFilesystemUpdater(ps *LaidOutStructure, backupDir string, mountLookup mountLookupFunc) (*mountedFilesystemUpdater, error) {
+	fw, err := NewMountedFilesystemWriter(ps, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -390,13 +384,7 @@ func (f *mountedFilesystemUpdater) entryDestPaths(dstRoot, source, target, backu
 // entrySourcePath returns the path of given source entry within the root
 // directory provided during initialization.
 func (f *mountedFilesystemUpdater) entrySourcePath(source string) string {
-	srcPath := filepath.Join(f.contentDir, source)
-
-	if strings.HasSuffix(source, "/") {
-		// restore trailing / if one was there
-		srcPath += "/"
-	}
-	return srcPath
+	return source
 }
 
 // Update applies an update to a mounted filesystem. The caller must have
