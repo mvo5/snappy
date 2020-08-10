@@ -35,6 +35,12 @@ func validateVolumeContentsPresence(gadgetSnapRootDir string, vol *LaidOutVolume
 			continue
 		}
 		for _, c := range s.Content {
+			// skip validation of external refs
+			// XXX: validate we only allow $kernel?
+			if strings.HasPrefix(c.Source, "$") || strings.HasPrefix(c.Image, "$") {
+				continue
+			}
+
 			realSource := filepath.Join(gadgetSnapRootDir, c.Source)
 			if !osutil.FileExists(realSource) {
 				return fmt.Errorf("structure %v, content %v: source path does not exist", s, c)
@@ -61,7 +67,7 @@ func Validate(gadgetSnapRootDir string, model Model) error {
 
 	for name, vol := range info.Volumes {
 		// XXX: should we allow validating against a given kernel?
-		kernelSnapRootDir := ""
+		kernelSnapRootDir := "unset-for-now"
 		lv, err := LayoutVolume(gadgetSnapRootDir, kernelSnapRootDir, &vol, defaultConstraints)
 		if err != nil {
 			return fmt.Errorf("invalid layout of volume %q: %v", name, err)
