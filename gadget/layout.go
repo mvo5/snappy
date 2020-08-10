@@ -20,10 +20,14 @@
 package gadget
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+
+	"github.com/snapcore/snapd/strutil"
 )
 
 // LayoutConstraints defines the constraints for arranging structures within a
@@ -189,9 +193,73 @@ func LayoutVolumePartially(volume *Volume, constraints LayoutConstraints) (*Part
 	return vol, nil
 }
 
+// resolveContentPaths resolves all content paths inside the given
+// Volume pointer (in place) to point to absolute paths.
+func resolveContentPaths(gadgetRootDir, kernelRootDir string, unresolvedVolume *Volume) (resolvedVolume *Volume, err error) {
+	var kernelInfo *KernelInfo
+
+	if kernelRootDir != "" {
+		kernelInfo, err = ReadKernelInfo(kernelRootDir)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// HACK: "copy" unresolved volume
+	var volume Volume
+	b, err := json.Marshal(unresolvedVolume)
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshall %q", unresolvedVolume)
+	}
+	if err := json.Unmarshal(b, &volume); err != nil {
+		return nil, fmt.Errorf("cannot unmarshall %q", unresolvedVolume)
+	}
+
+	for i, s := range volume.Structure {
+		for j, u := range s.Content {
+			// XXX: do the same for u.Image?
+			// XXX2: validate that u.Image cannot have "$kernel:" until we have support for this here
+
+			if strings.HasPrefix(u.Source, gadgetRootDir) || (kernelRootDir != "" && strings.HasPrefix(u.Source, kernelRootDir)) {
+				return nil, fmt.Errorf("cannot use volume, already processed")
+			}
+
+			// content may refer to "$kernel:<name>/<content>"
+			if strings.HasPrefix(u.Source, "$kernel:") {
+				if kernelInfo == nil {
+					return nil, fmt.Errorf("internal error: $kernel: reference but no kernel info available")
+				}
+
+				kernelRef := strings.SplitN(u.Source, ":", 2)[1]
+				l := strings.SplitN(kernelRef, "/", 2)
+				wantedAsset := l[0]
+				wantedContent := l[1]
+				kernelAsset, ok := kernelInfo.Assets[wantedAsset]
+				if !ok {
+					return nil, fmt.Errorf("cannot find %q in kernel info from %q", wantedAsset, kernelRootDir)
+				}
+				if !strutil.ListContains(kernelAsset.Content, wantedContent) {
+					return nil, fmt.Errorf("cannot find wanted kernel content %q in %q", wantedContent, kernelRootDir)
+				}
+				u.Source = filepath.Join(kernelRootDir, wantedContent)
+			} else if u.Source != "" {
+				u.Source = filepath.Join(gadgetRootDir, u.Source)
+			}
+			volume.Structure[i].Content[j] = u
+		}
+	}
+
+	return &volume, nil
+}
+
 // LayoutVolume attempts to completely lay out the volume, that is the
 // structures and their content, using provided constraints
-func LayoutVolume(gadgetRootDir, kernelRootDir string, volume *Volume, constraints LayoutConstraints) (*LaidOutVolume, error) {
+func LayoutVolume(gadgetRootDir, kernelRootDir string, unresolvedVolume *Volume, constraints LayoutConstraints) (*LaidOutVolume, error) {
+
+	volume, err := resolveContentPaths(gadgetRootDir, kernelRootDir, unresolvedVolume)
+	if err != nil {
+		return nil, err
+	}
 
 	structures, byName, err := layoutVolumeStructures(volume, constraints)
 	if err != nil {
