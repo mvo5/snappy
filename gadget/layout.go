@@ -201,7 +201,9 @@ func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *KernelInfo, pat
 	// content may refer to "$kernel:<name>/<content>"
 	if strings.HasPrefix(pathOrRef, "$kernel:") {
 		if kernelInfo == nil {
-			return "", fmt.Errorf("internal error: $kernel: reference but no kernel info available")
+			// XXX: cannot resolve, happens e.g. when doing
+			//      validation of a single gadget snap
+			return pathOrRef, nil
 		}
 
 		kernelRef := strings.SplitN(pathOrRef, ":", 2)[1]
@@ -222,7 +224,7 @@ func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *KernelInfo, pat
 		return filepath.Join(gadgetRootDir, pathOrRef), nil
 	}
 
-	return "", nil
+	return pathOrRef, nil
 }
 
 // resolveContentPaths resolves all content paths inside the given
