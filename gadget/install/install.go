@@ -64,7 +64,7 @@ func Run(gadgetRoot, kernelRoot, device string, options Options, observer gadget
 	if err != nil {
 		return fmt.Errorf("cannot layout the volume: %v", err)
 	}
-	if err := gadget.ResolveContentPaths(gadgetRoot, kernelRoot, lv); err != nil {
+	if err := gadget.ResolveContentPaths(gadgetRoot, kernelRoot, lv.Volume); err != nil {
 		return fmt.Errorf("cannot resolve gadget references: %v", err)
 	}
 

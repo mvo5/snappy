@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/snapcore/snapd/gadget/edition"
 	"github.com/snapcore/snapd/kernel"
 	"github.com/snapcore/snapd/strutil"
 )
@@ -193,7 +194,7 @@ func LayoutVolumePartially(volume *Volume, constraints LayoutConstraints) (*Part
 	return vol, nil
 }
 
-func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pathOrRef string) (string, error) {
+func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pathOrRef string) (newSource string, ed edition.Number, err error) {
 	// content may refer to "$kernel:<name>/<content>"
 	if strings.HasPrefix(pathOrRef, "$kernel:") {
 		kernelRef := pathOrRef[len("$kernel:"):]
@@ -202,15 +203,15 @@ func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pa
 		wantedContent := l[1]
 		kernelAsset, ok := kernelInfo.Assets[wantedAsset]
 		if !ok {
-			return "", fmt.Errorf("cannot find %q in kernel info from %q", wantedAsset, kernelRootDir)
+			return "", ed, fmt.Errorf("cannot find %q in kernel info from %q", wantedAsset, kernelRootDir)
 		}
 		if !strutil.ListContains(kernelAsset.Content, wantedContent) {
-			return "", fmt.Errorf("cannot find wanted kernel content %q in %q", wantedContent, kernelRootDir)
+			return "", ed, fmt.Errorf("cannot find wanted kernel content %q in %q", wantedContent, kernelRootDir)
 		}
-		return filepath.Join(kernelRootDir, wantedContent), nil
+		return filepath.Join(kernelRootDir, wantedContent), kernelAsset.Edition, nil
 	}
 
-	return filepath.Join(gadgetRootDir, pathOrRef), nil
+	return filepath.Join(gadgetRootDir, pathOrRef), ed, nil
 }
 
 // ResolveContentPaths resolves any "$kernel:" refs in the gadget
@@ -218,7 +219,7 @@ func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pa
 // paths.
 //
 // XXX: move into LayoutVolume(), operator on *Volume and make private?
-func ResolveContentPaths(gadgetRootDir, kernelRootDir string, lv *LaidOutVolume) error {
+func ResolveContentPaths(gadgetRootDir, kernelRootDir string, lv *Volume) error {
 	var kernelInfo *kernel.Info = &kernel.Info{}
 	if kernelRootDir != "" {
 		ki, err := kernel.ReadInfo(kernelRootDir)
@@ -228,8 +229,8 @@ func ResolveContentPaths(gadgetRootDir, kernelRootDir string, lv *LaidOutVolume)
 		kernelInfo = ki
 	}
 
-	for i := range lv.Volume.Structure {
-		if err := resolveContentPathsForStructure(gadgetRootDir, kernelRootDir, kernelInfo, &lv.Volume.Structure[i]); err != nil {
+	for i := range lv.Structure {
+		if err := resolveContentPathsForStructure(gadgetRootDir, kernelRootDir, kernelInfo, &lv.Structure[i]); err != nil {
 			return err
 		}
 	}
@@ -241,7 +242,7 @@ func resolveContentPathsForStructure(gadgetRootDir, kernelRootDir string, kernel
 	for i := range ps.Content {
 		source := ps.Content[i].Source
 		if source != "" {
-			newSource, err := resolveOne(gadgetRootDir, kernelRootDir, kernelInfo, source)
+			newSource, newEdition, err := resolveOne(gadgetRootDir, kernelRootDir, kernelInfo, source)
 			if err != nil {
 				return err
 			}
@@ -250,6 +251,19 @@ func resolveContentPathsForStructure(gadgetRootDir, kernelRootDir string, kernel
 				newSource += "/"
 			}
 			ps.Content[i].ResolvedSource = newSource
+
+			// Deal with kernel/gadget having different editions
+			// in an incredible naive way for now
+			//
+			// XXX: too simplistic, what about mixed content
+			//      from gadget and kernel? disallow?
+			max := func(a, b edition.Number) edition.Number {
+				if a > b {
+					return a
+				}
+				return b
+			}
+			ps.Update.Edition = max(ps.Update.Edition, newEdition)
 		}
 	}
 	return nil

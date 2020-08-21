@@ -1186,7 +1186,7 @@ func (p *layoutTestSuite) TestResolveContentPathsNotInWantedeAssets(c *C) {
 	lv, err := gadget.LayoutVolume(p.dir, vol, defaultConstraints)
 	c.Assert(err, IsNil)
 
-	err = gadget.ResolveContentPaths(p.dir, kernelSnapDir, lv)
+	err = gadget.ResolveContentPaths(p.dir, kernelSnapDir, lv.Volume)
 	c.Assert(err, ErrorMatches, `cannot find "dtbs" in kernel info from "/.*"`)
 }
 
@@ -1207,7 +1207,7 @@ assets:
 	lv, err := gadget.LayoutVolume(p.dir, vol, defaultConstraints)
 	c.Assert(err, IsNil)
 
-	err = gadget.ResolveContentPaths(p.dir, kernelSnapDir, lv)
+	err = gadget.ResolveContentPaths(p.dir, kernelSnapDir, lv.Volume)
 	c.Assert(err, ErrorMatches, `cannot find wanted kernel content "boot-assets/" in "/.*"`)
 }
 
@@ -1229,7 +1229,7 @@ assets:
 	kernelSnapDir := mockKernel(c, kernelYaml, kernelSnapFiles)
 	lv, err := gadget.LayoutVolume(p.dir, vol, defaultConstraints)
 	c.Assert(err, IsNil)
-	err = gadget.ResolveContentPaths(p.dir, kernelSnapDir, lv)
+	err = gadget.ResolveContentPaths(p.dir, kernelSnapDir, lv.Volume)
 	c.Assert(err, IsNil)
 
 	c.Assert(lv.Volume.Structure, HasLen, 1)

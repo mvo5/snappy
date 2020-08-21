@@ -104,25 +104,75 @@ func (m *DeviceManager) doUpdateGadgetAssets(t *state.Task, _ *tomb.Tomb) error 
 	if isRemodel {
 		model = remodelCtx.Model()
 	}
-	// be extra paranoid when checking we are installing the right gadget
 	expectedGadgetSnap := model.Gadget()
-	if snapsup.InstanceName() != expectedGadgetSnap {
-		return fmt.Errorf("cannot apply gadget assets update from non-model gadget snap %q, expected %q snap",
-			snapsup.InstanceName(), expectedGadgetSnap)
-	}
 
-	updateData, err := pendingGadgetInfo(snapsup, remodelCtx)
-	if err != nil {
-		return err
-	}
+	// XXX: write helpers here, this duplicates code and is hard to read
+	var currentData, updateData *gadget.GadgetData
+	if snapsup.Type == snap.TypeGadget {
+		if snapsup.InstanceName() != expectedGadgetSnap {
+			return fmt.Errorf("cannot apply gadget assets update from non-model gadget snap %q, expected %q snap",
+				snapsup.InstanceName(), expectedGadgetSnap)
+		}
+		updateData, err = pendingGadgetInfo(snapsup, remodelCtx)
+		if err != nil {
+			return err
+		}
 
-	currentData, err := currentGadgetInfo(t.State(), groundDeviceCtx)
-	if err != nil {
-		return err
+		currentData, err = currentGadgetInfo(t.State(), groundDeviceCtx)
+		if err != nil {
+			return err
+		}
+		if currentData == nil {
+			// no updates during first boot & seeding
+			return nil
+		}
+		// resolve refs with current kernel
+		kInfo, err := snapstate.CurrentInfo(st, groundDeviceCtx.Model().Kernel())
+		// XXX: simplify once all tests are updated
+		isNotInstalledErr := func(err error) bool {
+			_, ok := err.(*snap.NotInstalledError)
+			return ok
+		}
+		if err != nil && !isNotInstalledErr(err) {
+			return fmt.Errorf("cannot get current kernel info: %v", err)
+		}
+		if kInfo != nil {
+			// kernel dir is the same for current/update
+			currentData.KernelRootDir = kInfo.MountDir()
+			updateData.KernelRootDir = kInfo.MountDir()
+		}
 	}
-	if currentData == nil {
-		// no updates during first boot & seeding
-		return nil
+	if snapsup.Type == snap.TypeKernel {
+		currentData, err = currentGadgetInfo(t.State(), groundDeviceCtx)
+		if err != nil {
+			return err
+		}
+		if currentData == nil {
+			// no updates during first boot & seeding
+			return nil
+		}
+		// now get the current kernel
+		kInfo, err := snapstate.CurrentInfo(st, groundDeviceCtx.Model().Kernel())
+		if err != nil {
+			return fmt.Errorf("cannot get current kernel info: %v", err)
+		}
+		currentData.KernelRootDir = kInfo.MountDir()
+
+		// now calculate the "update" data, it's the same gadget but
+		// argumented from a different kernel
+		updateData, err = currentGadgetInfo(t.State(), groundDeviceCtx)
+		if err != nil {
+			return err
+		}
+		// should never happen
+		if updateData == nil {
+			return fmt.Errorf("cannot get current update info")
+		}
+		updateKernelInfo, err := snap.ReadInfo(snapsup.InstanceName(), snapsup.SideInfo)
+		if err != nil {
+			return fmt.Errorf("cannot read candidate kernel snap details: %v", err)
+		}
+		updateData.KernelRootDir = updateKernelInfo.MountDir()
 	}
 
 	snapRollbackDir, err := makeRollbackDir(fmt.Sprintf("%v_%v", snapsup.InstanceName(), snapsup.SideInfo.Revision))
