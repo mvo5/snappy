@@ -244,7 +244,7 @@ func (s *Snap) withUnpackedFile(filePath string, f func(p string) error) error {
 func (s *Snap) RandomAccessFile(filePath string) (interface {
 	io.ReaderAt
 	io.Closer
-	Size() int64
+	Size() (int64, error)
 }, error) {
 	var f *os.File
 	err := s.withUnpackedFile(filePath, func(p string) (err error) {

@@ -26,17 +26,16 @@ import (
 // SizedFile holds an os.File plus its (initial) size.
 type SizedFile struct {
 	*os.File
-	size int64
 }
 
 func NewSizedFile(f *os.File) (*SizedFile, error) {
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	return &SizedFile{File: f, size: fi.Size()}, nil
+	return &SizedFile{File: f}, nil
 }
 
-func (f *SizedFile) Size() int64 {
-	return f.size
+func (f *SizedFile) Size() (int64, error) {
+	fi, err := f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
 }

@@ -38,7 +38,7 @@ type Container interface {
 	RandomAccessFile(relative string) (interface {
 		io.ReaderAt
 		io.Closer
-		Size() int64
+		Size() (int64, error)
 	}, error)
 
 	// ReadFile returns the content of a single file from the snap.
