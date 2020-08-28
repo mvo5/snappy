@@ -146,6 +146,44 @@ func Update(old, new GadgetData, rollbackDirPath string, updatePolicy UpdatePoli
 	if updatePolicy == nil {
 		updatePolicy = defaultPolicy
 	}
+
+	// XXX: fugly, we should instead have updateKernelPolicy and a
+	//      UpdateKernel() high level function
+	isKernelUpdate := new.KernelRootDir != old.KernelRootDir
+	if isKernelUpdate {
+		updatePolicy = func(from, to *LaidOutStructure) bool {
+			for _, cn := range to.VolumeStructure.Content {
+				if cn.update {
+					fmt.Println("found update content", cn)
+					return true
+				}
+			}
+			return false
+		}
+		for _, oldStruct := range pOld.LaidOutStructure {
+			filteredContent := make([]VolumeContent, 0, len(oldStruct.VolumeStructure.Content))
+			for _, cont := range oldStruct.VolumeStructure.Content {
+				if !cont.update {
+					continue
+				}
+				filteredContent = append(filteredContent, cont)
+			}
+			oldStruct.VolumeStructure.Content = filteredContent
+		}
+		for _, newStruct := range pNew.LaidOutStructure {
+			filteredContent := make([]VolumeContent, 0, len(newStruct.VolumeStructure.Content))
+			for _, cont := range newStruct.VolumeStructure.Content {
+				if !cont.update {
+					continue
+				}
+				filteredContent = append(filteredContent, cont)
+			}
+			newStruct.VolumeStructure.Content = filteredContent
+		}
+	}
+	// XXX: for gadget updates add all kernel content to the preserve
+	//      map *or* ensure via some check that there are no overrides
+
 	// now we know which structure is which, find which ones need an update
 	updates, err := resolveUpdate(pOld, pNew, updatePolicy)
 	if err != nil {

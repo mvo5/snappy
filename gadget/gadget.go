@@ -203,6 +203,8 @@ type VolumeContent struct {
 	// ResolvedSource is the absolute path of the Source after resolving
 	// any references (e.g. to a "$kernel:" snap)
 	ResolvedSource string
+	// XXX: do we need this?
+	update bool
 	// XXX: provide resolvedImage too
 }
 

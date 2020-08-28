@@ -26,7 +26,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/snapcore/snapd/gadget/edition"
 	"github.com/snapcore/snapd/kernel"
 	"github.com/snapcore/snapd/strutil"
 )
@@ -194,7 +193,7 @@ func LayoutVolumePartially(volume *Volume, constraints LayoutConstraints) (*Part
 	return vol, nil
 }
 
-func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pathOrRef string) (newSource string, ed edition.Number, err error) {
+func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pathOrRef string) (newSource string, update bool, err error) {
 	// content may refer to "$kernel:<name>/<content>"
 	if strings.HasPrefix(pathOrRef, "$kernel:") {
 		kernelRef := pathOrRef[len("$kernel:"):]
@@ -203,15 +202,15 @@ func resolveOne(gadgetRootDir, kernelRootDir string, kernelInfo *kernel.Info, pa
 		wantedContent := l[1]
 		kernelAsset, ok := kernelInfo.Assets[wantedAsset]
 		if !ok {
-			return "", ed, fmt.Errorf("cannot find %q in kernel info from %q", wantedAsset, kernelRootDir)
+			return "", false, fmt.Errorf("cannot find %q in kernel info from %q", wantedAsset, kernelRootDir)
 		}
 		if !strutil.ListContains(kernelAsset.Content, wantedContent) {
-			return "", ed, fmt.Errorf("cannot find wanted kernel content %q in %q", wantedContent, kernelRootDir)
+			return "", false, fmt.Errorf("cannot find wanted kernel content %q in %q", wantedContent, kernelRootDir)
 		}
-		return filepath.Join(kernelRootDir, wantedContent), kernelAsset.Edition, nil
+		return filepath.Join(kernelRootDir, wantedContent), kernelAsset.Update, nil
 	}
 
-	return filepath.Join(gadgetRootDir, pathOrRef), ed, nil
+	return filepath.Join(gadgetRootDir, pathOrRef), false, nil
 }
 
 // ResolveContentPaths resolves any "$kernel:" refs in the gadget
@@ -242,7 +241,7 @@ func resolveContentPathsForStructure(gadgetRootDir, kernelRootDir string, kernel
 	for i := range ps.Content {
 		source := ps.Content[i].Source
 		if source != "" {
-			newSource, newEdition, err := resolveOne(gadgetRootDir, kernelRootDir, kernelInfo, source)
+			newSource, needsUpdate, err := resolveOne(gadgetRootDir, kernelRootDir, kernelInfo, source)
 			if err != nil {
 				return err
 			}
@@ -251,19 +250,7 @@ func resolveContentPathsForStructure(gadgetRootDir, kernelRootDir string, kernel
 				newSource += "/"
 			}
 			ps.Content[i].ResolvedSource = newSource
-
-			// Deal with kernel/gadget having different editions
-			// in an incredible naive way for now
-			//
-			// XXX: too simplistic, what about mixed content
-			//      from gadget and kernel? disallow?
-			max := func(a, b edition.Number) edition.Number {
-				if a > b {
-					return a
-				}
-				return b
-			}
-			ps.Update.Edition = max(ps.Update.Edition, newEdition)
+			ps.Content[i].update = needsUpdate
 		}
 	}
 	return nil

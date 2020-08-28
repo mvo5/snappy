@@ -38,7 +38,7 @@ prepare: |
     cat >> pc-kernel-snap/meta/kernel.yaml<<EOF
     assets:
       test:
-        edition: 2
+        update: true
         content:
           - some-dir/
           - some-file
@@ -59,7 +59,6 @@ prepare: |
     unsquashfs -d pc-snap gadget.snap
 
     # prepare version with kernel ref
-    # XXX: add "update: true"
     cat >> pc-snap/meta/gadget.yaml <<'EOF'
               - source: $kernel:test/some-dir/
                 target: /
@@ -94,7 +93,8 @@ restore: |
 
 execute: |
     if [ "$SPREAD_REBOOT" = 0 ]; then
-        # now install the asserted kernel
+        # first install the asserted kernel so that the gadget can resolve
+        # the kernel refs
         snap install pc-kernel_x1.snap
         REBOOT
     fi
@@ -104,6 +104,25 @@ execute: |
 
         # now install the asserted gadget
         snap install  pc_x1.snap
+
+        # and kernel again because the previous gadget update did not
+        # had a edition bump so it won't have installed the new kernel
+        # refs automatically (XXX: that is what we want, right?)
+        snap pack --filename=pc-kernel_x2.snap pc-kernel-snap
+        # has to be asserted
+        cat <<EOF > decl-headers.json
+    {"snap-id": "$PC_KERNEL_ID"}
+    EOF
+        cat <<EOF > rev-headers.json
+    {"snap-id": "$PC_KERNEL_ID", "snap-revision": "$((START_REVISION+1))"}
+    EOF
+
+        #shellcheck source=tests/lib/store.sh
+        . "$TESTSLIB"/store.sh
+        new_snap_declaration "$BLOB_DIR" pc-kernel_x2.snap --snap-decl-json decl-headers.json
+        new_snap_revision "$BLOB_DIR" pc-kernel_x2.snap --snap-rev-json rev-headers.json
+        snap install pc-kernel_x2.snap
+
         REBOOT
     fi
     if [ "$SPREAD_REBOOT" = 2 ]; then
