@@ -39,7 +39,7 @@ func TestCommand(t *testing.T) { TestingT(t) }
 var mockKernelYaml = []byte(`
 assets:
   dtbs:
-    edition: 1
+    update: true
     content:
       - dtbs/bcm2711-rpi-4-b.dtb
       - dtbs/bcm2836-rpi-2-b.dtb
@@ -68,7 +68,7 @@ func (s *kernelYamlTestSuite) TestInfoFromKernelYamlHappy(c *C) {
 	c.Check(ki, DeepEquals, &kernel.Info{
 		Assets: map[string]*kernel.Asset{
 			"dtbs": {
-				Edition: 1,
+				Update: true,
 				Content: []string{
 					"dtbs/bcm2711-rpi-4-b.dtb",
 					"dtbs/bcm2836-rpi-2-b.dtb",
@@ -110,7 +110,7 @@ func (s *kernelYamlTestSuite) TestReadKernelYamlHappy(c *C) {
 	c.Check(ki, DeepEquals, &kernel.Info{
 		Assets: map[string]*kernel.Asset{
 			"dtbs": {
-				Edition: 1,
+				Update: true,
 				Content: []string{
 					"dtbs/bcm2711-rpi-4-b.dtb",
 					"dtbs/bcm2836-rpi-2-b.dtb",
