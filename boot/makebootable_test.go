@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2014-2019 Canonical Ltd
+ * Copyright (C) 2014-2020 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -446,7 +446,7 @@ version: 5.0
 		kernelSnap := &seed.Snap{
 			Path: "/var/lib/snapd/seed/snaps/pc-kernel_1.snap",
 			SideInfo: &snap.SideInfo{
-				Revision: snap.Revision{N: 0},
+				Revision: snap.Revision{N: 1},
 				RealName: "pc-kernel",
 			},
 		}
@@ -459,38 +459,29 @@ version: 5.0
 	restore = boot.MockSecbootSealKey(func(key secboot.EncryptionKey, params *secboot.SealKeyParams) error {
 		sealKeyCalls++
 		c.Check(key, DeepEquals, myKey)
-		c.Assert(params.ModelParams, HasLen, 2)
+		c.Assert(params.ModelParams, HasLen, 1)
 
-		// recovery parameters
 		shim := bootloader.NewBootFile("", filepath.Join(s.rootdir,
 			"var/lib/snapd/boot-assets/grub/bootx64.efi-39efae6545f16e39633fbfbef0d5e9fdd45a25d7df8764978ce4d81f255b038046a38d9855e42e5c7c4024e153fd2e37"),
 			bootloader.RoleRecovery)
 		grub := bootloader.NewBootFile("", filepath.Join(s.rootdir,
 			"var/lib/snapd/boot-assets/grub/grubx64.efi-aa3c1a83e74bf6dd40dd64e5c5bd1971d75cdf55515b23b9eb379f66bf43d4661d22c4b8cf7d7a982d2013ab65c1c4c5"),
 			bootloader.RoleRecovery)
-		kernel := bootloader.NewBootFile("/var/lib/snapd/seed/snaps/pc-kernel_1.snap", "kernel.efi", bootloader.RoleRecovery)
-
-		c.Assert(params.ModelParams[0].EFILoadChains, DeepEquals, []*secboot.LoadChain{
-			secboot.NewLoadChain(shim, secboot.NewLoadChain(grub, secboot.NewLoadChain(kernel))),
-		})
-		c.Assert(params.ModelParams[0].KernelCmdlines, DeepEquals, []string{
-			"snapd_recovery_mode=recover snapd_recovery_system=20191216 console=ttyS0 console=tty1 panic=-1",
-		})
-		c.Assert(params.ModelParams[0].Model.DisplayName(), Equals, "My Model")
-
-		// run mode parameters
 		runGrub := bootloader.NewBootFile("", filepath.Join(s.rootdir,
 			"var/lib/snapd/boot-assets/grub/grubx64.efi-5ee042c15e104b825d6bc15c41cdb026589f1ec57ed966dd3f29f961d4d6924efc54b187743fa3a583b62722882d405d"),
 			bootloader.RoleRunMode)
+		kernel := bootloader.NewBootFile("/var/lib/snapd/seed/snaps/pc-kernel_1.snap", "kernel.efi", bootloader.RoleRecovery)
 		runKernel := bootloader.NewBootFile(filepath.Join(s.rootdir, "var/lib/snapd/snaps/pc-kernel_5.snap"), "kernel.efi", bootloader.RoleRunMode)
 
-		c.Assert(params.ModelParams[1].EFILoadChains, DeepEquals, []*secboot.LoadChain{
+		c.Assert(params.ModelParams[0].EFILoadChains, DeepEquals, []*secboot.LoadChain{
+			secboot.NewLoadChain(shim, secboot.NewLoadChain(grub, secboot.NewLoadChain(kernel))),
 			secboot.NewLoadChain(shim, secboot.NewLoadChain(grub, secboot.NewLoadChain(runGrub, secboot.NewLoadChain(runKernel)))),
 		})
-		c.Assert(params.ModelParams[1].KernelCmdlines, DeepEquals, []string{
+		c.Assert(params.ModelParams[0].KernelCmdlines, DeepEquals, []string{
+			"snapd_recovery_mode=recover snapd_recovery_system=20191216 console=ttyS0 console=tty1 panic=-1",
 			"snapd_recovery_mode=run console=ttyS0 console=tty1 panic=-1",
 		})
-		c.Assert(params.ModelParams[1].Model.DisplayName(), Equals, "My Model")
+		c.Assert(params.ModelParams[0].Model.DisplayName(), Equals, "My Model")
 
 		return nil
 	})
@@ -573,6 +564,12 @@ current_trusted_recovery_boot_assets={"bootx64.efi":["39efae6545f16e39633fbfbef0
 
 	// make sure SealKey was called
 	c.Check(sealKeyCalls, Equals, 1)
+
+	// make sure the marker file for sealed key was created
+	c.Check(filepath.Join(dirs.SnapFDEDirUnder(boot.InstallHostWritableDir), "sealed-keys"), testutil.FilePresent)
+
+	// make sure we wrote the boot chains data file
+	c.Check(filepath.Join(dirs.SnapFDEDirUnder(boot.InstallHostWritableDir), "boot-chains"), testutil.FilePresent)
 }
 
 func (s *makeBootable20Suite) TestMakeBootable20RunModeInstallBootConfigErr(c *C) {
@@ -778,39 +775,29 @@ version: 5.0
 	restore = boot.MockSecbootSealKey(func(key secboot.EncryptionKey, params *secboot.SealKeyParams) error {
 		sealKeyCalls++
 		c.Check(key, DeepEquals, myKey)
-		c.Assert(params.ModelParams, HasLen, 2)
-		c.Assert(params.ModelParams[0].Model.DisplayName(), Equals, "My Model")
+		c.Assert(params.ModelParams, HasLen, 1)
 
-		// recovery parameters
 		shim := bootloader.NewBootFile("", filepath.Join(s.rootdir,
 			"var/lib/snapd/boot-assets/grub/bootx64.efi-39efae6545f16e39633fbfbef0d5e9fdd45a25d7df8764978ce4d81f255b038046a38d9855e42e5c7c4024e153fd2e37"),
 			bootloader.RoleRecovery)
 		grub := bootloader.NewBootFile("", filepath.Join(s.rootdir,
 			"var/lib/snapd/boot-assets/grub/grubx64.efi-aa3c1a83e74bf6dd40dd64e5c5bd1971d75cdf55515b23b9eb379f66bf43d4661d22c4b8cf7d7a982d2013ab65c1c4c5"),
 			bootloader.RoleRecovery)
-		kernel := bootloader.NewBootFile("/var/lib/snapd/seed/snaps/pc-kernel_1.snap", "kernel.efi", bootloader.RoleRecovery)
-
-		c.Assert(params.ModelParams[0].EFILoadChains, DeepEquals, []*secboot.LoadChain{
-			secboot.NewLoadChain(shim, secboot.NewLoadChain(grub, secboot.NewLoadChain(kernel))),
-		})
-		c.Assert(params.ModelParams[0].KernelCmdlines, DeepEquals, []string{
-			"snapd_recovery_mode=recover snapd_recovery_system=20191216 console=ttyS0 console=tty1 panic=-1",
-		})
-		c.Assert(params.ModelParams[0].Model.DisplayName(), Equals, "My Model")
-
-		// run mode parameters
 		runGrub := bootloader.NewBootFile("", filepath.Join(s.rootdir,
 			"var/lib/snapd/boot-assets/grub/grubx64.efi-5ee042c15e104b825d6bc15c41cdb026589f1ec57ed966dd3f29f961d4d6924efc54b187743fa3a583b62722882d405d"),
 			bootloader.RoleRunMode)
+		kernel := bootloader.NewBootFile("/var/lib/snapd/seed/snaps/pc-kernel_1.snap", "kernel.efi", bootloader.RoleRecovery)
 		runKernel := bootloader.NewBootFile(filepath.Join(s.rootdir, "var/lib/snapd/snaps/pc-kernel_5.snap"), "kernel.efi", bootloader.RoleRunMode)
 
-		c.Assert(params.ModelParams[1].EFILoadChains, DeepEquals, []*secboot.LoadChain{
+		c.Assert(params.ModelParams[0].EFILoadChains, DeepEquals, []*secboot.LoadChain{
+			secboot.NewLoadChain(shim, secboot.NewLoadChain(grub, secboot.NewLoadChain(kernel))),
 			secboot.NewLoadChain(shim, secboot.NewLoadChain(grub, secboot.NewLoadChain(runGrub, secboot.NewLoadChain(runKernel)))),
 		})
-		c.Assert(params.ModelParams[1].KernelCmdlines, DeepEquals, []string{
+		c.Assert(params.ModelParams[0].KernelCmdlines, DeepEquals, []string{
+			"snapd_recovery_mode=recover snapd_recovery_system=20191216 console=ttyS0 console=tty1 panic=-1",
 			"snapd_recovery_mode=run console=ttyS0 console=tty1 panic=-1",
 		})
-		c.Assert(params.ModelParams[1].Model.DisplayName(), Equals, "My Model")
+		c.Assert(params.ModelParams[0].Model.DisplayName(), Equals, "My Model")
 
 		return fmt.Errorf("seal error")
 	})
