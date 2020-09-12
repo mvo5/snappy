@@ -1,0 +1,41 @@
+summary: Check that a kernel refresh reseals
+
+systems: [ubuntu-20.04-64]
+
+execute: |
+  # shellcheck source=tests/lib/nested.sh
+  . "$TESTSLIB/nested.sh"
+  # wait for snapd to be "available"
+  wait=1
+  until nested_exec command -v snap; do
+      retry=$(( retry - 1 ))
+      if [ $retry -le 0 ]; then
+          echo "Timed out waiting for no snap command. Aborting!"
+          exit 1
+      fi
+      sleep "$wait"
+  done
+  # Wait for snapd to be seeded
+  nested_exec sudo snap wait system seed.loaded
+  
+  # Get the current revision of the kernel snap
+  # TODO:UC20: enable for pi-kernel, etc. when used with external systems
+  startRevision=$(nested_exec sudo snap list pc-kernel | grep pc-kernel | awk '{print $3}')
+  if [ -z "${startRevision}" ]; then
+    echo "missing pc-kernel revision"
+    exit 1
+  fi
+  boot_id="$( nested_get_boot_id )"
+  # Install it and get the ID for the change
+  REMOTE_CHG_ID=$(nested_exec sudo snap install --dangerous /var/lib/snapd/snapspc-kernel_*.snap --no-wait)
+  # wait for a reboot
+  nested_wait_for_reboot "${boot_id}"
+  # Wait for the change to finish
+  nested_exec sudo snap watch "${REMOTE_CHG_ID}"
+  
+  # check that we have the sealing file
+  nested_exec sudo test -e /var/lib/snapd/fde/boot-chains
+  nested_exec sudo cat /var/lib/snapd/fde/boot-chains | MATCH pc-kernel.*x1
+  # TODO:UC20: check tpm state?
+
+  
