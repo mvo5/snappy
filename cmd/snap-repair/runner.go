@@ -575,7 +575,7 @@ func (run *Runner) initState() error {
 	os.Remove(dirs.SnapRepairStateFile)
 	run.state = state{}
 	// initialize time lower bound with image built time/seed.yaml time
-	info, err := os.Stat(filepath.Join(dirs.SnapSeedDir, "seed.yaml"))
+	info, err := os.Stat(findTimeLowerBoundHintFile())
 	if err != nil {
 		return err
 	}
@@ -655,38 +655,76 @@ func verifySignatures(a asserts.Assertion, workBS asserts.Backstore, trusted ass
 	return nil
 }
 
+func findSeedAssertsDirs() ([]string, error) {
+	// uc16/uc18
+	assertSeedDir := filepath.Join(dirs.SnapSeedDir, "assertions")
+	if osutil.IsDirectory(assertSeedDir) {
+		return []string{assertSeedDir}, nil
+	}
+	// uc20
+	systemsDir := filepath.Join(dirs.SnapSeedDir, "systems")
+	if osutil.IsDirectory(systemsDir) {
+		dirs, err := filepath.Glob(filepath.Join(systemsDir, "*"))
+		if err != nil {
+			return nil, fmt.Errorf("cannot glob system dir: %v", err)
+		}
+		// TODO:UC20: support multiple recover systems by
+		//            reading modeenv
+		if len(dirs) != 1 {
+			return nil, fmt.Errorf("cannot repair uc20 with %v systems yet", len(dirs))
+		}
+		return []string{dirs[0], filepath.Join(dirs[0], "assertions")}, nil
+	}
+
+	return nil, fmt.Errorf("cannot find an assertion dir")
+}
+
+func findTimeLowerBoundHintFile() string {
+	// uc20+
+	if osutil.FileExists(dirs.SnapModeenvFile) {
+		return dirs.SnapModeenvFile
+	}
+	// uc16,uc18
+	return filepath.Join(dirs.SnapSeedDir, "seed.yaml")
+}
+
 func (run *Runner) initDeviceInfo() error {
 	const errPrefix = "cannot set device information: "
 
 	workBS := asserts.NewMemoryBackstore()
-	assertSeedDir := filepath.Join(dirs.SnapSeedDir, "assertions")
-	dc, err := ioutil.ReadDir(assertSeedDir)
+	assertSeedDirs, err := findSeedAssertsDirs()
 	if err != nil {
 		return err
 	}
 	var model *asserts.Model
-	for _, fi := range dc {
-		fn := filepath.Join(assertSeedDir, fi.Name())
-		f, err := os.Open(fn)
+	for _, assertSeedDir := range assertSeedDirs {
+		dc, err := ioutil.ReadDir(assertSeedDir)
 		if err != nil {
-			// best effort
-			continue
+			return err
 		}
-		dec := asserts.NewDecoder(f)
-		for {
-			a, err := dec.Decode()
+		for _, fi := range dc {
+			fn := filepath.Join(assertSeedDir, fi.Name())
+			f, err := os.Open(fn)
 			if err != nil {
 				// best effort
-				break
+				continue
 			}
-			switch a.Type() {
-			case asserts.ModelType:
-				if model != nil {
-					return fmt.Errorf(errPrefix + "multiple models in seed assertions")
+			dec := asserts.NewDecoder(f)
+			for {
+				a, err := dec.Decode()
+				if err != nil {
+					// best effort
+					break
 				}
-				model = a.(*asserts.Model)
-			case asserts.AccountType, asserts.AccountKeyType:
-				workBS.Put(a.Type(), a)
+				switch a.Type() {
+				case asserts.ModelType:
+					if model != nil {
+						return fmt.Errorf(errPrefix + "multiple models in seed assertions")
+					}
+					model = a.(*asserts.Model)
+				case asserts.AccountType, asserts.AccountKeyType:
+					workBS.Put(a.Type(), a)
+				}
 			}
 		}
 	}
