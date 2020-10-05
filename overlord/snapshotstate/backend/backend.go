@@ -447,29 +447,29 @@ func addDirToZip(ctx context.Context, snapshot *client.Snapshot, w *zip.Writer, 
 }
 
 // Import a snapshot from the export file format
-func Import(ctx context.Context, id uint64, r io.Reader) (size int64, snapNames []string, err error) {
+func Import(ctx context.Context, id uint64, r io.Reader) (snapNames []string, err error) {
 	errPrefix := fmt.Sprintf("cannot import snapshot %d", id)
 
 	// prepare cache location to unpack the import file
 	tempImportDir := path.Join(dirs.SnapCacheDir, "snapshots", fmt.Sprintf("import-%d", id))
 	if err := os.MkdirAll(path.Dir(tempImportDir), 0700); err != nil {
-		return 0, nil, fmt.Errorf("%s: %v", errPrefix, err)
+		return nil, fmt.Errorf("%s: %v", errPrefix, err)
 	}
 	if err := os.Mkdir(tempImportDir, 0700); err != nil {
 		if os.IsExist(err) {
-			return 0, nil, fmt.Errorf("%s: already in progress for this id", errPrefix)
+			return nil, fmt.Errorf("%s: already in progress for this id", errPrefix)
 		}
-		return 0, nil, fmt.Errorf("%s: %v", errPrefix, err)
+		return nil, fmt.Errorf("%s: %v", errPrefix, err)
 	}
 	defer os.RemoveAll(tempImportDir)
 
-	// unpack the tar file to a temporary location and validate.
-	exportFound, size, err := unpackVerifySnapshotImport(r, tempImportDir)
+	// Unpack the streamed tar data to a temporary location and validate.
+	exportFound, err := unpackVerifySnapshotImport(r, tempImportDir)
 	if err != nil {
-		return 0, nil, fmt.Errorf("%s: %v", errPrefix, err)
+		return nil, fmt.Errorf("%s: %v", errPrefix, err)
 	}
 	if !exportFound {
-		return 0, nil, fmt.Errorf("%s: no export.json file in uploaded data", errPrefix)
+		return nil, fmt.Errorf("%s: no export.json file in uploaded data", errPrefix)
 	}
 
 	// undo all moved snapshots on error
@@ -488,7 +488,7 @@ func Import(ctx context.Context, id uint64, r io.Reader) (size int64, snapNames 
 	// temp import location to the real location
 	dir, err := osOpen(tempImportDir)
 	if err != nil {
-		return 0, nil, fmt.Errorf("%s: %v", errPrefix, err)
+		return nil, fmt.Errorf("%s: %v", errPrefix, err)
 	}
 	defer dir.Close()
 
@@ -500,7 +500,7 @@ func Import(ctx context.Context, id uint64, r io.Reader) (size int64, snapNames 
 			// move the files into place with the new local set ID
 			newSnapNames, newFiles, err := moveCachedSnapshots(tempImportDir, names, id)
 			if err != nil {
-				return 0, nil, err
+				return nil, err
 			}
 			snapNames = append(snapNames, newSnapNames...)
 			movedSnapshotFiles = append(movedSnapshotFiles, newFiles...)
@@ -508,12 +508,12 @@ func Import(ctx context.Context, id uint64, r io.Reader) (size int64, snapNames 
 	}
 	if readErr != nil && readErr != io.EOF {
 		err = fmt.Errorf("%s: failed read from import cache: %v", errPrefix, readErr)
-		return 0, nil, err
+		return nil, err
 	}
-	return size, snapNames, nil
+	return snapNames, nil
 }
 
-func unpackVerifySnapshotImport(r io.Reader, targetDir string) (exportFound bool, size int64, err error) {
+func unpackVerifySnapshotImport(r io.Reader, targetDir string) (exportFound bool, err error) {
 	tr := tar.NewReader(r)
 	var tarErr error
 	var header *tar.Header
@@ -526,12 +526,12 @@ func unpackVerifySnapshotImport(r io.Reader, targetDir string) (exportFound bool
 		}
 		switch {
 		case tarErr != nil:
-			return false, 0, fmt.Errorf("failed reading snapshot import: %v", tarErr)
+			return false, fmt.Errorf("failed reading snapshot import: %v", tarErr)
 		case header == nil:
 			// should not happen
-			return false, 0, fmt.Errorf("tar header not found")
+			return false, fmt.Errorf("tar header not found")
 		case header.Typeflag == tar.TypeDir:
-			return false, 0, errors.New("unexpected directory in import file")
+			return false, errors.New("unexpected directory in import file")
 		}
 
 		targetPath := path.Join(targetDir, header.Name)
@@ -543,14 +543,12 @@ func unpackVerifySnapshotImport(r io.Reader, targetDir string) (exportFound bool
 
 		t, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0600)
 		if err != nil {
-			return false, 0, fmt.Errorf("cannot create file %q: %v", targetPath, err)
+			return false, fmt.Errorf("cannot create file %q: %v", targetPath, err)
 		}
 		defer t.Close()
-		writtenSize, err := io.Copy(t, tr)
-		if err != nil {
-			return false, 0, fmt.Errorf("cannot copy file %q: %v", targetPath, err)
+		if _, err := io.Copy(t, tr); err != nil {
+			return false, fmt.Errorf("cannot copy file %q: %v", targetPath, err)
 		}
-		size += writtenSize
 	}
 
 	// validate
@@ -558,15 +556,15 @@ func unpackVerifySnapshotImport(r io.Reader, targetDir string) (exportFound bool
 		// we don't care about set id at this point
 		r, err := backendOpen(name, ExtractFnameSetID)
 		if err != nil {
-			return false, 0, fmt.Errorf("cannot open snapshot: %v", err)
+			return false, fmt.Errorf("cannot open snapshot: %v", err)
 		}
 		err = r.Check(context.TODO(), nil)
 		r.Close()
 		if err != nil {
-			return false, 0, fmt.Errorf("validation failed for %q: %v", name, err)
+			return false, fmt.Errorf("validation failed for %q: %v", name, err)
 		}
 	}
-	return exportFound, size, nil
+	return exportFound, nil
 }
 
 func moveCachedSnapshots(cachedSnapshotsCDir string, names []string, id uint64) (snaps, newFiles []string, err error) {
