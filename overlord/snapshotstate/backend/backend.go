@@ -33,6 +33,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -462,6 +463,36 @@ func addDirToZip(ctx context.Context, snapshot *client.Snapshot, w *zip.Writer, 
 
 var ErrCannotCancel = errors.New("cannot cancel: import already finished")
 
+// CleanupInProgressImports will clean any import that is in progress.
+// This is meant to be call at startup of snapd before any real imports
+// happen.
+//
+// The caller is responsible for appropriate locking.
+func CleanupInProgressImports() error {
+	inProgressSnapshots, err := filepath.Glob(filepath.Join(dirs.SnapshotsDir, "*_importing"))
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, p := range inProgressSnapshots {
+		tr, err := newImportTransactionFromFilename(p)
+		if err != nil {
+			return err
+		}
+		if err := tr.Cancel(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		buf := bytes.NewBuffer(nil)
+		for _, err := range errs {
+			fmt.Fprintf(buf, "* %v\n", err)
+		}
+		return fmt.Errorf("cannot cleanup imports:\n%s", buf.String())
+	}
+	return nil
+}
+
 // importTransaction keeps track of the given snapshot ID import and
 // ensures it can be commited/canceld in an atomic way.
 //
@@ -474,6 +505,19 @@ var ErrCannotCancel = errors.New("cannot cancel: import already finished")
 type importTransaction struct {
 	id       uint64
 	commited bool
+}
+
+func newImportTransactionFromFilename(p string) (*importTransaction, error) {
+	m := regexp.MustCompile("^(.+)_(.+)_(.+)_(.+).zip$")
+	parts := m.FindStringSubmatch(path.Base(p))
+	if len(parts) != 5 {
+		return nil, fmt.Errorf("cannot determine snapshot id from %q", p)
+	}
+	setID, err := strconv.ParseUint(parts[1], 64, 10)
+	if err != nil {
+		return nil, err
+	}
+	return &importTransaction{id: setID}, nil
 }
 
 func newImportTransaction(setID uint64) *importTransaction {

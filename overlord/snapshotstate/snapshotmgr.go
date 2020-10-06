@@ -75,6 +75,13 @@ func Manager(st *state.State, runner *state.TaskRunner) *SnapshotManager {
 	}
 	snapstate.AddAffectedSnapsByAttr("snapshot-setup", manager.affectedSnaps)
 
+	// cleanup early
+	// XXX: right place? absolutely must run before any
+	//      snapshotstate.Import() can happen
+	if err := mgr.cleanupIncompleteImports(); err != nil {
+		logger.Noticef("cannot cleanup incomplete imports: %v", err)
+	}
+
 	return manager
 }
 
@@ -85,6 +92,13 @@ func (mgr *SnapshotManager) Ensure() error {
 		return mgr.forgetExpiredSnapshots()
 	}
 	return nil
+}
+
+func (mgr *SnapshotManager) cleanupIncompleteImports() error {
+	mgr.state.Lock()
+	defer mgr.state.Unlock()
+
+	return backend.CleanupInProgressImports()
 }
 
 func (mgr *SnapshotManager) forgetExpiredSnapshots() error {
