@@ -134,7 +134,7 @@ func (s *GpioInterfaceSuite) TestSystemdConnectedSlot(c *C) {
 		"snap.my-device.interface.gpio-100.service": {
 			Type:            "oneshot",
 			RemainAfterExit: true,
-			ExecStart:       `/bin/sh -c 'test -e /sys/class/gpio/gpio100 || echo 100 > /sys/class/gpio/export'`,
+			ExecStart:       `/bin/sh -c 'i=0; while ! (test -e /sys/class/gpio/gpio100 || echo 100 > /sys/class/gpio/export ); do if [ "$i" = 30 ]; then exit 1; fi; i=$((i+1)); sleep 1; done'`,
 			ExecStop:        `/bin/sh -c 'test ! -e /sys/class/gpio/gpio100 || echo 100 > /sys/class/gpio/unexport'`,
 		},
 	})

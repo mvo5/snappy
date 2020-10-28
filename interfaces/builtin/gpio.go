@@ -116,7 +116,7 @@ func (iface *gpioInterface) SystemdConnectedSlot(spec *systemd.Specification, pl
 	service := &systemd.Service{
 		Type:            "oneshot",
 		RemainAfterExit: true,
-		ExecStart:       fmt.Sprintf("/bin/sh -c 'test -e /sys/class/gpio/gpio%d || echo %d > /sys/class/gpio/export'", gpioNum, gpioNum),
+		ExecStart:       fmt.Sprintf(`/bin/sh -c 'i=0; while ! (test -e /sys/class/gpio/gpio%d || echo %d > /sys/class/gpio/export ); do if [ "$i" = 30 ]; then exit 1; fi; i=$((i+1)); sleep 1; done'`, gpioNum, gpioNum),
 		ExecStop:        fmt.Sprintf("/bin/sh -c 'test ! -e /sys/class/gpio/gpio%d || echo %d > /sys/class/gpio/unexport'", gpioNum, gpioNum),
 	}
 	return spec.AddService(serviceName, service)
