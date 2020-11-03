@@ -45,6 +45,7 @@ import (
 	"github.com/snapcore/snapd/overlord/storecontext"
 	"github.com/snapcore/snapd/progress"
 	"github.com/snapcore/snapd/release"
+	"github.com/snapcore/snapd/secboot"
 	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/sysconfig"
 	"github.com/snapcore/snapd/systemd"
@@ -141,6 +142,10 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, runner *state.T
 	runner.AddHandler("update-gadget-assets", m.doUpdateGadgetAssets, nil)
 
 	runner.AddBlocked(gadgetUpdateBlocked)
+
+	// XXX: fugly
+	boot.FdeSetupHookRunner = m.fdeSetupHookRunner
+	hookManager.Register(regexp.MustCompile("^fde-setup"), newFdeSetupHandler)
 
 	return m, nil
 }
@@ -1299,6 +1304,71 @@ func (m *DeviceManager) switchToSystemAndMode(systemLabel, mode string, sameSyst
 	}
 
 	switched(systemLabel, sysAction)
+	return nil
+}
+
+func (m *DeviceManager) fdeSetupHookRunner(key secboot.EncryptionKey, name string) ([]byte, error) {
+	st := m.state
+
+	summary := fmt.Sprintf("Run fde-setup for %v", name)
+	hooksup := &hookstate.HookSetup{
+		Hook: "fde-setup",
+		// XXX: what is appropriate here?
+		Timeout: 30 * time.Second,
+	}
+	contextData := map[string]interface{}{
+		"key": key,
+	}
+	st.Lock()
+	task := hookstate.HookTask(st, summary, hooksup, contextData)
+	chg := st.NewChange("fde-setup", summary)
+	chg.AddTask(task)
+	// ensure hook runs soon
+	st.EnsureBefore(0)
+	st.Unlock()
+
+	// fugly^2 - wait for hook to finish
+	for {
+		switch chg.Status() {
+		case state.DoneStatus:
+			break
+		case state.ErrorStatus:
+			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", name, chg.Err())
+		default:
+			// will timeout eventually
+			time.Sleep(1 * time.Second)
+		}
+	}
+	// XXX: is this how to get data that was set from the hook?
+	if err := task.Get("hook-context", &contextData); err != nil {
+		return nil, fmt.Errorf("cannot get hook context %v", err)
+	}
+	sealedKey, ok := contextData["sealed-key"].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("cannot find sealed-key in hook %s context", name)
+	}
+
+	return sealedKey, nil
+}
+
+type fdeSetupHandler struct {
+	context *hookstate.Context
+	key     secboot.EncryptionKey
+}
+
+func newFdeSetupHandler(ctx *hookstate.Context) hookstate.Handler {
+	return fdeSetupHandler{context: ctx}
+}
+
+func (h fdeSetupHandler) Before() error {
+	return nil
+}
+
+func (h fdeSetupHandler) Done() error {
+	return nil
+}
+
+func (h fdeSetupHandler) Error(err error) error {
 	return nil
 }
 
