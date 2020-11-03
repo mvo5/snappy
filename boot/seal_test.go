@@ -185,7 +185,8 @@ func (s *sealSuite) TestSealKeyToModeenv(c *C) {
 		})
 		defer restore()
 
-		err = boot.SealKeyToModeenv(myKey, myKey2, model, modeenv)
+		bootWith := &boot.BootableSet{}
+		err = boot.SealKeyToModeenv(myKey, myKey2, model, bootWith, modeenv)
 		if tc.sealErr != nil {
 			c.Assert(sealKeysCalls, Equals, 1)
 		} else {

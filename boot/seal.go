@@ -55,10 +55,46 @@ func recoveryBootChainsFileUnder(rootdir string) string {
 	return filepath.Join(dirs.SnapFDEDirUnder(rootdir), "recovery-boot-chains")
 }
 
+// FdeSetupHookRunner runs the fde-setup hook - must be initialized by
+// the importing modules
+var FdeSetupHookRunner func(key secboot.EncryptionKey) ([]byte, error)
+
+func useFdeSetupHook(bootWith *BootableSet) bool {
+	return osutil.FileExists(filepath.Join(bootWith.KernelPath, "meta/hook/fde-setup"))
+}
+
 // sealKeyToModeenv seals the supplied keys to the parameters specified
 // in modeenv.
 // It assumes to be invoked in install mode.
-func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, modeenv *Modeenv) error {
+func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, bootWith *BootableSet, modeenv *Modeenv) error {
+	// XXX: too simplistic - does not build boot chains right now so
+	//      this will only work with non-measured boots
+	if useFdeSetupHook(bootWith) {
+		if FdeSetupHookRunner == nil {
+			return fmt.Errorf("internal error: cannot use uninitialized FdeSetupHookRunner")
+		}
+
+		for _, h := range []struct {
+			key  secboot.EncryptionKey
+			name string
+		}{
+			{key, "ubuntu-data.sealed-key"},
+			{saveKey, "ubuntu-save.sealed-key"},
+		} {
+			sealedKey, err := FdeSetupHookRunner(h.key)
+			if err != nil {
+				return fmt.Errorf("cannot run fde-setup hook for %s: %v", h.name, err)
+			}
+			// XXX: secboot should do the storing so that
+			// it can eventually end up in LUKS slots
+			// etc(?)
+			if err := osutil.AtomicWriteFile(filepath.Join(InitramfsEncryptionKeyDir, h.name), sealedKey, 0600, 0); err != nil {
+				return fmt.Errorf("cannot store %s key: %v", h.name, err)
+			}
+		}
+		return nil
+	}
+
 	// build the recovery mode boot chain
 	rbl, err := bootloader.Find(InitramfsUbuntuSeedDir, &bootloader.Options{
 		Role: bootloader.RoleRecovery,
