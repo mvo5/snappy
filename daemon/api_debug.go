@@ -322,6 +322,9 @@ func postDebug(c *Command, r *http.Request, user *auth.UserState) Response {
 		return SyncResponse(devicestate.CanManageRefreshes(st), nil)
 	case "connectivity":
 		return checkConnectivity(st)
+	case "fde-setup":
+		// XXX: remove "fde-setup" debug API for the final version
+		return debugFdeSetup(st, a.Message)
 	case "prune":
 		opTime, err := c.d.overlord.DeviceManager().StartOfOperationTime()
 		if err != nil {
