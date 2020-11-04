@@ -22,7 +22,6 @@ package ctlcmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/snapcore/snapd/i18n"
 	"github.com/snapcore/snapd/secboot"
@@ -54,6 +53,8 @@ func (c *fdeSetupRequestCommand) Execute(args []string) error {
 	if context == nil {
 		return fmt.Errorf("cannot  without a context")
 	}
+	context.Lock()
+	defer context.Unlock()
 
 	var js fdeSetupJSON
 	if err := context.Get("fde-key", &js.FdeKey); err != nil {
@@ -70,34 +71,32 @@ func (c *fdeSetupRequestCommand) Execute(args []string) error {
 
 type fdeSetupResultCommand struct {
 	baseCommand
+
+	Positional struct {
+		SealedKey string `positional-arg-name:"<sealed-key>" description:"sealed keys"`
+	} `positional-args:"yes"`
 }
 
 var shortFdeSetupResultHelp = i18n.G("Set result for FDE key sealing")
 var longFdeSetupResultHelp = i18n.G(`
 The fde-setup-result command reads the result data from a FDE setu.
 
-    $ echo "{"fde-sealed-key":"the-sealed-key"} | snapctl fde-setup-result
+    $ snapctl fde-setup-result <sealed-key>
 `)
 
 func init() {
 	addCommand("fde-setup-result", shortFdeSetupResultHelp, longFdeSetupResultHelp, func() command { return &fdeSetupResultCommand{} })
 }
 
-var Stdin = os.Stdin
-
 func (c *fdeSetupResultCommand) Execute(args []string) error {
 	context := c.context()
 	if context == nil {
 		return fmt.Errorf("cannot  without a context")
 	}
+	context.Lock()
+	defer context.Unlock()
 
-	// XXX: should we do something simpler than json?
-	var js fdeSetupJSON
-	// XXX: will reading from stdin work in hooks?
-	if err := json.NewDecoder(Stdin).Decode(&js); err != nil {
-		return fmt.Errorf("cannot parse fde-setup-result json: %v", err)
-	}
-	context.Set("fde-sealed-key", &js.FdeSealedKey)
+	context.Set("fde-sealed-key", c.Positional.SealedKey)
 
 	return nil
 }

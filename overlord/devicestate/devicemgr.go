@@ -1330,7 +1330,8 @@ func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.En
 	st.EnsureBefore(0)
 	st.Unlock()
 
-	// fugly^2 - wait for hook to finish
+	// fugly - wait for hook to finish
+out:
 	for {
 		st.Lock()
 		status := chg.Status()
@@ -1338,7 +1339,7 @@ func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.En
 		st.Unlock()
 		switch status {
 		case state.DoneStatus:
-			break
+			break out
 		case state.ErrorStatus:
 			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", name, err)
 		default:
@@ -1353,12 +1354,12 @@ func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.En
 	if err := task.Get("hook-context", &contextData); err != nil {
 		return nil, fmt.Errorf("cannot get hook context %v", err)
 	}
-	sealedKey, ok := contextData["fde-sealed-key"].([]byte)
+	sealedKey, ok := contextData["fde-sealed-key"].(string)
 	if !ok {
 		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context", name)
 	}
 
-	return sealedKey, nil
+	return []byte(sealedKey), nil
 }
 
 type fdeSetupHandler struct {
