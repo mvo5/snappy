@@ -46,6 +46,7 @@ import (
 	"github.com/snapcore/snapd/progress"
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/secboot"
+	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/sysconfig"
 	"github.com/snapcore/snapd/systemd"
@@ -1307,12 +1308,14 @@ func (m *DeviceManager) switchToSystemAndMode(systemLabel, mode string, sameSyst
 	return nil
 }
 
-func (m *DeviceManager) fdeSetupHookRunner(key secboot.EncryptionKey, name string) ([]byte, error) {
+func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.EncryptionKey, name string) ([]byte, error) {
 	st := m.state
 
 	summary := fmt.Sprintf("Run fde-setup for %v", name)
 	hooksup := &hookstate.HookSetup{
-		Hook: "fde-setup",
+		Snap:     kernelInfo.InstanceName(),
+		Revision: kernelInfo.Revision,
+		Hook:     "fde-setup",
 		// XXX: what is appropriate here?
 		Timeout: 30 * time.Second,
 	}

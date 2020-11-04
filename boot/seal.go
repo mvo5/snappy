@@ -57,7 +57,7 @@ func recoveryBootChainsFileUnder(rootdir string) string {
 
 // FdeSetupHookRunner runs the fde-setup hook - must be initialized by
 // the importing modules
-var FdeSetupHookRunner func(key secboot.EncryptionKey, name string) ([]byte, error)
+var FdeSetupHookRunner func(kernelInfo *snap.Info, key secboot.EncryptionKey, name string) ([]byte, error)
 
 func useFdeSetupHook(bootWith *BootableSet) bool {
 	return osutil.FileExists(filepath.Join(bootWith.KernelPath, "meta/hook/fde-setup"))
@@ -81,7 +81,7 @@ func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, 
 			{key, "ubuntu-data.sealed-key"},
 			{saveKey, "ubuntu-save.sealed-key"},
 		} {
-			sealedKey, err := FdeSetupHookRunner(h.key, h.name)
+			sealedKey, err := FdeSetupHookRunner(bootWith.Kernel, h.key, h.name)
 			if err != nil {
 				return fmt.Errorf("cannot run fde-setup hook for %s: %v", h.name, err)
 			}
