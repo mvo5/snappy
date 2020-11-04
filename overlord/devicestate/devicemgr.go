@@ -1317,7 +1317,7 @@ func (m *DeviceManager) fdeSetupHookRunner(key secboot.EncryptionKey, name strin
 		Timeout: 30 * time.Second,
 	}
 	contextData := map[string]interface{}{
-		"key": key,
+		"fde-key": key,
 	}
 	st.Lock()
 	task := hookstate.HookTask(st, summary, hooksup, contextData)
@@ -1343,9 +1343,9 @@ func (m *DeviceManager) fdeSetupHookRunner(key secboot.EncryptionKey, name strin
 	if err := task.Get("hook-context", &contextData); err != nil {
 		return nil, fmt.Errorf("cannot get hook context %v", err)
 	}
-	sealedKey, ok := contextData["sealed-key"].([]byte)
+	sealedKey, ok := contextData["fde-sealed-key"].([]byte)
 	if !ok {
-		return nil, fmt.Errorf("cannot find sealed-key in hook %s context", name)
+		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context", name)
 	}
 
 	return sealedKey, nil
@@ -1353,7 +1353,6 @@ func (m *DeviceManager) fdeSetupHookRunner(key secboot.EncryptionKey, name strin
 
 type fdeSetupHandler struct {
 	context *hookstate.Context
-	key     secboot.EncryptionKey
 }
 
 func newFdeSetupHandler(ctx *hookstate.Context) hookstate.Handler {
