@@ -1332,16 +1332,23 @@ func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.En
 
 	// fugly^2 - wait for hook to finish
 	for {
-		switch chg.Status() {
+		st.Lock()
+		status := chg.Status()
+		err := chg.Err()
+		st.Unlock()
+		switch status {
 		case state.DoneStatus:
 			break
 		case state.ErrorStatus:
-			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", name, chg.Err())
+			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", name, err)
 		default:
 			// will timeout eventually
 			time.Sleep(1 * time.Second)
 		}
 	}
+
+	st.Lock()
+	defer st.Unlock()
 	// XXX: is this how to get data that was set from the hook?
 	if err := task.Get("hook-context", &contextData); err != nil {
 		return nil, fmt.Errorf("cannot get hook context %v", err)
