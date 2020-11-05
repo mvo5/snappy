@@ -1,0 +1,4 @@
+name: test-snapd-fde-setup
+version: 1.0
+summary: Test for the fde-snap hook
+

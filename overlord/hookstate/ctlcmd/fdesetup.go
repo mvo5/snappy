@@ -24,7 +24,6 @@ import (
 	"fmt"
 
 	"github.com/snapcore/snapd/i18n"
-	"github.com/snapcore/snapd/secboot"
 )
 
 type fdeSetupRequestCommand struct {
@@ -44,8 +43,8 @@ func init() {
 }
 
 type fdeSetupJSON struct {
-	FdeKey       secboot.EncryptionKey `json:"fde-key,omitempty"`
-	FdeSealedKey secboot.EncryptionKey `json:"fde-sealed-key,omitempty"`
+	FdeKey       []byte `json:"fde-key,omitempty"`
+	FdeSealedKey []byte `json:"fde-sealed-key,omitempty"`
 }
 
 func (c *fdeSetupRequestCommand) Execute(args []string) error {
