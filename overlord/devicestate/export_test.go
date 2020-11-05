@@ -32,6 +32,7 @@ import (
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/overlord/storecontext"
+	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/sysconfig"
 	"github.com/snapcore/snapd/timings"
 )
@@ -240,7 +241,7 @@ func MockBootMakeBootable(f func(model *asserts.Model, rootdir string, bootWith 
 	}
 }
 
-func MockSecbootCheckKeySealingSupported(f func() error) (restore func()) {
+func MockSecbootCheckKeySealingSupported(f func(*snap.Info) error) (restore func()) {
 	old := secbootCheckKeySealingSupported
 	secbootCheckKeySealingSupported = f
 	return func() {

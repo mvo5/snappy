@@ -59,17 +59,13 @@ func recoveryBootChainsFileUnder(rootdir string) string {
 // the importing modules
 var FdeSetupHookRunner func(kernelInfo *snap.Info, key secboot.EncryptionKey, name string) ([]byte, error)
 
-func useFdeSetupHook(bootWith *BootableSet) bool {
-	return osutil.FileExists(filepath.Join(bootWith.KernelPath, "meta/hook/fde-setup"))
-}
-
 // sealKeyToModeenv seals the supplied keys to the parameters specified
 // in modeenv.
 // It assumes to be invoked in install mode.
 func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, bootWith *BootableSet, modeenv *Modeenv) error {
 	// XXX: too simplistic - does not build boot chains right now so
 	//      this will only work with non-measured boots
-	if useFdeSetupHook(bootWith) {
+	if secboot.HasFdeSetupHook(bootWith.Kernel) {
 		if FdeSetupHookRunner == nil {
 			return fmt.Errorf("internal error: cannot use uninitialized FdeSetupHookRunner")
 		}

@@ -67,6 +67,9 @@ func (s *secbootSuite) TestCheckKeySealingSupported(c *C) {
 	efiNotSupported := []uint8(nil)
 	tpmErr := errors.New("TPM error")
 
+	// XXX: mock
+	kernelInfo := &snap.Info{}
+
 	type testCase struct {
 		tpmErr     error
 		tpmEnabled bool
@@ -106,7 +109,7 @@ func (s *secbootSuite) TestCheckKeySealingSupported(c *C) {
 		restoreEfiVars := efi.MockVars(vars, nil)
 		defer restoreEfiVars()
 
-		err := secboot.CheckKeySealingSupported()
+		err := secboot.CheckKeySealingSupported(kernelInfo)
 		if tc.err == "" {
 			c.Assert(err, IsNil)
 		} else {

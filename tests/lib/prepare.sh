@@ -475,11 +475,11 @@ uc20_build_initramfs_kernel_snap() {
     # kernel snap is huge, unpacking to current dir
     unsquashfs -d repacked-kernel "$ORIG_SNAP"
 
-
     # repack initrd magic, beware
     # assumptions: initrd is compressed with LZ4, cpio block size 512, microcode
     # at the beginning of initrd image
     (
+        ORIG_CWD=$(pwd)
         cd repacked-kernel
         #shellcheck disable=SC2010
         kver=$(ls "config"-* | grep -Po 'config-\K.*')
@@ -510,6 +510,11 @@ uc20_build_initramfs_kernel_snap() {
         if [ "$injectKernelPanic" = "true" ]; then
             # add a kernel panic to the end of the-tool execution
             echo "echo 'forcibly panicing'; echo c > /proc/sysrq-trigger" >> "$skeletondir/main/usr/lib/the-tool"
+        fi
+
+        # copy any extra files to the same location inside the initrd
+        if [ -d "$ORIG_CWD"/extra-initrd/ ]; then
+            cp -a "$ORIG_CWD"/extra-initrd/* "$skeletondir"/main
         fi
 
         # XXX: need to be careful to build an initrd using the right kernel
@@ -577,6 +582,11 @@ uc20_build_initramfs_kernel_snap() {
         depmod -b "$PWD/fake" -A -v "$kver"
         rm -rf fake
     )
+
+    # copy any extra files that tests may need for the kernel
+    if [ -d ./extra-kernel-snap/ ]; then
+        cp -a ./extra-kernel-snap/* ./repacked-kernel
+    fi
 
     snap pack repacked-kernel "$TARGET"
     rm -rf repacked-kernel

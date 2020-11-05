@@ -77,7 +77,7 @@ func (s *deviceMgrInstallModeSuite) SetUpTest(c *C) {
 	})
 	s.AddCleanup(restore)
 
-	restore = devicestate.MockSecbootCheckKeySealingSupported(func() error {
+	restore = devicestate.MockSecbootCheckKeySealingSupported(func(*snap.Info) error {
 		return fmt.Errorf("TPM not available")
 	})
 	s.AddCleanup(restore)
@@ -218,7 +218,7 @@ func (s *deviceMgrInstallModeSuite) doRunChangeTestWithEncryption(c *C, grade st
 	})
 	defer restore()
 
-	restore = devicestate.MockSecbootCheckKeySealingSupported(func() error {
+	restore = devicestate.MockSecbootCheckKeySealingSupported(func(*snap.Info) error {
 		if tc.tpm {
 			return nil
 		} else {
@@ -484,7 +484,7 @@ func (s *deviceMgrInstallModeSuite) testInstallEncryptionSanityChecks(c *C, errM
 	restore := release.MockOnClassic(false)
 	defer restore()
 
-	restore = devicestate.MockSecbootCheckKeySealingSupported(func() error { return nil })
+	restore = devicestate.MockSecbootCheckKeySealingSupported(func(*snap.Info) error { return nil })
 	defer restore()
 
 	err := ioutil.WriteFile(filepath.Join(dirs.GlobalRootDir, "/var/lib/snapd/modeenv"),

@@ -21,11 +21,14 @@
 package secboot
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/canonical/go-tpm2"
@@ -39,6 +42,7 @@ import (
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/osutil/disks"
 	"github.com/snapcore/snapd/randutil"
+	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/snapfile"
 )
 
@@ -71,7 +75,12 @@ func isTPMEnabledImpl(tpm *sb.TPMConnection) bool {
 	return tpm.IsEnabled()
 }
 
-func CheckKeySealingSupported() error {
+func CheckKeySealingSupported(kernelInfo *snap.Info) error {
+	if HasFdeSetupHook(kernelInfo) {
+		logger.Noticef("full disk encryption supported via fde-setup hook")
+		return nil
+	}
+
 	logger.Noticef("checking if secure boot is enabled...")
 	if err := checkSecureBootEnabled(); err != nil {
 		logger.Noticef("secure boot not enabled: %v", err)
@@ -185,6 +194,61 @@ func MeasureSnapModelWhenPossible(findModel func() (*asserts.Model, error)) erro
 	return nil
 }
 
+// XXX: better way to detect if hook supports HW
+func HasFdeSetupHook(kernelInfo *snap.Info) bool {
+	if kernelInfo == nil {
+		return false
+	}
+	_, ok := kernelInfo.Hooks["fde-setup"]
+	return ok
+}
+
+// XXX: find better place
+// XXX2: have something like "fde-reveal-key --supported" ?
+func hasFdeRevealKey() bool {
+	_, err := exec.LookPath("fde-reveal-key")
+	return err == nil
+}
+
+//XXX: duplicated
+type fdeRevealJSON struct {
+	FdeSealedKey     []byte `json:"fde-sealed-key"`
+	VolumeName       string `json:"volume-name"`
+	SourceDevicePath string `json:"source-device-path"`
+}
+
+func useFdeRevealKey(disk disks.Disk, name string, encryptionKeyDir string, lockKeysOnFinish bool) (string, bool, error) {
+	// XXX duplicated
+	partUUID, err := disk.FindMatchingPartitionUUID(name + "-enc")
+	if err != nil {
+		return "", false, err
+	}
+	encdev := filepath.Join("/dev/disk/by-partuuid", partUUID)
+	mapperName := name + "-" + randutilRandomKernelUUID()
+
+	// find sealed key?!?
+	sealedKey := []byte("xxx")
+
+	// run "fde-key-reveal" with the appropriate input
+	jbuf, err := json.Marshal(fdeRevealJSON{
+		VolumeName:       mapperName,
+		SourceDevicePath: encdev,
+		FdeSealedKey:     sealedKey,
+	})
+	if err != nil {
+		return "", false, err
+	}
+	// XXX: use systemd-run from PR#9488
+	cmd := exec.Command("fde-reveal-key")
+	cmd.Stdin = bytes.NewReader(jbuf)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", false, osutil.OutputErr(output, err)
+	}
+
+	return encdev, true, nil
+}
+
 // UnlockVolumeUsingSealedKeyIfEncrypted verifies whether an encrypted volume
 // with the specified name exists and unlocks it using a sealed key in a file
 // with a corresponding name. With lockKeysOnFinish set, access to the sealed
@@ -193,6 +257,11 @@ func MeasureSnapModelWhenPossible(findModel func() (*asserts.Model, error)) erro
 // in the encrypted case). If no encrypted volume was found, then the returned
 // device node is an unencrypted normal volume.
 func UnlockVolumeUsingSealedKeyIfEncrypted(disk disks.Disk, name string, encryptionKeyDir string, lockKeysOnFinish bool) (string, bool, error) {
+	// first check if we need to do the helper
+	if hasFdeRevealKey() {
+		return useFdeRevealKey(disk, name, encryptionKeyDir, lockKeysOnFinish)
+	}
+
 	// TODO:UC20: use sb.SecureConnectToDefaultTPM() if we decide there's benefit in doing that or
 	//            we have a hard requirement for a valid EK cert chain for every boot (ie, panic
 	//            if there isn't one). But we can't do that as long as we need to download
