@@ -84,7 +84,11 @@ func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, 
 			// XXX: secboot should do the storing so that
 			// it can eventually end up in LUKS slots
 			// etc(?)
-			if err := osutil.AtomicWriteFile(filepath.Join(InitramfsEncryptionKeyDir, h.name), sealedKey, 0600, 0); err != nil {
+			kp := filepath.Join(InitramfsEncryptionKeyDir, h.name)
+			if err := os.MkdirAll(filepath.Dir(kp), 0755); err != nil {
+				return err
+			}
+			if err := osutil.AtomicWriteFile(filepath.Join(kp), sealedKey, 0600, 0); err != nil {
 				return fmt.Errorf("cannot store %s key: %v", h.name, err)
 			}
 		}

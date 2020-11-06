@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,9 +39,10 @@ func runFdeSetup() error {
 		return err
 	}
 
-	// "seal"
-	sealedKey := xor13(js.FdeKey)
-	output, err = exec.Command("snapctl", "fde-setup-result", string(sealedKey)).CombinedOutput()
+	// "seal", do not pass raw binary data via cmdline or this may result
+	// in fork/exec invalid-argument errors from the kernel
+	sealedKey := hex.EncodeToString(xor13(js.FdeKey))
+	output, err = exec.Command("snapctl", "fde-setup-result", sealedKey).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("cannot run snapctl fde-setup-result: %v", osutil.OutputErr(output, err))
 	}
@@ -55,7 +57,11 @@ func runFdeRevealKey() error {
 		return err
 	}
 	// "unseal"
-	unsealedKey := xor13(js.FdeKey)
+	sealedKey, err := hex.DecodeString(string(js.FdeSealedKey))
+	if err != nil {
+		return fmt.Errorf("cannot decode %s: %v", js.FdeSealedKey, err)
+	}
+	unsealedKey := xor13(sealedKey)
 	fmt.Fprintf(os.Stdout, "%s", unsealedKey)
 
 	return nil
