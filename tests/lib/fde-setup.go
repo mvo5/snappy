@@ -38,9 +38,9 @@ func runFdeSetup() error {
 		return err
 	}
 
-	// "unseal"
-	unsealedKey := xor13(js.FdeSealedKey)
-	output, err = exec.Command("snapctl", "fde-setup-result", string(unsealedKey)).CombinedOutput()
+	// "seal"
+	sealedKey := xor13(js.FdeKey)
+	output, err = exec.Command("snapctl", "fde-setup-result", string(sealedKey)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("cannot run snapctl fde-setup-result: %v", osutil.OutputErr(output, err))
 	}
@@ -54,9 +54,9 @@ func runFdeRevealKey() error {
 	if err := json.NewDecoder(os.Stdin).Decode(&js); err != nil {
 		return err
 	}
-	// "seal"
-	sealedKey := xor13(js.FdeKey)
-	fmt.Fprintf(os.Stdout, "%s", sealedKey)
+	// "unseal"
+	unsealedKey := xor13(js.FdeKey)
+	fmt.Fprintf(os.Stdout, "%s", unsealedKey)
 
 	return nil
 }

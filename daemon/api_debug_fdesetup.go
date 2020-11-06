@@ -44,10 +44,7 @@ func debugFdeSetup(st *state.State, msg string) Response {
 		return BadRequest("cannot get info for %s: %v", mockKernelSnapName, err)
 	}
 
-	// fdeSetupHookRunner must run without the lock
-	st.Unlock()
-	defer st.Lock()
-
+	// fdeSetupHookRunner runs with the lock
 	var mk secboot.EncryptionKey
 	copy(mk[:], []byte(mockKey))
 	sealedKey, err := boot.FdeSetupHookRunner(info, mk, mockKeyName)

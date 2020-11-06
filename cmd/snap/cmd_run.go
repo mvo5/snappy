@@ -1012,6 +1012,11 @@ func (x *cmdRun) runSnapConfine(info *snap.Info, securityTag, snapApp, hook stri
 	if info.Base == "none" {
 		return fmt.Errorf(`cannot run hooks / applications with base "none"`)
 	}
+	if info.Type() == snap.TypeKernel {
+		// hhhhhhhhhhhhhhhhaaaaaaaaaaaaaaackkkkkkkkkkkkk
+		// to make sure the kernel hook works with uc20
+		info.Base = "core20"
+	}
 	if info.Base != "" {
 		cmd = append(cmd, "--base", info.Base)
 	}

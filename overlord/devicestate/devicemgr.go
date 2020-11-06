@@ -1309,7 +1309,10 @@ func (m *DeviceManager) switchToSystemAndMode(systemLabel, mode string, sameSyst
 }
 
 func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.EncryptionKey, name string) ([]byte, error) {
+	// state is locked here
 	st := m.state
+
+	logger.Debugf("fdeSetupHookRunner")
 
 	summary := fmt.Sprintf("Run fde-setup for %v", name)
 	hooksup := &hookstate.HookSetup{
@@ -1322,17 +1325,18 @@ func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.En
 	contextData := map[string]interface{}{
 		"fde-key": key,
 	}
-	st.Lock()
+	logger.Debugf("fdeSetupHookRunner first lock")
 	task := hookstate.HookTask(st, summary, hooksup, contextData)
 	chg := st.NewChange("fde-setup", summary)
 	chg.AddTask(task)
 	// ensure hook runs soon
 	st.EnsureBefore(0)
-	st.Unlock()
 
 	// fugly - wait for hook to finish
+	st.Unlock()
 out:
 	for {
+		logger.Debugf("wait for %v", chg)
 		st.Lock()
 		status := chg.Status()
 		err := chg.Err()
@@ -1341,15 +1345,17 @@ out:
 		case state.DoneStatus:
 			break out
 		case state.ErrorStatus:
+			st.Lock()
 			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", name, err)
 		default:
 			// will timeout eventually
 			time.Sleep(1 * time.Second)
 		}
 	}
-
 	st.Lock()
-	defer st.Unlock()
+
+	//st.Lock()
+	//defer st.Unlock()
 	// XXX: is this how to get data that was set from the hook?
 	if err := task.Get("hook-context", &contextData); err != nil {
 		return nil, fmt.Errorf("cannot get hook context %v", err)
@@ -1358,6 +1364,7 @@ out:
 	if !ok {
 		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context", name)
 	}
+	logger.Debugf("got sealed key %v", sealedKey)
 
 	return []byte(sealedKey), nil
 }
