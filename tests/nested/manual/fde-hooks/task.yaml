@@ -43,7 +43,7 @@ execute: |
   nested_exec sudo snap wait system seed.loaded
 
   # check that we have an encrypted system
-  nested_exec "find /dev/mapper" | MATCH ubuntu-data-enc
+  nested_exec "find /dev/mapper" | MATCH ubuntu-data-[0-9a-f-]+
   nested_exec "test -e /var/lib/snapd/device/fde/recovery.key"
-
-
+  nested_exec "test -e /run/mnt/ubuntu-boot/device/fde/ubuntu-data.sealed-key"
+  nested_exec "test -e /run/mnt/ubuntu-boot/device/fde/ubuntu-save.sealed-key"

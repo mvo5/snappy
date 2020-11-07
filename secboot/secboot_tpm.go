@@ -222,15 +222,18 @@ func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile strin
 	res := UnlockResult{
 		UnlockMethod: NotUnlocked,
 	}
+	// XXX: honor opts.LockKeysOnFinish
 
+	// XXX: provide fallback so that if no encrypted partition is found
+	//      we simpliy skip using fde-reveal-key
+	// ensure we have a encrypted partition
 	partUUID, err := disk.FindMatchingPartitionUUID(name + "-enc")
 	if err != nil {
 		return res, err
 	}
 	encdev := filepath.Join("/dev/disk/by-partuuid", partUUID)
-	mapperName := name + "-" + randutilRandomKernelUUID()
+	res.IsDecryptedDevice = true
 
-	// find sealed key?!?
 	sealedKey, err := ioutil.ReadFile(sealedEncryptionKeyFile)
 	if err != nil {
 		return res, fmt.Errorf("cannot read sealed key file: %v", err)
@@ -238,7 +241,8 @@ func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile strin
 
 	// run "fde-key-reveal" with the appropriate input
 	jbuf, err := json.Marshal(fdeRevealJSON{
-		VolumeName:       mapperName,
+		// XXX: volumename
+		// XXX2: is this correct?
 		SourceDevicePath: encdev,
 		FdeSealedKey:     sealedKey,
 	})
@@ -252,7 +256,15 @@ func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile strin
 	if err != nil {
 		return res, osutil.OutputErr(output, err)
 	}
-	res.Device = encdev
+
+	// unseleaedKey is the output from the fde-reveal-key command
+	mapperName := name + "-" + randutilRandomKernelUUID()
+	unsealedKey := output
+	if err := unlockEncryptedPartitionWithKey(mapperName, encdev, unsealedKey); err != nil {
+		return res, fmt.Errorf("cannot unlock encrypted partition: %v", err)
+	}
+
+	res.Device = filepath.Join("/dev/mapper", mapperName)
 	res.UnlockMethod = UnlockedWithSealedKey
 
 	return res, nil
@@ -307,7 +319,10 @@ func UnlockVolumeUsingSealedKeyIfEncrypted(
 	disk disks.Disk, name string, sealedEncryptionKeyFile string, opts *UnlockVolumeUsingSealedKeyOptions,
 ) (UnlockResult, error) {
 	if hasFdeRevealKey() {
-		return useFdeRevealKey(disk, name, sealedEncryptionKeyFile, opts)
+		logger.Noticef("using fde-reveal-key")
+		res, err := useFdeRevealKey(disk, name, sealedEncryptionKeyFile, opts)
+		logger.Debugf("result from useFdeRevealKey: %v %v", res, err)
+		return res, err
 	}
 
 	res := UnlockResult{
