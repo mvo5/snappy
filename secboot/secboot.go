@@ -95,3 +95,47 @@ type ResealKeysParams struct {
 	// The path to the authorization policy update key file (only relevant for TPM)
 	TPMPolicyAuthKeyFile string
 }
+
+// UnlockVolumeUsingSealedKeyOptions contains options for unlocking encrypted
+// volumes using keys sealed to the TPM.
+type UnlockVolumeUsingSealedKeyOptions struct {
+	// LockKeysOnFinish when true indicates that access to the sealed keys
+	// shall be locked after the operation using the options completes.
+	LockKeysOnFinish bool
+	// AllowRecoveryKey when true indicates activation with the recovery key
+	// will be attempted if activation with the sealed key failed.
+	AllowRecoveryKey bool
+}
+
+// UnlockMethod is the method that was used to unlock a volume.
+type UnlockMethod int
+
+const (
+	// NotUnlocked indicates that the device was either not unlocked or is not
+	// an encrypted device.
+	NotUnlocked UnlockMethod = iota
+	// UnlockedWithSealedKey indicates that the device was unlocked with the
+	// provided sealed key object.
+	UnlockedWithSealedKey
+	// UnlockedWithRecoveryKey indicates that the device was unlocked by the
+	// user providing the recovery key at the prompt.
+	UnlockedWithRecoveryKey
+	// UnlockStatusUnknown indicates that the unlock status of the device is not clear.
+	UnlockStatusUnknown
+)
+
+// UnlockResult is the result of trying to unlock a volume.
+type UnlockResult struct {
+	// Device is the decrypted device, if encrypted or just the unencrypted
+	// device. Device can be empty when none was found.
+	Device string
+	// IsDecryptedDevice indicates if Device is a decrypted device or an
+	// unencrypted device.
+	IsDecryptedDevice bool
+	// UnlockMethod is the method used to unlock the device. Valid values are
+	// - NotUnlocked
+	// - UnlockedWithRecoveryKey
+	// - UnlockedWithSealedKey
+	// - UnlockedWithUnsealedKey
+	UnlockMethod UnlockMethod
+}
