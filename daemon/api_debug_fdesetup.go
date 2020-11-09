@@ -35,19 +35,24 @@ func debugFdeSetup(st *state.State, msg string) Response {
 	if len(l) != 3 {
 		return BadRequest("msg should be three comma separated stings, ot: %q", msg)
 	}
-	mockKernelSnapName := l[0]
-	mockKey := l[1]
-	mockKeyName := l[2]
+	mockOp := l[0]
+	mockKernelSnapName := l[1]
+	mockKey := l[2]
+	mockKeyName := l[3]
 
 	info, err := snapstate.CurrentInfo(st, mockKernelSnapName)
 	if err != nil {
 		return BadRequest("cannot get info for %s: %v", mockKernelSnapName, err)
 	}
-
-	// fdeSetupHookRunner runs with the lock
 	var mk secboot.EncryptionKey
 	copy(mk[:], []byte(mockKey))
-	sealedKey, err := boot.FdeSetupHookRunner(info, mk, mockKeyName)
+	params := &boot.FdeSetupHookParams{
+		KernelInfo: info,
+		Key:        mk,
+		KeyName:    mockKeyName,
+	}
+
+	sealedKey, err := boot.FdeSetupHookRunner(mockOp, params)
 	if err != nil {
 		return BadRequest("hook failed with: %v", err)
 	}

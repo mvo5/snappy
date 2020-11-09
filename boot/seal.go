@@ -55,9 +55,18 @@ func recoveryBootChainsFileUnder(rootdir string) string {
 	return filepath.Join(dirs.SnapFDEDirUnder(rootdir), "recovery-boot-chains")
 }
 
+type FdeSetupHookParams struct {
+	KernelInfo *snap.Info
+	Key        secboot.EncryptionKey
+	KeyName    string
+	Model      *asserts.Model
+}
+
 // FdeSetupHookRunner runs the fde-setup hook - must be initialized by
 // the importing modules
-var FdeSetupHookRunner func(kernelInfo *snap.Info, key secboot.EncryptionKey, name string) ([]byte, error)
+//
+// XXX: pass FdeSetupHook struct with bootchains etc here
+var FdeSetupHookRunner func(op string, params *FdeSetupHookParams) ([]byte, error)
 
 // sealKeyToModeenv seals the supplied keys to the parameters specified
 // in modeenv.
@@ -77,7 +86,13 @@ func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, 
 			{key, "ubuntu-data.sealed-key"},
 			{saveKey, "ubuntu-save.sealed-key"},
 		} {
-			sealedKey, err := FdeSetupHookRunner(bootWith.Kernel, h.key, h.name)
+			params := &FdeSetupHookParams{
+				KernelInfo: bootWith.Kernel,
+				Key:        h.key,
+				KeyName:    h.name,
+				Model:      model,
+			}
+			sealedKey, err := FdeSetupHookRunner("initial-setup", params)
 			if err != nil {
 				return fmt.Errorf("cannot run fde-setup hook for %s: %v", h.name, err)
 			}

@@ -210,9 +210,13 @@ func hasFdeRevealKey() bool {
 	return err == nil
 }
 
-//XXX: duplicated
 type fdeRevealJSON struct {
-	FdeSealedKey     []byte `json:"fde-sealed-key"`
+	// XXX: make this a type
+	Op string `json:"op"`
+
+	SealedKey     []byte `json:"sealed-key"`
+	SealedKeyName string `json:"sealed-key-name"`
+
 	VolumeName       string `json:"volume-name"`
 	SourceDevicePath string `json:"source-device-path"`
 }
@@ -231,6 +235,7 @@ func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile strin
 	if err != nil {
 		return res, err
 	}
+	mapperName := name + "-" + randutilRandomKernelUUID()
 	encdev := filepath.Join("/dev/disk/by-partuuid", partUUID)
 	res.IsDecryptedDevice = true
 
@@ -241,10 +246,14 @@ func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile strin
 
 	// run "fde-key-reveal" with the appropriate input
 	jbuf, err := json.Marshal(fdeRevealJSON{
-		// XXX: volumename
-		// XXX2: is this correct?
+		Op: "reveal",
+
+		SealedKey:     sealedKey,
+		SealedKeyName: name,
+
+		// XXX: do we need this?
 		SourceDevicePath: encdev,
-		FdeSealedKey:     sealedKey,
+		VolumeName:       mapperName,
 	})
 	if err != nil {
 		return res, err
@@ -258,7 +267,6 @@ func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile strin
 	}
 
 	// unseleaedKey is the output from the fde-reveal-key command
-	mapperName := name + "-" + randutilRandomKernelUUID()
 	unsealedKey := output
 	if err := unlockEncryptedPartitionWithKey(mapperName, encdev, unsealedKey); err != nil {
 		return res, fmt.Errorf("cannot unlock encrypted partition: %v", err)

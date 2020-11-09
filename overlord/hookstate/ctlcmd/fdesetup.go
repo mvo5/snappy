@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/i18n"
 )
 
@@ -43,8 +44,22 @@ func init() {
 }
 
 type fdeSetupJSON struct {
-	FdeKey       []byte `json:"fde-key,omitempty"`
-	FdeSealedKey []byte `json:"fde-sealed-key,omitempty"`
+	// XXX: make "op" a type: "initial-setup", "update"
+	Op string `json:"op"`
+
+	Key     []byte `json:"key,omitempty"`
+	KeyName string `json:"key-name,omitempty"`
+
+	// XXX: not set yet
+	// XXX2: do we need this to be a list? i.e. multiple models?
+	// Model related fields, see secboot:SnapModel interface
+	Series    string             `json:"series,omitempty"`
+	BrandID   string             `json:"brand-id,omitempty"`
+	Model     string             `json:"model,omitempty"`
+	Grade     asserts.ModelGrade `json:"grade,omitempty"`
+	SignKeyID string             `json:"sign-key-id,omitempty"`
+
+	// XXX: LoadChains, KernelCmdline
 }
 
 func (c *fdeSetupRequestCommand) Execute(args []string) error {
@@ -56,9 +71,26 @@ func (c *fdeSetupRequestCommand) Execute(args []string) error {
 	defer context.Unlock()
 
 	var js fdeSetupJSON
-	if err := context.Get("fde-key", &js.FdeKey); err != nil {
+	if err := context.Get("fde-op", &js.Op); err != nil {
+		return fmt.Errorf("cannot get fde op from context: %v", err)
+	}
+	if err := context.Get("fde-key", &js.Key); err != nil {
 		return fmt.Errorf("cannot get fde key from context: %v", err)
 	}
+	if err := context.Get("fde-key-name", &js.KeyName); err != nil {
+		return fmt.Errorf("cannot get fde key name from context: %v", err)
+	}
+	var model asserts.Model
+	if err := context.Get("model", &model); err != nil {
+		return fmt.Errorf("cannot get model from context: %v", err)
+	}
+	// XXX: make this a helper
+	js.Series = model.Series()
+	js.BrandID = model.BrandID()
+	js.Model = model.Model()
+	js.Grade = model.Grade()
+	js.SignKeyID = model.SignKeyID()
+
 	bytes, err := json.MarshalIndent(js, "", "\t")
 	if err != nil {
 		return fmt.Errorf("cannot json print fde key: %v", err)

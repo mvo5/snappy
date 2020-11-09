@@ -45,8 +45,6 @@ import (
 	"github.com/snapcore/snapd/overlord/storecontext"
 	"github.com/snapcore/snapd/progress"
 	"github.com/snapcore/snapd/release"
-	"github.com/snapcore/snapd/secboot"
-	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/sysconfig"
 	"github.com/snapcore/snapd/systemd"
@@ -1308,22 +1306,26 @@ func (m *DeviceManager) switchToSystemAndMode(systemLabel, mode string, sameSyst
 	return nil
 }
 
-func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.EncryptionKey, name string) ([]byte, error) {
+func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookParams) ([]byte, error) {
 	// state is locked here
 	st := m.state
 
 	logger.Debugf("fdeSetupHookRunner")
 
-	summary := fmt.Sprintf("Run fde-setup for %v", name)
+	// XXX: include KeyName in parameters
+	summary := fmt.Sprintf("Run fde-setup for %v", op)
 	hooksup := &hookstate.HookSetup{
-		Snap:     kernelInfo.InstanceName(),
-		Revision: kernelInfo.Revision,
+		Snap:     params.KernelInfo.InstanceName(),
+		Revision: params.KernelInfo.Revision,
 		Hook:     "fde-setup",
 		// XXX: what is appropriate here?
 		Timeout: 30 * time.Second,
 	}
 	contextData := map[string]interface{}{
-		"fde-key": key,
+		"fde-op":       op,
+		"fde-key":      params.Key,
+		"fde-key-name": params.KeyName,
+		"model":        params.Model,
 	}
 	logger.Debugf("fdeSetupHookRunner first lock")
 	task := hookstate.HookTask(st, summary, hooksup, contextData)
@@ -1332,7 +1334,7 @@ func (m *DeviceManager) fdeSetupHookRunner(kernelInfo *snap.Info, key secboot.En
 	// ensure hook runs soon
 	st.EnsureBefore(0)
 
-	// fugly - wait for hook to finish
+	// wait for hook to finish
 	st.Unlock()
 out:
 	for {
@@ -1346,7 +1348,7 @@ out:
 			break out
 		case state.ErrorStatus:
 			st.Lock()
-			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", name, err)
+			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", op, err)
 		default:
 			// will timeout eventually
 			time.Sleep(1 * time.Second)
@@ -1354,15 +1356,13 @@ out:
 	}
 	st.Lock()
 
-	//st.Lock()
-	//defer st.Unlock()
 	// XXX: is this how to get data that was set from the hook?
 	if err := task.Get("hook-context", &contextData); err != nil {
 		return nil, fmt.Errorf("cannot get hook context %v", err)
 	}
 	sealedKey, ok := contextData["fde-sealed-key"].(string)
 	if !ok {
-		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context", name)
+		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context", op)
 	}
 	logger.Debugf("got sealed key %v", sealedKey)
 

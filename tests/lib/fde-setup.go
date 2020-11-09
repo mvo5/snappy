@@ -20,13 +20,19 @@ func xor13(bs []byte) []byte {
 	return out
 }
 
-// XXX: imort struct from snapd instead?
-type fdeJSON struct {
-	FdeKey       []byte `json:"fde-key,omitempty"`
-	FdeSealedKey []byte `json:"fde-sealed-key,omitempty"`
+// XXX: import struct from snapd instead?
+type fdeSetupJSON struct {
+	// XXX: make "op" a type: "initial-setup", "update"
+	Op string `json:"op"`
 
-	VolumeName       string `json:"fde-volume-name,omitempty"`
-	SourceDevicePath string `json:"fde-source-device-path,omitempty"`
+	Key     []byte `json:"key,omitempty"`
+	KeyName string `json:"key-name,omitempty"`
+
+	Series    string `json:"series,omitempty"`
+	BrandID   string `json:"brand-id,omitempty"`
+	Model     string `json:"model,omitempty"`
+	Grade     string `json:"grade,omitempty"`
+	SignKeyID string `json:"sign-key-id,omitempty"`
 }
 
 func runFdeSetup() error {
@@ -34,14 +40,21 @@ func runFdeSetup() error {
 	if err != nil {
 		return fmt.Errorf("cannot run snapctl fde-setup-request: %v", osutil.OutputErr(output, err))
 	}
-	var js fdeJSON
+	var js fdeSetupJSON
 	if err := json.Unmarshal(output, &js); err != nil {
 		return err
 	}
 
+	switch js.Op {
+	case "initial-setup":
+		// good
+	default:
+		return fmt.Errorf("unsupported op %q", js.Op)
+	}
+
 	// "seal", do not pass raw binary data via cmdline or this may result
 	// in fork/exec invalid-argument errors from the kernel
-	sealedKey := hex.EncodeToString(xor13(js.FdeKey))
+	sealedKey := hex.EncodeToString(xor13(js.Key))
 	output, err = exec.Command("snapctl", "fde-setup-result", sealedKey).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("cannot run snapctl fde-setup-result: %v", osutil.OutputErr(output, err))
@@ -50,16 +63,27 @@ func runFdeSetup() error {
 	return nil
 }
 
+type fdeRevealJSON struct {
+	Op string `json:"op"`
+
+	SealedKey     []byte `json:"sealed-key"`
+	SealedKeyName string `json:"sealed-key-name"`
+}
+
 func runFdeRevealKey() error {
-	var js fdeJSON
+	var js fdeRevealJSON
 
 	if err := json.NewDecoder(os.Stdin).Decode(&js); err != nil {
 		return err
 	}
+	if js.Op != "reveal" {
+		return fmt.Errorf(`only "reveal" operation is supported`)
+	}
+
 	// "unseal"
-	sealedKey, err := hex.DecodeString(string(js.FdeSealedKey))
+	sealedKey, err := hex.DecodeString(string(js.SealedKey))
 	if err != nil {
-		return fmt.Errorf("cannot decode %s: %v", js.FdeSealedKey, err)
+		return fmt.Errorf("cannot decode %s: %v", js.SealedKey, err)
 	}
 	unsealedKey := xor13(sealedKey)
 	fmt.Fprintf(os.Stdout, "%s", unsealedKey)
