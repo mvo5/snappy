@@ -142,7 +142,8 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, runner *state.T
 
 	runner.AddBlocked(gadgetUpdateBlocked)
 
-	// XXX: fugly
+	// XXX: is this the most elegant way of doing this? should we protect
+	//      against this being set already?
 	boot.FdeSetupHookRunner = m.fdeSetupHookRunner
 	hookManager.Register(regexp.MustCompile("^fde-setup"), newFdeSetupHandler)
 
@@ -1307,12 +1308,9 @@ func (m *DeviceManager) switchToSystemAndMode(systemLabel, mode string, sameSyst
 }
 
 func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookParams) ([]byte, error) {
-	// state is locked here
+	// state is locked already by daemon
 	st := m.state
 
-	logger.Debugf("fdeSetupHookRunner")
-
-	// XXX: include KeyName in parameters
 	summary := fmt.Sprintf("Run fde-setup for %v", op)
 	hooksup := &hookstate.HookSetup{
 		Snap:     params.KernelInfo.InstanceName(),
@@ -1326,8 +1324,8 @@ func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookP
 		"fde-key":      params.Key,
 		"fde-key-name": params.KeyName,
 		"model":        params.Model,
+		// XXX: include boot chains
 	}
-	logger.Debugf("fdeSetupHookRunner first lock")
 	task := hookstate.HookTask(st, summary, hooksup, contextData)
 	chg := st.NewChange("fde-setup", summary)
 	chg.AddTask(task)
@@ -1335,36 +1333,35 @@ func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookP
 	st.EnsureBefore(0)
 
 	// wait for hook to finish
-	st.Unlock()
-out:
-	for {
-		logger.Debugf("wait for %v", chg)
-		st.Lock()
-		status := chg.Status()
-		err := chg.Err()
+	// XXX: make this a real helper function for easier readability?
+	err := func() error {
 		st.Unlock()
-		switch status {
-		case state.DoneStatus:
-			break out
-		case state.ErrorStatus:
-			st.Lock()
-			return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", op, err)
-		default:
-			// will timeout eventually
-			time.Sleep(1 * time.Second)
-		}
-	}
-	st.Lock()
+		defer st.Lock()
 
-	// XXX: is this how to get data that was set from the hook?
-	if err := task.Get("hook-context", &contextData); err != nil {
-		return nil, fmt.Errorf("cannot get hook context %v", err)
+		for {
+			st.Lock()
+			status := chg.Status()
+			err := chg.Err()
+			st.Unlock()
+			switch status {
+			case state.DoneStatus:
+				return nil
+			case state.ErrorStatus:
+				return err
+			default:
+				// will timeout eventually
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", op, err)
 	}
+
 	var sealedKey []byte
 	if err := task.Get("fde-sealed-key", &sealedKey); err != nil {
 		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context: %v", op, err)
 	}
-	logger.Debugf("got sealed key %v", sealedKey)
 
 	return sealedKey, nil
 }

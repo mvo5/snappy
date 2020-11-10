@@ -27,7 +27,6 @@ import (
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/bootloader"
 	"github.com/snapcore/snapd/dirs"
-	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/snapfile"
@@ -144,7 +143,6 @@ func makeBootable16(model *asserts.Model, rootdir string, bootWith *BootableSet)
 }
 
 func makeBootable20(model *asserts.Model, rootdir string, bootWith *BootableSet) error {
-	logger.Debugf("makeBootable20 %v %v", rootdir, bootWith)
 	// we can only make a single recovery system bootable right now
 	recoverySystems, err := filepath.Glob(filepath.Join(rootdir, "systems/*"))
 	if err != nil {

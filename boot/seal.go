@@ -56,9 +56,10 @@ func recoveryBootChainsFileUnder(rootdir string) string {
 }
 
 type FdeSetupHookParams struct {
+	Key     secboot.EncryptionKey
+	KeyName string
+
 	KernelInfo *snap.Info
-	Key        secboot.EncryptionKey
-	KeyName    string
 	Model      *asserts.Model
 }
 

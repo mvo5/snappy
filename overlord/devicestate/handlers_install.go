@@ -150,7 +150,7 @@ func (m *DeviceManager) doSetupRunSystem(t *state.Task, _ *tomb.Tomb) error {
 
 	var installedSystem *install.InstalledSystemSideData
 	// run the create partition code
-	logger.Noticef("create and deploy partitions: %v", bopts)
+	logger.Noticef("create and deploy partitions")
 	func() {
 		st.Unlock()
 		defer st.Lock()

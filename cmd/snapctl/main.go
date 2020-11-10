@@ -55,7 +55,12 @@ func main() {
 		}
 		os.Exit(0)
 	}
-	// HACK
+
+	// XXX: stdin handling here is a hack^Wshortcut, ideally we
+	// would support real stdin passing to the daemon by sending
+	// the "POST" data first and then connect stdin to the the
+	// request body until the server side closes it (or it's
+	// eof). This requires a lot more work than what is done here.
 	var stdin []byte
 	if len(os.Args) > 1 && os.Args[1] == "fde-setup-result" {
 		// XXX: handle error

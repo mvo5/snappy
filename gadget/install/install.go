@@ -27,7 +27,6 @@ import (
 
 	"github.com/snapcore/snapd/boot"
 	"github.com/snapcore/snapd/gadget"
-	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/secboot"
 )
 
@@ -126,7 +125,6 @@ func Run(gadgetRoot, device string, options Options, observer gadget.ContentObse
 
 	for _, part := range created {
 		if options.Encrypt && roleNeedsEncryption(part.Role) {
-			logger.Debugf("creating keys for %v", part)
 			keys, err := makeKeySet()
 			if err != nil {
 				return nil, err

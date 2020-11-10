@@ -2174,9 +2174,11 @@ func runSnapctl(c *Command, r *http.Request, user *auth.UserState) Response {
 	// Ignore missing context error to allow 'snapctl -h' without a context;
 	// Actual context is validated later by get/set.
 	context, _ := c.d.overlord.HookManager().Context(snapctlOptions.ContextID)
-	context.Lock()
-	context.Set("stdin", snapctlOptions.Stdin)
-	context.Unlock()
+	if snapctlOptions.Stdin != nil {
+		context.Lock()
+		context.Set("stdin", snapctlOptions.Stdin)
+		context.Unlock()
+	}
 	stdout, stderr, err := ctlcmdRun(context, snapctlOptions.Args, uid)
 	if err != nil {
 		if e, ok := err.(*ctlcmd.UnsuccessfulError); ok {
