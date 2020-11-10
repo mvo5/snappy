@@ -102,17 +102,14 @@ func (c *fdeSetupRequestCommand) Execute(args []string) error {
 
 type fdeSetupResultCommand struct {
 	baseCommand
-
-	Positional struct {
-		SealedKey string `positional-arg-name:"<sealed-key>" description:"sealed keys"`
-	} `positional-args:"yes"`
 }
 
 var shortFdeSetupResultHelp = i18n.G("Set result for FDE key sealing")
 var longFdeSetupResultHelp = i18n.G(`
-The fde-setup-result command reads the result data from a FDE setu.
+The fde-setup-result command reads the result data from a FDE setup
+from stdin.
 
-    $ snapctl fde-setup-result <sealed-key>
+    $ echo "sealed-key" | snapctl fde-setup-result
 `)
 
 func init() {
@@ -127,7 +124,18 @@ func (c *fdeSetupResultCommand) Execute(args []string) error {
 	context.Lock()
 	defer context.Unlock()
 
-	context.Set("fde-sealed-key", c.Positional.SealedKey)
+	var sealedKey []byte
+	if err := context.Get("stdin", &sealedKey); err != nil {
+		return fmt.Errorf("cannot get key from stdin: %v", err)
+	}
+	if sealedKey == nil {
+		return fmt.Errorf("no sealed key data found on stdin")
+	}
+	task, ok := context.Task()
+	if !ok {
+		return fmt.Errorf("internal error: fdeSetupResultCommand called without task")
+	}
+	task.Set("fde-sealed-key", sealedKey)
 
 	return nil
 }

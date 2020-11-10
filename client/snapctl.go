@@ -31,6 +31,9 @@ type SnapCtlOptions struct {
 	// which context and handler should be used, etc.)
 	ContextID string `json:"context-id"`
 
+	// the stdin from the command (will only be set for some comamnds)
+	Stdin []byte `json:"stdin"`
+
 	// Args contains a list of parameters to use for this invocation.
 	Args []string `json:"args"`
 }

@@ -16,6 +16,4 @@ execute: |
     # XXX: uses the fde-debug action, this should be replaced with a proper
     #      nested end-to-end test
     sealed_key_debug_json=$(curl -sS --unix-socket /run/snapd.socket http://localhost/v2/debug -X POST -d '{"action":"fde-setup","message":"initial-setup,test-snapd-fde-setup,ABCDEabcde,key-name"}')
-    echo "$sealed_key_debug_json" | jq .result | MATCH '[0-9]+'
-
-
+    echo "$sealed_key_debug_json" | jq .result | MATCH '^[0-9]+$'

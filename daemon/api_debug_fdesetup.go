@@ -22,6 +22,7 @@ package daemon
 import (
 	"strings"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/boot"
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
@@ -32,7 +33,7 @@ import (
 // sudo curl -sS --unix-socket /run/snapd.socket http://localhost/v2/debug -X POST -d '{"action":"fde-setup","message":"mock-kernel-snap,key,key-name"}'
 func debugFdeSetup(st *state.State, msg string) Response {
 	l := strings.Split(msg, ",")
-	if len(l) != 3 {
+	if len(l) != 4 {
 		return BadRequest("msg should be three comma separated stings, ot: %q", msg)
 	}
 	mockOp := l[0]
@@ -50,6 +51,7 @@ func debugFdeSetup(st *state.State, msg string) Response {
 		KernelInfo: info,
 		Key:        mk,
 		KeyName:    mockKeyName,
+		Model:      &asserts.Model{},
 	}
 
 	sealedKey, err := boot.FdeSetupHookRunner(mockOp, params)

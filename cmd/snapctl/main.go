@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/snapcore/snapd/client"
@@ -54,9 +55,15 @@ func main() {
 		}
 		os.Exit(0)
 	}
+	// HACK
+	var stdin []byte
+	if len(os.Args) > 1 && os.Args[1] == "fde-setup-result" {
+		// XXX: handle error
+		stdin, _ = ioutil.ReadAll(os.Stdin)
+	}
 
 	// no internal command, route via snapd
-	stdout, stderr, err := run()
+	stdout, stderr, err := run(stdin)
 	if err != nil {
 		if e, ok := err.(*client.Error); ok {
 			switch e.Kind {
@@ -87,7 +94,7 @@ func main() {
 	}
 }
 
-func run() (stdout, stderr []byte, err error) {
+func run(stdin []byte) (stdout, stderr []byte, err error) {
 	cli := client.New(&clientConfig)
 
 	cookie := os.Getenv("SNAP_COOKIE")
@@ -97,6 +104,7 @@ func run() (stdout, stderr []byte, err error) {
 	}
 	return cli.RunSnapctl(&client.SnapCtlOptions{
 		ContextID: cookie,
+		Stdin:     stdin,
 		Args:      os.Args[1:],
 	})
 }

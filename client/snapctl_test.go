@@ -30,6 +30,7 @@ import (
 func (cs *clientSuite) TestClientRunSnapctlCallsEndpoint(c *check.C) {
 	options := &client.SnapCtlOptions{
 		ContextID: "1234ABCD",
+		Stdin:     nil,
 		Args:      []string{"foo", "bar"},
 	}
 	cs.cli.RunSnapctl(options)
@@ -49,6 +50,7 @@ func (cs *clientSuite) TestClientRunSnapctl(c *check.C) {
 
 	options := &client.SnapCtlOptions{
 		ContextID: "1234ABCD",
+		Stdin:     nil,
 		Args:      []string{"foo", "bar"},
 	}
 
@@ -63,6 +65,7 @@ func (cs *clientSuite) TestClientRunSnapctl(c *check.C) {
 	c.Check(err, check.IsNil)
 	c.Check(body, check.DeepEquals, map[string]interface{}{
 		"context-id": "1234ABCD",
+		"stdin":      nil,
 		"args":       []interface{}{"foo", "bar"},
 	})
 }

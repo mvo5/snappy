@@ -1360,13 +1360,13 @@ out:
 	if err := task.Get("hook-context", &contextData); err != nil {
 		return nil, fmt.Errorf("cannot get hook context %v", err)
 	}
-	sealedKey, ok := contextData["fde-sealed-key"].(string)
-	if !ok {
-		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context", op)
+	var sealedKey []byte
+	if err := task.Get("fde-sealed-key", &sealedKey); err != nil {
+		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context: %v", op, err)
 	}
 	logger.Debugf("got sealed key %v", sealedKey)
 
-	return []byte(sealedKey), nil
+	return sealedKey, nil
 }
 
 type fdeSetupHandler struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -55,7 +56,9 @@ func runFdeSetup() error {
 	// "seal", do not pass raw binary data via cmdline or this may result
 	// in fork/exec invalid-argument errors from the kernel
 	sealedKey := hex.EncodeToString(xor13(js.Key))
-	output, err = exec.Command("snapctl", "fde-setup-result", sealedKey).CombinedOutput()
+	cmd := exec.Command("snapctl", "fde-setup-result")
+	cmd.Stdin = bytes.NewBufferString(sealedKey)
+	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("cannot run snapctl fde-setup-result: %v", osutil.OutputErr(output, err))
 	}

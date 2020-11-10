@@ -91,7 +91,7 @@ func (s *snapctlSuite) TearDownTest(c *C) {
 }
 
 func (s *snapctlSuite) TestSnapctl(c *C) {
-	stdout, stderr, err := run()
+	stdout, stderr, err := run(nil)
 	c.Check(err, IsNil)
 	c.Check(string(stdout), Equals, "test stdout")
 	c.Check(string(stderr), Equals, "test stderr")
@@ -101,7 +101,7 @@ func (s *snapctlSuite) TestSnapctlWithArgs(c *C) {
 	os.Args = []string{"snapctl", "foo", "--bar"}
 
 	s.expectedArgs = []string{"foo", "--bar"}
-	stdout, stderr, err := run()
+	stdout, stderr, err := run(nil)
 	c.Check(err, IsNil)
 	c.Check(string(stdout), Equals, "test stdout")
 	c.Check(string(stderr), Equals, "test stderr")
@@ -114,6 +114,6 @@ func (s *snapctlSuite) TestSnapctlHelp(c *C) {
 	os.Args = []string{"snapctl", "-h"}
 	s.expectedArgs = []string{"-h"}
 
-	_, _, err := run()
+	_, _, err := run(nil)
 	c.Check(err, IsNil)
 }
