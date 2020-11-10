@@ -50,7 +50,6 @@ type fdeSetupJSON struct {
 	Key     []byte `json:"key,omitempty"`
 	KeyName string `json:"key-name,omitempty"`
 
-	// XXX: not set yet
 	// XXX2: do we need this to be a list? i.e. multiple models?
 	// Model related fields, see secboot:SnapModel interface
 	Series    string             `json:"series,omitempty"`

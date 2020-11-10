@@ -8,7 +8,7 @@ environment:
 
 execute: |
     mkdir -p test-snapd-fde-setup/meta/hooks
-    go build -o test-snapd-fde-setup/meta/hooks/fde-setup "$TESTSLIB"/fde-setup.go
+    go build -o test-snapd-fde-setup/meta/hooks/fde-setup "$TESTSLIB"/fde-setup-hook/fde-setup.go
     #shellcheck source=tests/lib/snaps.sh
     . "$TESTSLIB"/snaps.sh
     install_local ./test-snapd-fde-setup

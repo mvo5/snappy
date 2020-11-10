@@ -222,14 +222,13 @@ type fdeRevealJSON struct {
 }
 
 func useFdeRevealKey(disk disks.Disk, name string, sealedEncryptionKeyFile string, opts *UnlockVolumeUsingSealedKeyOptions) (UnlockResult, error) {
-	// XXX duplicated
 	res := UnlockResult{
 		UnlockMethod: NotUnlocked,
 	}
 	// XXX: honor opts.LockKeysOnFinish
 
 	// XXX: provide fallback so that if no encrypted partition is found
-	//      we simpliy skip using fde-reveal-key
+	//      we simply skip using fde-reveal-key
 	// ensure we have a encrypted partition
 	partUUID, err := disk.FindMatchingPartitionUUID(name + "-enc")
 	if err != nil {
