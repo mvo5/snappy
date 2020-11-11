@@ -46,23 +46,23 @@ func runFdeSetup() error {
 		return err
 	}
 
+	var fdeSetupResultStr string
 	switch js.Op {
+	case "features":
+		// no special features supported by this hook
+		fdeSetupResultStr = "[]"
 	case "initial-setup":
-		// good
+		// "seal"
+		fdeSetupResultStr = hex.EncodeToString(xor13(js.Key))
 	default:
 		return fmt.Errorf("unsupported op %q", js.Op)
 	}
-
-	// "seal", do not pass raw binary data via cmdline or this may result
-	// in fork/exec invalid-argument errors from the kernel
-	sealedKey := hex.EncodeToString(xor13(js.Key))
 	cmd := exec.Command("snapctl", "fde-setup-result")
-	cmd.Stdin = bytes.NewBufferString(sealedKey)
+	cmd.Stdin = bytes.NewBufferString(fdeSetupResultStr)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("cannot run snapctl fde-setup-result: %v", osutil.OutputErr(output, err))
+		return fmt.Errorf("cannot run snapctl fde-setup-result for op %q: %v", js.Op, osutil.OutputErr(output, err))
 	}
-
 	return nil
 }
 

@@ -17,3 +17,5 @@ execute: |
     #      nested end-to-end test
     sealed_key_debug_json=$(curl -sS --unix-socket /run/snapd.socket http://localhost/v2/debug -X POST -d '{"action":"fde-setup","message":"initial-setup,test-snapd-fde-setup,ABCDEabcde,key-name"}')
     echo "$sealed_key_debug_json" | jq -r .result | MATCH '^[0-9]+$'
+
+    journalctl -u snapd | MATCH 'got fde-setup hook features: \[\]'

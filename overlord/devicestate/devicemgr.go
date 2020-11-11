@@ -1307,11 +1307,33 @@ func (m *DeviceManager) switchToSystemAndMode(systemLabel, mode string, sameSyst
 	return nil
 }
 
+func waitHookChg(st *state.State, chg *state.Change) error {
+	st.Unlock()
+	defer st.Lock()
+
+	for {
+		st.Lock()
+		status := chg.Status()
+		err := chg.Err()
+		st.Unlock()
+		switch status {
+		case state.DoneStatus:
+			return nil
+		case state.ErrorStatus:
+			return err
+		default:
+			// will timeout eventually
+			time.Sleep(1 * time.Second)
+		}
+	}
+}
+
 func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookParams) ([]byte, error) {
 	// state is locked already by daemon
 	st := m.state
 
-	summary := fmt.Sprintf("Run fde-setup for %v", op)
+	summary := "Run fde-setup for "
+	chg := st.NewChange("fde-setup", summary)
 	hooksup := &hookstate.HookSetup{
 		Snap:     params.KernelInfo.InstanceName(),
 		Revision: params.KernelInfo.Revision,
@@ -1319,6 +1341,16 @@ func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookP
 		// XXX: should this be configurable somehow?
 		Timeout: 5 * time.Minute,
 	}
+	// run a task that checks what features the hook has
+	// XXX: we don't do anything with the features right now, once
+	//      we do we probably need to generate two changes, the first
+	//      checks the features and generates the second depending on
+	//      on what the hook tells us about those features
+	tFeatures := hookstate.HookTask(st, summary+"features", hooksup, map[string]interface{}{
+		"fde-op": "features",
+	})
+	chg.AddTask(tFeatures)
+	// now add a task that does the setup
 	contextData := map[string]interface{}{
 		"fde-op":       op,
 		"fde-key":      params.Key,
@@ -1326,42 +1358,30 @@ func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookP
 		"model":        params.Model,
 		// XXX: include boot chains
 	}
-	task := hookstate.HookTask(st, summary, hooksup, contextData)
-	chg := st.NewChange("fde-setup", summary)
-	chg.AddTask(task)
+	tSetup := hookstate.HookTask(st, summary+op, hooksup, contextData)
+	tSetup.WaitFor(tFeatures)
+	chg.AddTask(tSetup)
 	// ensure hook runs soon
 	st.EnsureBefore(0)
 
 	// wait for hook to finish
-	// XXX: make this a real helper function for easier readability?
-	err := func() error {
-		st.Unlock()
-		defer st.Lock()
-
-		for {
-			st.Lock()
-			status := chg.Status()
-			err := chg.Err()
-			st.Unlock()
-			switch status {
-			case state.DoneStatus:
-				return nil
-			case state.ErrorStatus:
-				return err
-			default:
-				// will timeout eventually
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}()
-	if err != nil {
+	if err := waitHookChg(st, chg); err != nil {
 		return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", op, err)
 	}
 
-	var sealedKey []byte
-	if err := task.Get("fde-sealed-key", &sealedKey); err != nil {
-		return nil, fmt.Errorf("cannot find fde-sealed-key in hook %s context: %v", op, err)
+	// XXX: do something useful with the features
+	var features []byte
+	if err := tFeatures.Get("fde-setup-result", &features); err != nil {
+		return nil, fmt.Errorf("cannot get features result in hook %s context: %v", op, err)
 	}
+	// XXX: validate json
+	logger.Debugf("got fde-setup hook features: %v", string(features))
+
+	var sealedKey []byte
+	if err := tSetup.Get("fde-setup-result", &sealedKey); err != nil {
+		return nil, fmt.Errorf("cannot get sealedKey result in hook %s context: %v", op, err)
+	}
+	logger.Debugf("got fde-setup hook sealed-key: %v", string(sealedKey))
 
 	return sealedKey, nil
 }

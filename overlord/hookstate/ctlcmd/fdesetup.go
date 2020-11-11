@@ -73,22 +73,26 @@ func (c *fdeSetupRequestCommand) Execute(args []string) error {
 	if err := context.Get("fde-op", &js.Op); err != nil {
 		return fmt.Errorf("cannot get fde op from context: %v", err)
 	}
-	if err := context.Get("fde-key", &js.Key); err != nil {
-		return fmt.Errorf("cannot get fde key from context: %v", err)
+	// Op is either "initial-setup" or "features"
+	// only "initial-setup" needs the extra stuff below
+	if js.Op == "initial-setup" {
+		if err := context.Get("fde-key", &js.Key); err != nil {
+			return fmt.Errorf("cannot get fde key from context: %v", err)
+		}
+		if err := context.Get("fde-key-name", &js.KeyName); err != nil {
+			return fmt.Errorf("cannot get fde key name from context: %v", err)
+		}
+		var model asserts.Model
+		if err := context.Get("model", &model); err != nil {
+			return fmt.Errorf("cannot get model from context: %v", err)
+		}
+		// XXX: make this a helper
+		js.Series = model.Series()
+		js.BrandID = model.BrandID()
+		js.Model = model.Model()
+		js.Grade = model.Grade()
+		js.SignKeyID = model.SignKeyID()
 	}
-	if err := context.Get("fde-key-name", &js.KeyName); err != nil {
-		return fmt.Errorf("cannot get fde key name from context: %v", err)
-	}
-	var model asserts.Model
-	if err := context.Get("model", &model); err != nil {
-		return fmt.Errorf("cannot get model from context: %v", err)
-	}
-	// XXX: make this a helper
-	js.Series = model.Series()
-	js.BrandID = model.BrandID()
-	js.Model = model.Model()
-	js.Grade = model.Grade()
-	js.SignKeyID = model.SignKeyID()
 
 	bytes, err := json.MarshalIndent(js, "", "\t")
 	if err != nil {
@@ -106,9 +110,16 @@ type fdeSetupResultCommand struct {
 var shortFdeSetupResultHelp = i18n.G("Set result for FDE key sealing")
 var longFdeSetupResultHelp = i18n.G(`
 The fde-setup-result command reads the result data from a FDE setup
-from stdin.
+from stdin. 
+
+E.g. for "op":"initial-setup" this would be:
 
     $ echo "sealed-key" | snapctl fde-setup-result
+
+Or for "op":"features":
+
+    $ echo "[]" | snapctl fde-setup-result
+
 `)
 
 func init() {
@@ -123,18 +134,19 @@ func (c *fdeSetupResultCommand) Execute(args []string) error {
 	context.Lock()
 	defer context.Unlock()
 
-	var sealedKey []byte
-	if err := context.Get("stdin", &sealedKey); err != nil {
-		return fmt.Errorf("cannot get key from stdin: %v", err)
+	var fdeSetupResult []byte
+	if err := context.Get("stdin", &fdeSetupResult); err != nil {
+		return fmt.Errorf("cannot get result from stdin: %v", err)
 	}
-	if sealedKey == nil {
-		return fmt.Errorf("no sealed key data found on stdin")
+	if fdeSetupResult == nil {
+		return fmt.Errorf("no result data found on stdin")
 	}
 	task, ok := context.Task()
 	if !ok {
 		return fmt.Errorf("internal error: fdeSetupResultCommand called without task")
 	}
-	task.Set("fde-sealed-key", sealedKey)
+	task.Logf("got result from stdin %v", string(fdeSetupResult))
+	task.Set("fde-setup-result", fdeSetupResult)
 
 	return nil
 }
