@@ -1316,8 +1316,8 @@ func (m *DeviceManager) fdeSetupHookRunner(op string, params *boot.FdeSetupHookP
 		Snap:     params.KernelInfo.InstanceName(),
 		Revision: params.KernelInfo.Revision,
 		Hook:     "fde-setup",
-		// XXX: what is appropriate here?
-		Timeout: 30 * time.Second,
+		// XXX: should this be configurable somehow?
+		Timeout: 5 * time.Minute,
 	}
 	contextData := map[string]interface{}{
 		"fde-op":       op,
