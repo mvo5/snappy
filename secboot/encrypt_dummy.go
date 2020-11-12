@@ -1,8 +1,8 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
-// +build !nosecboot
+// +build nosecboot
 
 /*
- * Copyright (C) 2019-2020 Canonical Ltd
+ * Copyright (C) 2020 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -18,16 +18,8 @@
  *
  */
 
-package main
+package secboot
 
-import (
-	"github.com/snapcore/snapd/secboot"
-)
-
-func init() {
-	secbootMeasureSnapSystemEpochWhenPossible = secboot.MeasureSnapSystemEpochWhenPossible
-	secbootMeasureSnapModelWhenPossible = secboot.MeasureSnapModelWhenPossible
-	secbootUnlockVolumeUsingSealedKeyIfEncrypted = secboot.UnlockVolumeUsingSealedKeyIfEncrypted
-	secbootUnlockEncryptedVolumeUsingKey = secboot.UnlockEncryptedVolumeUsingKey
-	secbootLockTPMSealedKeys = secboot.LockTPMSealedKeys
+func (k RecoveryKey) String() string {
+	return "not-implemented"
 }
