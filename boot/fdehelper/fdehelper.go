@@ -42,12 +42,12 @@ import (
 )
 
 func fdehelper(rootDir string) string {
-	return filepath.Join(rootDir, "bin/fde-reveal-key")
+	return filepath.Join(rootDir, "usr/bin/fde-reveal-key")
 }
 
 // Enabled returns whether the external FDE helper should be called
 func Enabled(rootDir string) bool {
-	return osutil.FileExists(fdehelper(rootDir))
+	return osutil.IsExecutable(fdehelper(rootDir))
 }
 
 // fdehelperRuntimeMax is the maximum runtime a fdehelper can execute
