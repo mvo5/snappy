@@ -87,6 +87,8 @@ func main() {
 	}
 }
 
+var Stdin = os.Stdin
+
 func run() (stdout, stderr []byte, err error) {
 	cli := client.New(&clientConfig)
 
@@ -95,7 +97,7 @@ func run() (stdout, stderr []byte, err error) {
 	if cookie == "" {
 		cookie = os.Getenv("SNAP_CONTEXT")
 	}
-	return cli.RunSnapctl(&client.SnapCtlOptions{
+	return cli.RunSnapctl(Stdin, &client.SnapCtlOptions{
 		ContextID: cookie,
 		Args:      os.Args[1:],
 	})

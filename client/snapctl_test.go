@@ -20,7 +20,9 @@
 package client_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"io/ioutil"
 
 	"github.com/snapcore/snapd/client"
 
@@ -32,7 +34,9 @@ func (cs *clientSuite) TestClientRunSnapctlCallsEndpoint(c *check.C) {
 		ContextID: "1234ABCD",
 		Args:      []string{"foo", "bar"},
 	}
-	cs.cli.RunSnapctl(options)
+
+	mockStdin := ioutil.NopCloser(bytes.NewBuffer(nil))
+	cs.cli.RunSnapctl(mockStdin, options)
 	c.Check(cs.req.Method, check.Equals, "POST")
 	c.Check(cs.req.URL.Path, check.Equals, "/v2/snapctl")
 }
@@ -52,7 +56,8 @@ func (cs *clientSuite) TestClientRunSnapctl(c *check.C) {
 		Args:      []string{"foo", "bar"},
 	}
 
-	stdout, stderr, err := cs.cli.RunSnapctl(options)
+	mockStdin := ioutil.NopCloser(bytes.NewBufferString("some-stdin\n"))
+	stdout, stderr, err := cs.cli.RunSnapctl(mockStdin, options)
 	c.Assert(err, check.IsNil)
 	c.Check(string(stdout), check.Equals, "test stdout")
 	c.Check(string(stderr), check.Equals, "test stderr")
