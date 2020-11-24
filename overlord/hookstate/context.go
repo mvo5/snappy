@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -43,6 +44,9 @@ type Context struct {
 	setup   *HookSetup
 	id      string
 	handler Handler
+
+	// XXX: abuse!
+	Stdin io.Reader
 
 	cache  map[interface{}]interface{}
 	onDone []func() error

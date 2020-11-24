@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -75,6 +76,10 @@ type Daemon struct {
 	tomb            tomb.Tomb
 	router          *mux.Router
 	standbyOpinions *standby.StandbyOpinions
+
+	// fugly, also needs mutex
+	snapctlStdin       map[string]io.ReadCloser
+	snapctlStdinCloser map[string]chan struct{}
 
 	// set to what kind of restart was requested if any
 	requestedRestart state.RestartType
@@ -326,6 +331,9 @@ func (d *Daemon) Init() error {
 	if err != nil {
 		return err
 	}
+
+	d.snapctlStdin = map[string]io.ReadCloser{}
+	d.snapctlStdinCloser = map[string]chan struct{}{}
 
 	// The SnapdSocket is required-- without it, die.
 	if listener, err := netutil.GetListener(dirs.SnapdSocket, listenerMap); err == nil {

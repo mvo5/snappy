@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 )
 
 // SnapCtlOptions holds the various options with which snapctl is invoked.
@@ -48,11 +49,42 @@ func (client *Client) RunSnapctl(stdin io.ReadCloser, options *SnapCtlOptions) (
 		return nil, nil, fmt.Errorf("cannot marshal options: %s", err)
 	}
 
+	stdinErrCh := make(chan error)
+	go func() {
+		// we cannot use golang http here, the issue is that golang
+		// tries to read the POST "body" there is no EOF from stdin
+		// so this needs to implemented manually
+		hcl := client.doer.(*http.Client)
+		tr := hcl.Transport.(*http.Transport)
+		conn, err := tr.Dial("", "")
+		if err != nil {
+			stdinErrCh <- err
+		}
+
+		// XXX: content-lengt is needed here or go will not read body
+		d := fmt.Sprintf("POST /v2/snapctl/stdin/%s HTTP/1.1\nHost: localhost\nContent-Length: 999999\n\n", options.ContextID)
+		fmt.Println(d)
+		n, err := conn.Write([]byte(d))
+		fmt.Println("written", n, err)
+		if err != nil {
+			stdinErrCh <- err
+		}
+		go func() {
+			io.Copy(conn, stdin)
+		}()
+		var buf [512]byte
+		n, err = conn.Read(buf[:])
+		fmt.Println("got", n, err, string(buf[:]))
+
+		stdinErrCh <- err
+	}()
+
 	var output snapctlOutput
 	_, err = client.doSync("POST", "/v2/snapctl", nil, nil, bytes.NewReader(b), &output)
 	if err != nil {
 		return nil, nil, err
 	}
+	err = <-stdinErrCh
 
-	return []byte(output.Stdout), []byte(output.Stderr), nil
+	return []byte(output.Stdout), []byte(output.Stderr), err
 }

@@ -34,6 +34,7 @@ import (
 type baseCommand struct {
 	stdout io.Writer
 	stderr io.Writer
+	stdin  io.Reader
 	c      *hookstate.Context
 }
 
@@ -49,6 +50,10 @@ func (c *baseCommand) printf(format string, a ...interface{}) {
 
 func (c *baseCommand) setStderr(w io.Writer) {
 	c.stderr = w
+}
+
+func (c *baseCommand) setStdin(r io.Reader) {
+	c.stdin = r
 }
 
 func (c *baseCommand) errorf(format string, a ...interface{}) {
@@ -68,6 +73,7 @@ func (c *baseCommand) context() *hookstate.Context {
 type command interface {
 	setStdout(w io.Writer)
 	setStderr(w io.Writer)
+	setStdin(r io.Reader)
 
 	setContext(context *hookstate.Context)
 	context() *hookstate.Context
@@ -123,7 +129,7 @@ func (f *ForbiddenCommand) Execute(args []string) error {
 }
 
 // Run runs the requested command.
-func Run(context *hookstate.Context, args []string, uid uint32) (stdout, stderr []byte, err error) {
+func Run(context *hookstate.Context, args []string, uid uint32, stdin io.Reader) (stdout, stderr []byte, err error) {
 	parser := flags.NewNamedParser("snapctl", flags.PassDoubleDash|flags.HelpFlag)
 
 	// Create stdout/stderr buffers, and make sure commands use them.
@@ -137,6 +143,7 @@ func Run(context *hookstate.Context, args []string, uid uint32) (stdout, stderr 
 			cmd := cmdInfo.generator()
 			cmd.setStdout(&stdoutBuffer)
 			cmd.setStderr(&stderrBuffer)
+			cmd.setStdin(stdin)
 			cmd.setContext(context)
 			data = cmd
 		} else {
@@ -148,6 +155,11 @@ func Run(context *hookstate.Context, args []string, uid uint32) (stdout, stderr 
 			logger.Panicf("cannot add command %q: %s", name, err)
 		}
 	}
+
+	fmt.Printf("%T", stdin)
+	var buf [512]byte
+	n, err := stdin.Read(buf[:])
+	fmt.Println("stdin", n, err, string(buf[:]))
 
 	_, err = parser.ParseArgs(args)
 	return stdoutBuffer.Bytes(), stderrBuffer.Bytes(), err

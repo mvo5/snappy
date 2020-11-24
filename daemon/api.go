@@ -97,6 +97,7 @@ var api = []*Command{
 	buyCmd,
 	readyToBuyCmd,
 	snapctlCmd,
+	snapctlStdinCmd,
 	usersCmd,
 	sectionsCmd,
 	aliasesCmd,
@@ -216,6 +217,11 @@ var (
 		Path:   "/v2/snapctl",
 		SnapOK: true,
 		POST:   runSnapctl,
+	}
+	snapctlStdinCmd = &Command{
+		Path:   "/v2/snapctl/stdin/{context}",
+		SnapOK: true,
+		POST:   setSnapctlStdin,
 	}
 
 	sectionsCmd = &Command{
@@ -2157,6 +2163,28 @@ func readyToBuy(c *Command, r *http.Request, user *auth.UserState) Response {
 	return SyncResponse(true, nil)
 }
 
+func setSnapctlStdin(c *Command, r *http.Request, user *auth.UserState) Response {
+	vars := muxVars(r)
+	context := vars["context"]
+
+	fmt.Printf("setSnapctlStdin %T \n", r.Body)
+
+	c.d.mu.Lock()
+	c.d.snapctlStdin[context] = r.Body
+	c.d.snapctlStdinCloser[context] = make(chan struct{})
+	c.d.mu.Unlock()
+
+	select {
+	case <-c.d.snapctlStdinCloser[context]:
+		// XXX: add sensible response
+		fmt.Println("stdin closer closing")
+		return SyncResponse(true, nil)
+		// XXX: use hook timeout
+	case <-time.After(60 * time.Second):
+		return BadRequest("timeout")
+	}
+}
+
 func runSnapctl(c *Command, r *http.Request, user *auth.UserState) Response {
 	var snapctlOptions client.SnapCtlOptions
 	if err := jsonutil.DecodeWithNumber(r.Body, &snapctlOptions); err != nil {
@@ -2172,10 +2200,22 @@ func runSnapctl(c *Command, r *http.Request, user *auth.UserState) Response {
 		return Forbidden("cannot get remote user: %s", err)
 	}
 
+	var stdinR io.Reader
+	c.d.mu.Lock()
+	// poll for stdin
+	for i := 0; i < 100; i++ {
+		if r, ok := c.d.snapctlStdin[snapctlOptions.ContextID]; ok {
+			stdinR = r
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	c.d.mu.Unlock()
+
 	// Ignore missing context error to allow 'snapctl -h' without a context;
 	// Actual context is validated later by get/set.
 	context, _ := c.d.overlord.HookManager().Context(snapctlOptions.ContextID)
-	stdout, stderr, err := ctlcmdRun(context, snapctlOptions.Args, uid)
+	stdout, stderr, err := ctlcmdRun(context, snapctlOptions.Args, uid, stdinR)
 	if err != nil {
 		if e, ok := err.(*ctlcmd.UnsuccessfulError); ok {
 			result := map[string]interface{}{
@@ -2215,6 +2255,11 @@ func runSnapctl(c *Command, r *http.Request, user *auth.UserState) Response {
 		"stdout": string(stdout),
 		"stderr": string(stderr),
 	}
+
+	time.Sleep(1 * time.Second)
+	c.d.mu.Lock()
+	close(c.d.snapctlStdinCloser[snapctlOptions.ContextID])
+	c.d.mu.Unlock()
 
 	return SyncResponse(result, nil)
 }
