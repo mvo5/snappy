@@ -53,8 +53,8 @@ var (
 	HasFDESetupHook = func() (bool, error) {
 		return false, nil
 	}
-	RunFDESetupHook = func(op string, params *FdeSetupHookParams) error {
-		return fmt.Errorf("internal error: RunFDESetupHook not set yet")
+	RunFDESetupHook = func(op string, params *FdeSetupHookParams) ([]byte, error) {
+		return nil, fmt.Errorf("internal error: RunFDESetupHook not set yet")
 	}
 )
 
