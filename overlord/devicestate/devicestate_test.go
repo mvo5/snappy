@@ -53,6 +53,7 @@ import (
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/overlord/storecontext"
 	"github.com/snapcore/snapd/release"
+	"github.com/snapcore/snapd/secboot"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/snaptest"
 	"github.com/snapcore/snapd/snapdenv"
@@ -949,7 +950,7 @@ func makeInstalledMockSnap(c *C, st *state.State, yml string) *snap.Info {
 	return info11
 }
 
-func makeInstalledMockKernelSnap(c *C, st *state.State, yml string) *snap.Info {
+func makeInstalledMockKernelSnap(c *C, st *state.State, yml string, files [][]string) *snap.Info {
 	sideInfo11 := &snap.SideInfo{RealName: "pc-kernel", Revision: snap.R(11), SnapID: "pc-kernel-id"}
 	snapstate.Set(st, "pc-kernel", &snapstate.SnapState{
 		Active:   true,
@@ -957,7 +958,7 @@ func makeInstalledMockKernelSnap(c *C, st *state.State, yml string) *snap.Info {
 		Current:  sideInfo11.Revision,
 		SnapType: "kernel",
 	})
-	info11 := snaptest.MockSnap(c, yml, sideInfo11)
+	info11 := snaptest.MockSnapWithFiles(c, yml, sideInfo11, files)
 
 	return info11
 }
@@ -1307,12 +1308,67 @@ func (s *deviceMgrSuite) TestHasFdeSetupHook(c *C) {
 		{kernelYamlNoFdeSetup, false},
 		{kernelYamlWithFdeSetup, true},
 	} {
-		makeInstalledMockKernelSnap(c, st, tc.kernelYaml)
+		makeInstalledMockKernelSnap(c, st, tc.kernelYaml, nil)
 
 		hasHook, err := devicestate.DeviceManagerHasFDESetupHook(s.mgr)
 		c.Assert(err, IsNil)
 		c.Check(hasHook, Equals, tc.hasFdeSetupHook)
 	}
+}
+
+func (s *deviceMgrSuite) TestRunFdeSetupHookOpInitialSetup(c *C) {
+	st := s.state
+	st.Lock()
+	defer st.Unlock()
+
+	kernelInfo := makeInstalledMockKernelSnap(c, st, kernelYamlWithFdeSetup, nil)
+	mockModel := s.makeModelAssertionInState(c, "canonical", "pc", map[string]interface{}{
+		"architecture": "amd64",
+		"kernel":       "pc-kernel",
+		"gadget":       "pc",
+	})
+
+	var hookCalled []string
+	hookInvoke := func(ctx *hookstate.Context, tomb *tomb.Tomb) ([]byte, error) {
+		ctx.Lock()
+		defer ctx.Unlock()
+
+		// check that the context has the right data
+		c.Check(ctx.HookName(), Equals, "fde-setup")
+		var fdeSetup hookstate.FDESetupRequest
+		ctx.Get("fde-setup-request", &fdeSetup)
+		c.Check(fdeSetup.Op, Equals, "initial-setup")
+		c.Check(fdeSetup.KeyName, Equals, "some-key-name")
+		c.Check(fdeSetup.Model["series"], DeepEquals, "16")
+		c.Check(fdeSetup.Model["brand-id"], DeepEquals, "canonical")
+		c.Check(fdeSetup.Model["model"], DeepEquals, "pc")
+		c.Check(fdeSetup.Model["grade"], DeepEquals, "unset")
+		c.Check(fdeSetup.Model["signkey-id"], DeepEquals, mockModel.SignKeyID())
+		c.Assert(fdeSetup.Model, HasLen, 5)
+
+		// the snapctl fde-setup-result will set the data
+		ctx.Set("fde-setup-result", []byte("sealed-key"))
+		hookCalled = append(hookCalled, ctx.InstanceName())
+		return nil, nil
+	}
+
+	rhk := hookstate.MockRunHook(hookInvoke)
+	defer rhk()
+
+	s.o.Loop()
+	defer s.o.Stop()
+
+	mockKey := secboot.EncryptionKey{1, 2, 3, 4}
+	params := &boot.FdeSetupHookParams{
+		Key:        &mockKey,
+		KeyName:    "some-key-name",
+		KernelInfo: kernelInfo,
+		Model:      mockModel,
+	}
+	data, err := devicestate.DeviceManagerRunFDESetupHook(s.mgr, "initial-setup", params)
+	c.Assert(err, IsNil)
+	c.Check(string(data), Equals, "sealed-key")
+	c.Check(hookCalled, DeepEquals, []string{"pc-kernel"})
 }
 
 type startOfOperationTimeSuite struct {
