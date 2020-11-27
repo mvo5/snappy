@@ -28,6 +28,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/tomb.v2"
+
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/sysdb"
 	"github.com/snapcore/snapd/boot"
@@ -68,7 +70,8 @@ type DeviceManager struct {
 	// save as rw vs ro, or mount/umount it fully on demand
 	saveAvailable bool
 
-	state *state.State
+	state   *state.State
+	hookMgr *hookstate.HookManager
 
 	cachedKeypairMgr asserts.KeypairManager
 
@@ -100,6 +103,7 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, runner *state.T
 
 	m := &DeviceManager{
 		state:    s,
+		hookMgr:  hookManager,
 		newStore: newStore,
 		reg:      make(chan struct{}),
 		preseed:  snapdenv.Preseeding(),
@@ -1389,11 +1393,6 @@ func checkFDEFeatures(st *state.State, kernelInfo *snap.Info) error {
 }
 
 func (m *DeviceManager) runFDESetupHook(op string, params *boot.FdeSetupHookParams) ([]byte, error) {
-	// state is locked already by daemon
-	st := m.state
-
-	summary := fmt.Sprintf("Run fde-setup for %s", op)
-	chg := st.NewChange("fde-setup", summary)
 	hooksup := &hookstate.HookSetup{
 		Snap:     params.KernelInfo.InstanceName(),
 		Revision: params.KernelInfo.Revision,
@@ -1418,45 +1417,23 @@ func (m *DeviceManager) runFDESetupHook(op string, params *boot.FdeSetupHookPara
 	contextData := map[string]interface{}{
 		"fde-setup-request": req,
 	}
-	task := hookstate.HookTask(st, summary, hooksup, contextData)
-	chg.AddTask(task)
-	// ensure hook runs soon
-	st.EnsureBefore(0)
-
-	// wait for hook to finish
-	if err := waitHookChg(st, chg); err != nil {
-		return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", op, err)
+	tomb := &tomb.Tomb{}
+	context, err := m.hookMgr.EphemeralRunHook(hooksup, contextData, tomb)
+	if err != nil {
+		return nil, err
 	}
 
 	// the hook is expected to call "snapctl fde-setup-result" which
 	// wil set the "fde-setup-result" value on the task
 	var hookResult []byte
-	if err := task.Get("fde-setup-result", &hookResult); err != nil {
+	context.Lock()
+	err = context.Get("fde-setup-result", &hookResult)
+	context.Unlock()
+	if err != nil {
 		return nil, fmt.Errorf("cannot get sealedKey result in hook %s context: %v", op, err)
 	}
 
 	return hookResult, nil
-}
-
-func waitHookChg(st *state.State, chg *state.Change) error {
-	st.Unlock()
-	defer st.Lock()
-
-	// this will timeout eventually when the hook timeout is over
-	for {
-		st.Lock()
-		status := chg.Status()
-		err := chg.Err()
-		st.Unlock()
-		switch status {
-		case state.DoneStatus:
-			return nil
-		case state.ErrorStatus:
-			return err
-		default:
-			time.Sleep(1 * time.Second)
-		}
-	}
 }
 
 type fdeSetupHandler struct {
@@ -1472,19 +1449,6 @@ func (h fdeSetupHandler) Before() error {
 }
 
 func (h fdeSetupHandler) Done() error {
-	h.context.Lock()
-	defer h.context.Unlock()
-
-	var result []byte
-	if err := h.context.Get("fde-setup-result", &result); err != nil {
-		return err
-	}
-
-	task, ok := h.context.Task()
-	if !ok {
-		return fmt.Errorf("cannot find task for fde-setup handler")
-	}
-	task.Set("fde-setup-result", result)
 	return nil
 }
 

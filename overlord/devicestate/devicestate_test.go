@@ -1319,24 +1319,23 @@ func (s *deviceMgrSuite) TestHasFdeSetupHook(c *C) {
 func (s *deviceMgrSuite) TestRunFdeSetupHookOpInitialSetup(c *C) {
 	st := s.state
 	st.Lock()
-	defer st.Unlock()
-
 	kernelInfo := makeInstalledMockKernelSnap(c, st, kernelYamlWithFdeSetup)
 	mockModel := s.makeModelAssertionInState(c, "canonical", "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
+	st.Unlock()
 
 	var hookCalled []string
 	hookInvoke := func(ctx *hookstate.Context, tomb *tomb.Tomb) ([]byte, error) {
-		ctx.Lock()
-		defer ctx.Unlock()
-
 		// check that the context has the right data
 		c.Check(ctx.HookName(), Equals, "fde-setup")
 		var fdeSetup hookstate.FDESetupRequest
+		ctx.Lock()
 		ctx.Get("fde-setup-request", &fdeSetup)
+		ctx.Unlock()
+
 		c.Check(fdeSetup.Op, Equals, "initial-setup")
 		c.Check(fdeSetup.KeyName, Equals, "some-key-name")
 		c.Check(fdeSetup.Model["series"], DeepEquals, "16")
@@ -1344,10 +1343,12 @@ func (s *deviceMgrSuite) TestRunFdeSetupHookOpInitialSetup(c *C) {
 		c.Check(fdeSetup.Model["model"], DeepEquals, "pc")
 		c.Check(fdeSetup.Model["grade"], DeepEquals, "unset")
 		c.Check(fdeSetup.Model["signkey-id"], DeepEquals, mockModel.SignKeyID())
-		c.Assert(fdeSetup.Model, HasLen, 5)
+		c.Check(fdeSetup.Model, HasLen, 5)
 
 		// the snapctl fde-setup-result will set the data
+		ctx.Lock()
 		ctx.Set("fde-setup-result", []byte("sealed-key"))
+		ctx.Unlock()
 		hookCalled = append(hookCalled, ctx.InstanceName())
 		return nil, nil
 	}

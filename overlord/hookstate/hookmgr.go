@@ -283,11 +283,23 @@ func (m *HookManager) undoRunHook(task *state.Task, tomb *tomb.Tomb) error {
 }
 
 func (m *HookManager) runHook(task *state.Task, tomb *tomb.Tomb, snapst *snapstate.SnapState, hooksup *HookSetup) error {
-	_, err := m.runHookReturnContext(task, tomb, snapst, hooksup)
+	_, err := m.runHookReturnContext(task, tomb, snapst, hooksup, nil)
 	return err
 }
 
-func (m *HookManager) runHookReturnContext(task *state.Task, tomb *tomb.Tomb, snapst *snapstate.SnapState, hooksup *HookSetup) (*Context, error) {
+func (m *HookManager) EphemeralRunHook(hooksup *HookSetup, contextData map[string]interface{}, tomb *tomb.Tomb) (*Context, error) {
+	var snapst snapstate.SnapState
+	m.state.Lock()
+	err := snapstate.Get(m.state, hooksup.Snap, &snapst)
+	m.state.Unlock()
+	if err != nil {
+		return nil, fmt.Errorf("cannot run ephemeral hook %s: %v", hooksup.Hook, err)
+	}
+
+	return m.runHookReturnContext(nil, tomb, &snapst, hooksup, contextData)
+}
+
+func (m *HookManager) runHookReturnContext(task *state.Task, tomb *tomb.Tomb, snapst *snapstate.SnapState, hooksup *HookSetup, contextData map[string]interface{}) (*Context, error) {
 	mustHijack := m.hijacked(hooksup.Hook, hooksup.Snap) != nil
 	hookExists := false
 	if !mustHijack {
@@ -325,6 +337,9 @@ func (m *HookManager) runHookReturnContext(task *state.Task, tomb *tomb.Tomb, sn
 	context, err := NewContext(task, m.state, hooksup, nil, "")
 	if err != nil {
 		return nil, err
+	}
+	if contextData != nil {
+		context.InitEphemeralContext(contextData)
 	}
 
 	// Obtain a handler for this hook. The repository returns a list since it's
@@ -458,16 +473,6 @@ func runHookAndWait(snapName string, revision snap.Revision, hookName, hookConte
 	}
 
 	return osutil.RunAndWait(argv, env, timeout, tomb)
-}
-
-func (m *HookManager) EphemeralRunHook(hooksup *HookSetup, tomb *tomb.Tomb) (*Context, error) {
-	var snapst snapstate.SnapState
-	err := snapstate.Get(m.state, hooksup.Snap, &snapst)
-	if err != nil {
-		return nil, fmt.Errorf("cannot run ephemeral hook %s: %v", hooksup.Hook, err)
-	}
-
-	return m.runHookReturnContext(nil, tomb, &snapst, hooksup)
 }
 
 var errtrackerReport = errtracker.Report
