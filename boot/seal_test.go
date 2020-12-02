@@ -906,16 +906,20 @@ func (s *sealSuite) TestSealToModeenvWithFdeHookFailsToday(c *C) {
 	dirs.SetRootDir(rootdir)
 	defer dirs.SetRootDir("")
 
+	hasFdeSetupHookCalled := 0
 	oldHasFDESetupHook := boot.HasFDESetupHook
 	defer func() { boot.HasFDESetupHook = oldHasFDESetupHook }()
 	boot.HasFDESetupHook = func() (bool, error) {
+		hasFdeSetupHookCalled++
 		return true, nil
 	}
+
+	var runFdeSetupHookCalled []string
 	oldRunFDESetupHook := boot.RunFDESetupHook
 	defer func() { boot.RunFDESetupHook = oldRunFDESetupHook }()
-	boot.RunFDESetupHook = func(string, *boot.FdeSetupHookParams) ([]byte, error) {
-		c.Fatalf("hook runner should not be called yet")
-		return nil, fmt.Errorf("hook runner should not be called yet")
+	boot.RunFDESetupHook = func(op string, params *boot.FdeSetupHookParams) ([]byte, error) {
+		runFdeSetupHookCalled = append(runFdeSetupHookCalled, op+":"+params.KeyName)
+		return []byte{1, 2, 3, 4}, nil
 	}
 
 	modeenv := &boot.Modeenv{
@@ -926,5 +930,10 @@ func (s *sealSuite) TestSealToModeenvWithFdeHookFailsToday(c *C) {
 
 	model := boottest.MakeMockUC20Model()
 	err := boot.SealKeyToModeenv(myKey, myKey2, model, modeenv)
-	c.Assert(err, ErrorMatches, "cannot use fde-setup hook yet")
+	c.Assert(err, IsNil)
+	c.Check(hasFdeSetupHookCalled, Equals, 1)
+	c.Check(runFdeSetupHookCalled, DeepEquals, []string{
+		"initial-setup:ubuntu-data.sealed-key",
+		"initial-setup:ubuntu-save.sealed-key",
+	})
 }

@@ -63,8 +63,7 @@ type FdeSetupHookParams struct {
 	Key     *secboot.EncryptionKey
 	KeyName string
 
-	KernelInfo *snap.Info
-	Model      *asserts.Model
+	Model *asserts.Model
 
 	//TODO:UC20: provide bootchains and a way to track measured
 	//boot-assets
@@ -94,7 +93,34 @@ func sealKeyToModeenv(key, saveKey secboot.EncryptionKey, model *asserts.Model, 
 }
 
 func sealKeyToModeenvUsingFdeSetupHook(key, saveKey secboot.EncryptionKey, model *asserts.Model, modeenv *Modeenv) error {
-	return fmt.Errorf("cannot use fde-setup hook yet")
+	for _, h := range []struct {
+		key  *secboot.EncryptionKey
+		name string
+	}{
+		{&key, "ubuntu-data.sealed-key"},
+		{&saveKey, "ubuntu-save.sealed-key"},
+	} {
+		params := &FdeSetupHookParams{
+			Key:     h.key,
+			KeyName: h.name,
+			Model:   model,
+		}
+		sealedKey, err := RunFDESetupHook("initial-setup", params)
+		if err != nil {
+			return fmt.Errorf("cannot run fde-setup hook for %s: %v", h.name, err)
+		}
+		// XXX: secboot should do the storing so that
+		// it can eventually end up in LUKS slots
+		// etc(?)
+		kp := filepath.Join(InitramfsBootEncryptionKeyDir, h.name)
+		if err := os.MkdirAll(filepath.Dir(kp), 0755); err != nil {
+			return err
+		}
+		if err := osutil.AtomicWriteFile(filepath.Join(kp), sealedKey, 0600, 0); err != nil {
+			return fmt.Errorf("cannot store %s key: %v", h.name, err)
+		}
+	}
+	return nil
 }
 
 func sealKeyToModeenvUsingSecboot(key, saveKey secboot.EncryptionKey, model *asserts.Model, modeenv *Modeenv) error {
