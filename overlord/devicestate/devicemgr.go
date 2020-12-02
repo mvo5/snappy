@@ -1394,21 +1394,21 @@ func checkFDEFeatures(st *state.State, kernelInfo *snap.Info) error {
 }
 
 func (m *DeviceManager) runFDESetupHook(op string, params *boot.FdeSetupHookParams) ([]byte, error) {
+	// TODO:UC20: when this runs on refresh we need to be very careful
+	// that we never run this when the kernel is not fully configured
+	// i.e. when there are no security profiles for the hook
+
+	// state is must be locked
 	st := m.state
 
-	st.Lock()
 	deviceCtx, err := DeviceCtx(st, nil, nil)
-	st.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get device context to run fde-setup hook: %v", err)
 	}
-	st.Lock()
 	kernelInfo, err := snapstate.KernelInfo(st, deviceCtx)
-	st.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get kernel info to run fde-setup hook: %v", err)
 	}
-
 	hooksup := &hookstate.HookSetup{
 		Snap:     kernelInfo.InstanceName(),
 		Revision: kernelInfo.Revision,
@@ -1433,11 +1433,12 @@ func (m *DeviceManager) runFDESetupHook(op string, params *boot.FdeSetupHookPara
 	contextData := map[string]interface{}{
 		"fde-setup-request": req,
 	}
+	st.Unlock()
+	defer st.Lock()
 	context, err := m.hookMgr.EphemeralRunHook(context.Background(), hooksup, contextData)
 	if err != nil {
 		return nil, fmt.Errorf("cannot run fde-setup hook for %s: %v", op, err)
 	}
-
 	// the hook is expected to call "snapctl fde-setup-result" which
 	// wil set the "fde-setup-result" value on the task
 	var hookResult []byte
@@ -1445,7 +1446,7 @@ func (m *DeviceManager) runFDESetupHook(op string, params *boot.FdeSetupHookPara
 	err = context.Get("fde-setup-result", &hookResult)
 	context.Unlock()
 	if err != nil {
-		return nil, fmt.Errorf("cannot get sealed key result in fde-setup-hook %s: %v", op, err)
+		return nil, fmt.Errorf("cannot get fde-setup-hook result for %s: %v", op, err)
 	}
 
 	return hookResult, nil
