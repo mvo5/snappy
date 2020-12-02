@@ -21,11 +21,14 @@
 package secboot
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/canonical/go-tpm2"
@@ -273,9 +276,58 @@ func UnlockVolumeUsingSealedKeyIfEncrypted(disk disks.Disk, name string, sealedE
 	}
 }
 
+// FDERevealKeyRequest carries the operation and parameters for the
+// fde-reveal-key binary to support unsealing key that were sealed
+// with the "fde-setup" hook.
+type FDERevealKeyRequest struct {
+	Op string `json:"op"`
+
+	SealedKey     []byte `json:"sealed-key"`
+	SealedKeyName string `json:"sealed-key-name"`
+
+	VolumeName       string `json:"volume-name"`
+	SourceDevicePath string `json:"source-device-path"`
+}
+
 func unlockVolumeUsingSealedKeyFDERevealKey(name, sealedEncryptionKeyFile, sourceDevice, targetDevice, mapperName string, opts *UnlockVolumeUsingSealedKeyOptions) (UnlockResult, error) {
 	res := UnlockResult{IsEncrypted: true, PartDevice: sourceDevice}
-	return res, fmt.Errorf("cannot use fde-reveal-key yet")
+	// XXX: honor opts.LockKeysOnFinish
+
+	sealedKey, err := ioutil.ReadFile(sealedEncryptionKeyFile)
+	if err != nil {
+		return res, fmt.Errorf("cannot read sealed key file: %v", err)
+	}
+
+	// run "fde-key-reveal" with the appropriate input
+	jbuf, err := json.Marshal(FDERevealKeyRequest{
+		Op: "reveal",
+
+		SealedKey:     sealedKey,
+		SealedKeyName: name,
+
+		// XXX: do we need this?
+		SourceDevicePath: sourceDevice,
+		VolumeName:       mapperName,
+	})
+	if err != nil {
+		return res, err
+	}
+	// XXX: use systemd-run from PR#9488
+	cmd := exec.Command("fde-reveal-key")
+	cmd.Stdin = bytes.NewReader(jbuf)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return res, osutil.OutputErr(output, err)
+	}
+
+	// unseleaedKey is the output from the fde-reveal-key command
+	unsealedKey := output
+	if err := unlockEncryptedPartitionWithKey(mapperName, sourceDevice, unsealedKey); err != nil {
+		return res, fmt.Errorf("cannot unlock encrypted partition: %v", err)
+	}
+
+	res.UnlockMethod = UnlockedWithSealedKey
+	return res, nil
 }
 
 func unlockVolumeUsingSealedKeySecboot(name, sealedEncryptionKeyFile, sourceDevice, targetDevice, mapperName string, opts *UnlockVolumeUsingSealedKeyOptions) (UnlockResult, error) {
