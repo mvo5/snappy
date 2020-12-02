@@ -29,11 +29,7 @@ type fdeSetupJSON struct {
 	Key     []byte `json:"key,omitempty"`
 	KeyName string `json:"key-name,omitempty"`
 
-	Series    string `json:"series,omitempty"`
-	BrandID   string `json:"brand-id,omitempty"`
-	Model     string `json:"model,omitempty"`
-	Grade     string `json:"grade,omitempty"`
-	SignKeyID string `json:"sign-key-id,omitempty"`
+	Model map[string]string `json:"model,omitempty"`
 }
 
 func runFdeSetup() error {
