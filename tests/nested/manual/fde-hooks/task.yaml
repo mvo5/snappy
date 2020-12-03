@@ -39,4 +39,5 @@ execute: |
   nested_exec "find /dev/mapper" | MATCH ubuntu-data-[0-9a-f-]+
   nested_exec "test -e /var/lib/snapd/device/fde/recovery.key"
   nested_exec "test -e /run/mnt/ubuntu-boot/device/fde/ubuntu-data.sealed-key"
-  nested_exec "test -e /run/mnt/ubuntu-boot/device/fde/ubuntu-save.sealed-key"
+  nested_exec "test -e /run/mnt/ubuntu-seed/device/fde/ubuntu-data.recovery.sealed-key"
+  nested_exec "test -e /run/mnt/ubuntu-seed/device/fde/ubuntu-save.recovery.sealed-key"
