@@ -193,6 +193,22 @@ func MeasureSnapModelWhenPossible(findModel func() (*asserts.Model, error)) erro
 // UnlockVolumeUsingSealedKeyIfEncrypted for cases where we don't know if a
 // given call is the last one to unlock a volume like in degraded recover mode.
 func LockTPMSealedKeys() error {
+	if FDEHasRevealKey() {
+		buf, err := json.Marshal(FDERevealKeyRequest{
+			Op: "lock",
+		})
+		if err != nil {
+			return fmt.Errorf(`cannot build request for fde-reveal-key "lock": %v`, err)
+		}
+		cmd := fdeRevealKeyCommand()
+		cmd.Stdin = bytes.NewReader(buf)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf(`cannot run fde-reveal-key "lock": %v`, osutil.OutputErr(output, err))
+		}
+		return nil
+	}
+
 	tpm, tpmErr := sbConnectToDefaultTPM()
 	if tpmErr != nil {
 		if xerrors.Is(tpmErr, sb.ErrNoTPM2Device) {
@@ -295,22 +311,26 @@ var fdeRevealKeyRuntimeMax = "2m"
 // fdeRevealKeyCommand returns a *exec.Cmd that is suitable to run
 // fde-reveal-key using systemd-run
 func fdeRevealKeyCommand() *exec.Cmd {
-	return exec.Command(
-		"systemd-run",
-		"--pipe", "--same-dir", "--wait", "--collect",
-		"--service-type=exec",
-		"--quiet",
-		// ensure we get some result from the hook within a
-		// reasonable timeout and output from systemd if
-		// things go wrong
-		fmt.Sprintf("--property=RuntimeMaxSec=%s", fdeRevealKeyRuntimeMax),
-		`--property=ExecStopPost=/bin/sh -c 'if [ "$EXIT_STATUS" != 0 ]; then echo "service result: $SERVICE_RESULT" 1>&2; fi'`,
-		// do not allow mounting, this ensures hooks in initrd
-		// can not mess around with ubuntu-data
-		"--property=SystemCallFilter=~@mount",
-		// fde-reveal-key is what we actually need to run
-		"fde-reveal-key",
-	)
+	return exec.Command("fde-reveal-key")
+	// disabled, see https://github.com/snapcore/core-initrd/issues/13
+	/*
+		return exec.Command(
+			"systemd-run",
+			"--pipe", "--same-dir", "--wait", "--collect",
+			"--service-type=exec",
+			"--quiet",
+			// ensure we get some result from the hook within a
+			// reasonable timeout and output from systemd if
+			// things go wrong
+			fmt.Sprintf("--property=RuntimeMaxSec=%s", fdeRevealKeyRuntimeMax),
+			`--property=ExecStopPost=/bin/sh -c 'if [ "$EXIT_STATUS" != 0 ]; then echo "service result: $SERVICE_RESULT" 1>&2; fi'`,
+			// do not allow mounting, this ensures hooks in initrd
+			// can not mess around with ubuntu-data
+			"--property=SystemCallFilter=~@mount",
+			// fde-reveal-key is what we actually need to run
+			"fde-reveal-key",
+		)
+	*/
 }
 
 func unlockVolumeUsingSealedKeyFDERevealKey(name, sealedEncryptionKeyFile, sourceDevice, targetDevice, mapperName string, opts *UnlockVolumeUsingSealedKeyOptions) (UnlockResult, error) {

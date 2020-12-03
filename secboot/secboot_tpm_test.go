@@ -1154,7 +1154,7 @@ func (s *secbootSuite) TestUnlockEncryptedVolumeUsingKeyErr(c *C) {
 	})
 }
 
-func (s *secbootSuite) TestUnlockVolumeUsingSealedKeyIfEncryptedFdeRevealKey(c *C) {
+func (s *secbootSuite) xxxTestUnlockVolumeUsingSealedKeyIfEncryptedFdeRevealKey(c *C) {
 	restore := secboot.MockFDEHasRevealKey(func() bool {
 		return true
 	})
@@ -1207,7 +1207,7 @@ printf "unsealed-key-from-hook"
 	c.Check(fdeRevealKeyStdin, testutil.FileMatches, fmt.Sprintf(`{"op":"reveal","sealed-key":%q,"sealed-key-name":"name"}`, base64.StdEncoding.EncodeToString([]byte("sealed-key"))))
 }
 
-func (s *secbootSuite) TestUnlockVolumeUsingSealedKeyIfEncryptedFdeRevealKeyErr(c *C) {
+func (s *secbootSuite) xxxTestUnlockVolumeUsingSealedKeyIfEncryptedFdeRevealKeyErr(c *C) {
 	restore := secboot.MockFDEHasRevealKey(func() bool {
 		return true
 	})

@@ -75,8 +75,11 @@ func runFdeRevealKey() error {
 	if err := json.NewDecoder(os.Stdin).Decode(&js); err != nil {
 		return err
 	}
-	if js.Op != "reveal" {
-		return fmt.Errorf(`only "reveal" operation is supported`)
+	switch js.Op {
+	case "reveal", "lock":
+		// good
+	default:
+		return fmt.Errorf(`only "reveal,lock" operations are supported`)
 	}
 
 	// "unseal"
