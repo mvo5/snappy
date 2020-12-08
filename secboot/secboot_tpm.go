@@ -321,32 +321,36 @@ var fdeRevealKeyCommandExtra []string
 // fdeRevealKeyCommand returns a *exec.Cmd that is suitable to run
 // fde-reveal-key using systemd-run
 func fdeRevealKeyCommand() *exec.Cmd {
-	// TODO: put this into a new "systemd/run" package
-	cmd := exec.Command(
-		"systemd-run",
-		"--pipe", "--same-dir", "--wait", "--collect",
-		"--service-type=exec",
-		"--quiet",
-		// ensure we get some result from the hook within a
-		// reasonable timeout and output from systemd if
-		// things go wrong
-		fmt.Sprintf("--property=RuntimeMaxSec=%s", fdeRevealKeyRuntimeMax),
-		// this ensures we get useful output for e.g. segfaults
-		`--property=ExecStopPost=/bin/sh -c 'if [ "$EXIT_STATUS" != 0 ]; then echo "service result: $SERVICE_RESULT" 1>&2; fi'`,
-		// Do not allow mounting, this ensures hooks in initrd
-		// can not mess around with ubuntu-data.
-		//
-		// Note that this is not about perfect confinement, more about
-		// making sure that people using the hook know that we do not
-		// want them to mess around outside of just providing unseal.
-		"--property=SystemCallFilter=~@mount",
-	)
-	if fdeRevealKeyCommandExtra != nil {
-		cmd.Args = append(cmd.Args, fdeRevealKeyCommandExtra...)
-	}
-	// fde-reveal-key is what we actually need to run
-	cmd.Args = append(cmd.Args, "fde-reveal-key")
-	return cmd
+	return exec.Command("fde-reveal-key")
+	// disabled, see https://github.com/snapcore/core-initrd/issues/13
+	/*
+		// TODO: put this into a new "systemd/run" package
+		cmd := exec.Command(
+			"systemd-run",
+			"--pipe", "--same-dir", "--wait", "--collect",
+			"--service-type=exec",
+			"--quiet",
+			// ensure we get some result from the hook within a
+			// reasonable timeout and output from systemd if
+			// things go wrong
+			fmt.Sprintf("--property=RuntimeMaxSec=%s", fdeRevealKeyRuntimeMax),
+			// this ensures we get useful output for e.g. segfaults
+			`--property=ExecStopPost=/bin/sh -c 'if [ "$EXIT_STATUS" != 0 ]; then echo "service result: $SERVICE_RESULT" 1>&2; fi'`,
+			// Do not allow mounting, this ensures hooks in initrd
+			// can not mess around with ubuntu-data.
+			//
+			// Note that this is not about perfect confinement, more about
+			// making sure that people using the hook know that we do not
+			// want them to mess around outside of just providing unseal.
+			"--property=SystemCallFilter=~@mount",
+		)
+		if fdeRevealKeyCommandExtra != nil {
+			cmd.Args = append(cmd.Args, fdeRevealKeyCommandExtra...)
+		}
+		// fde-reveal-key is what we actually need to run
+		cmd.Args = append(cmd.Args, "fde-reveal-key")
+		return cmd
+	*/
 }
 
 func unlockVolumeUsingSealedKeyFDERevealKey(name, sealedEncryptionKeyFile, sourceDevice, targetDevice, mapperName string, opts *UnlockVolumeUsingSealedKeyOptions) (UnlockResult, error) {
