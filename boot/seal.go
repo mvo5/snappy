@@ -20,11 +20,13 @@
 package boot
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -307,11 +309,9 @@ func resealKeyToModeenv(rootdir string, model *asserts.Model, modeenv *Modeenv, 
 		// nothing to do
 		return nil
 	}
-	hasHook, err := HasFDESetupHook()
-	if err != nil {
-		return fmt.Errorf("cannot check for fde-setup hook in reseal: %v", err)
-	}
-	if hasHook {
+	// XXX: hack!
+	content, err := ioutil.ReadFile(filepath.Join(dirs.SnapFDEDirUnder(rootdir), "sealed-keys"))
+	if bytes.Equal(content, []byte("fde-setup-hook")) {
 		return resealKeyToModeenvUsingFDESetupHook(rootdir, model, modeenv, expectReseal)
 	}
 
