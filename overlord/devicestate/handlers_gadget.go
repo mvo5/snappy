@@ -35,6 +35,31 @@ import (
 	"github.com/snapcore/snapd/snap"
 )
 
+// XXX: copied from snapstate/handlers.go
+func linkSnapInFlight(st *state.State, snapName string) (bool, error) {
+	for _, chg := range st.Changes() {
+		if chg.Status().Ready() {
+			continue
+		}
+		for _, tc := range chg.Tasks() {
+			if tc.Status().Ready() {
+				continue
+			}
+			if tc.Kind() == "link-snap" {
+				snapsup, err := snapstate.TaskSnapSetup(tc)
+				if err != nil {
+					return false, err
+				}
+				if snapsup.InstanceName() == snapName {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
 func makeRollbackDir(name string) (string, error) {
 	rollbackDir := filepath.Join(dirs.SnapRollbackDir, name)
 
@@ -177,6 +202,30 @@ func (m *DeviceManager) doUpdateGadgetAssets(t *state.Task, _ *tomb.Tomb) error 
 		// use the remodel policy which triggers an update of all
 		// structures
 		updatePolicy = gadget.RemodelUpdatePolicy
+	}
+
+	// This is needed when going from gadget,kernel without any
+	// "$kernel:ref" references to gadget,kernel that use them both
+	//
+	// The issue is that:
+	// 1. gadget.yaml references "$kernel:ref" so it needs the new kernel.yaml on disk
+	// 2. kernel.yaml only comes into effect with the new gadget.yaml on disk, otherwise the kernel snap DTBs are not copied and potentially the system will no longer boot because the new kernel needs the new DTBs
+	//
+	// So the sequence must be:
+	// 1. install new gadget, ignore any "$kernel:refs" at this point
+	//    (but do the regular asset updates)
+	// 2. install new kernel, because new gadget is on disk this will
+	//    install new DTBs
+	inFlight1, err := linkSnapInFlight(st, model.Kernel())
+	if err != nil {
+		return err
+	}
+	inFlight2, err := linkSnapInFlight(st, model.Gadget())
+	if err != nil {
+		return err
+	}
+	if inFlight1 || inFlight2 {
+		return &state.Retry{}
 	}
 
 	var updateObserver gadget.ContentUpdateObserver
