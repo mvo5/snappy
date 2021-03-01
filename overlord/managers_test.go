@@ -6596,8 +6596,6 @@ volumes:
 	c.Check(filepath.Join(dirs.GlobalRootDir, "/run/mnt/", structureName, "start.elf"), testutil.FileContains, "start.elf rev2")
 }
 
-// TODO: also test the upgrade from an old snapd that does not know about
-// inserting "gadget-refresh" tasks into kernel refreshes
 func (ms *gadgetUpdatesSuite) TestGadgetWithKernelRefUpgradeFromOld(c *C) {
 	kernelYaml := `
 assets:

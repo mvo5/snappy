@@ -275,6 +275,34 @@ func LayoutVolume(gadgetRootDir, kernelRootDir string, volume *Volume, constrain
 		}
 	}
 
+	// validate that all "$kernel:ref" can be resolved via the gadget
+	if !constraints.SkipResolveContent {
+		for assetName, asset := range kernelInfo.Assets {
+			if !asset.Update {
+				continue
+			}
+			found := false
+			for _, ps := range structures {
+				for _, rc := range ps.Content {
+					pathOrRef := rc.UnresolvedSource
+					if strings.HasPrefix(pathOrRef, "$kernel:") {
+						wantedAsset, _, err := splitKernelRef(pathOrRef)
+						if err != nil {
+							return nil, err
+						}
+						if assetName == wantedAsset {
+							found = true
+							break
+						}
+					}
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("cannot find kernel asset %v in gadget", asset)
+			}
+		}
+	}
+
 	volumeSize := quantity.Size(farthestEnd)
 	if fartherstOffsetWrite+quantity.Offset(SizeLBA48Pointer) > farthestEnd {
 		volumeSize = quantity.Size(fartherstOffsetWrite) + SizeLBA48Pointer
