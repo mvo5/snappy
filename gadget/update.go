@@ -24,6 +24,7 @@ import (
 	"fmt"
 
 	"github.com/snapcore/snapd/gadget/quantity"
+	"github.com/snapcore/snapd/kernel"
 	"github.com/snapcore/snapd/logger"
 )
 
@@ -182,8 +183,13 @@ func Update(old, new GadgetData, rollbackDirPath string, updatePolicy UpdatePoli
 		return fmt.Errorf("cannot lay out the old volume: %v", err)
 	}
 
-	// layout new
-	pNew, err := LayoutVolume(new.RootDir, new.KernelRootDir, newVol, defaultConstraints)
+	isGadgetUpdate := old.KernelRootDir == new.KernelRootDir
+	// layout new, delay resolving content
+	constraints := defaultConstraints
+	if isGadgetUpdate {
+		constraints.SkipResolveContent = true
+	}
+	pNew, err := LayoutVolume(new.RootDir, new.KernelRootDir, newVol, constraints)
 	if err != nil {
 		return fmt.Errorf("cannot lay out the new volume: %v", err)
 	}
@@ -210,6 +216,19 @@ func Update(old, new GadgetData, rollbackDirPath string, updatePolicy UpdatePoli
 		if err := canUpdateStructure(update.from, update.to, pNew.Schema); err != nil {
 			return fmt.Errorf("cannot update volume structure %v: %v", update.to, err)
 		}
+	}
+
+	// resolve filesystem content that is needed for the update
+	kernelInfo, err := kernel.ReadInfo(new.KernelRootDir)
+	if err != nil {
+		return err
+	}
+	for _, update := range updates {
+		resolvedContent, err := resolveVolumeContent(new.RootDir, new.KernelRootDir, kernelInfo, update.to, defaultConstraints)
+		if err != nil {
+			return err
+		}
+		update.to.ResolvedContent = resolvedContent
 	}
 
 	return applyUpdates(new, updates, rollbackDirPath, observer)
