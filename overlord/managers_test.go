@@ -3937,8 +3937,12 @@ func validateInstallTasks(c *C, tasks []*state.Task, name, revno string, flags i
 	var i int
 	c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Mount snap "%s" (%s)`, name, revno))
 	i++
-	if flags&isGadget != 0 || flags&isKernel != 0 {
+	if flags&isGadget != 0 {
 		c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Update assets from gadget "%s" (%s)`, name, revno))
+		i++
+	}
+	if flags&isKernel != 0 {
+		c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Update assets from kernel "%s" (%s)`, name, revno))
 		i++
 	}
 	c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Copy snap "%s" data`, name))
@@ -3978,10 +3982,13 @@ func validateRefreshTasks(c *C, tasks []*state.Task, name, revno string, flags i
 	i++
 	c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Make current revision for snap "%s" unavailable`, name))
 	i++
-	if flags&isGadget != 0 || flags&isKernel != 0 {
+	if flags&isGadget != 0 {
 		c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Update assets from gadget %q (%s)`, name, revno))
 		i++
-
+	}
+	if flags&isKernel != 0 {
+		c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Update assets from kernel %q (%s)`, name, revno))
+		i++
 	}
 	c.Assert(tasks[i].Summary(), Equals, fmt.Sprintf(`Copy snap "%s" data`, name))
 	i++
@@ -6736,7 +6743,7 @@ volumes:
 	// this failure is expected, the auto-refresh will fail first
 	//
 	// XXX: error message is a bit misleading: gadget "pi-kernel" (pi-kernel is not a gadget)
-	c.Assert(chg.Err(), ErrorMatches, `(?ms).*Update assets from gadget "pi-kernel" \(2\) \(cannot find required kernel asset "pidtbs" in gadget\).*`)
+	c.Assert(chg.Err(), ErrorMatches, `(?ms).*Update assets from kernel "pi-kernel" \(2\) \(cannot find required kernel asset "pidtbs" in gadget\).*`)
 
 	// run the auto-refresh again, now it will succeed
 	affected, tasksets, err = snapstate.UpdateMany(context.TODO(), st, nil, 0, &snapstate.Flags{})
